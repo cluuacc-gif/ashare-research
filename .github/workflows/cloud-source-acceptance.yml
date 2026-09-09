@@ -1,0 +1,43 @@
+name: A股真实行情验收
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/cloud-source-acceptance.yml"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ashare-real-data-acceptance
+  cancel-in-progress: false
+
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: 安装依赖
+        run: python -m pip install -r requirements.txt
+
+      - name: 获取真实行情并验收
+        run: python cloud_probe.py --output cloud-output
+
+      - name: 保存数据和失败记录
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ashare-result-${{ github.run_id }}-${{ github.run_attempt }}
+          path: cloud-output/
+          if-no-files-found: warn
+          retention-days: 30
