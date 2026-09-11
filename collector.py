@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A股行情记录层 v0.2.0（Python 3.10+）。不预测、不交易、不连接预测库。
+"""A股行情记录层 v0.2.1（Python 3.10+）。不预测、不交易、不连接预测库。
 
 核心抓取仅用标准库；官方证券主表适配需要可选 akshare。公告为证据导入接口。
 所有价格为未复权价格，金额为元，成交量为股，百分比为百分数。
@@ -30,12 +30,23 @@ import urllib.request
 import uuid
 from zoneinfo import ZoneInfo
 
-VERSION = "0.2.0"
+VERSION = "0.2.1"
 TZ = ZoneInfo("Asia/Shanghai")
 APP_ID = 0x41534851
 OFFICIAL_DOMAINS = ("sse.com.cn", "szse.cn", "bse.cn", "cninfo.com.cn")
 EM_SPOT = "https://push2.eastmoney.com/api/qt/clist/get"
 EM_HIST = "https://push2his.eastmoney.com/api/qt/stock/kline/get"
+EM_SPOT_URLS = (
+    EM_SPOT,
+    "https://79.push2.eastmoney.com/api/qt/clist/get",
+    "https://17.push2.eastmoney.com/api/qt/clist/get",
+    "https://5.push2.eastmoney.com/api/qt/clist/get",
+)
+EM_HIST_URLS = (
+    EM_HIST,
+    "https://91.push2his.eastmoney.com/api/qt/stock/kline/get",
+    "https://7.push2his.eastmoney.com/api/qt/stock/kline/get",
+)
 TX_SPOT = "https://qt.gtimg.cn/q="
 TX_HIST = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
 FIELDS = ("prev_close", "open", "high", "low", "close", "pct_change",
@@ -418,39 +429,48 @@ def normalize_em_spot(row, target_date):
 
 
 def em_spot(fetcher, target_date):
-    rows, metas, expected, seen = [], [], None, set()
-    issues=[]
-    for page in range(1, 201):
-        params = {"pn":page,"pz":200,"po":1,"np":1,"fltt":2,"invt":2,"fid":"f12",
-                  "fs":"m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
-                  "fields":"f2,f3,f5,f6,f7,f8,f12,f14,f15,f16,f17,f18,f20,f21,f124"}
-        try:
-            data, meta = fetcher.json("eastmoney_spot", url_with(EM_SPOT, params))
-        except Exception as exc:
-            issues.append(str(exc)); break
-        metas.append(meta)
-        block = data.get("data") or {}
-        if "total" not in block or "diff" not in block:
-            issues.append("东方财富快照结构变化：缺total/diff"); break
-        if expected is None:
-            expected = int(block["total"])
-        elif expected != int(block["total"]):
-            issues.append("分页期间证券数量变化"); break
-        batch = block["diff"]
-        batch = list(batch.values()) if isinstance(batch, dict) else batch
-        if not batch:
-            break
-        for raw in batch:
-            code = str(raw.get("f12"))
-            if code in seen:
-                issues.append("快照分页重复"); continue
-            seen.add(code)
-            rows.append({**raw,"_snapshot":meta})
-        if len(rows) >= expected:
-            break
-    if expected is None or len(rows) != expected:
-        issues.append(f"快照分页不完整：{len(rows)}/{expected}")
-    return rows, metas, {"provider_total":expected,"pagination_complete":not issues,"issues":issues}
+    attempts=[]
+    last=([],[],{"provider_total":None,"pagination_complete":False,"issues":["尚未请求"]})
+    for base_index, base in enumerate(EM_SPOT_URLS):
+        rows, metas, expected, seen, issues = [], [], None, set(), []
+        source = f"eastmoney_spot_host_{base_index}"
+        for page in range(1, 201):
+            params = {"pn":page,"pz":200,"po":1,"np":1,"fltt":2,"invt":2,"fid":"f12",
+                      "fs":"m:0+t:6,m:0+t:80,m:1+t:2,m:1+t:23,m:0+t:81+s:2048",
+                      "fields":"f2,f3,f5,f6,f7,f8,f12,f14,f15,f16,f17,f18,f20,f21,f124"}
+            try:
+                data, meta = fetcher.json(source, url_with(base, params))
+            except Exception as exc:
+                issues.append(str(exc)); break
+            metas.append(meta)
+            block = data.get("data") or {}
+            if "total" not in block or "diff" not in block:
+                issues.append("东方财富快照结构变化：缺total/diff"); break
+            if expected is None:
+                expected = int(block["total"])
+            elif expected != int(block["total"]):
+                issues.append("分页期间证券数量变化"); break
+            batch = block["diff"]
+            batch = list(batch.values()) if isinstance(batch, dict) else batch
+            if not batch:
+                break
+            for raw in batch:
+                code = str(raw.get("f12"))
+                if code in seen:
+                    issues.append("快照分页重复"); continue
+                seen.add(code)
+                rows.append({**raw,"_snapshot":meta})
+            if len(rows) >= expected:
+                break
+        if expected is None or len(rows) != expected:
+            issues.append(f"快照分页不完整：{len(rows)}/{expected}")
+        pagination={"provider_total":expected,"pagination_complete":not issues,
+                    "issues":issues,"endpoint":base,"endpoint_attempts":attempts+[base]}
+        last=(rows,metas,pagination)
+        if pagination["pagination_complete"]:
+            return last
+        attempts.append(base)
+    return last
 
 
 def normalize_em_history(sym, data, start, end):
@@ -482,10 +502,16 @@ def em_history(fetcher, sym, start, end):
     params = {"secid":("1" if ex=="SH" else "0")+"."+code,"klt":101,"fqt":0,
               "beg":start.replace("-", ""),"end":end.replace("-", ""),"lmt":10000,
               "fields1":"f1,f2,f3,f4,f5,f6","fields2":"f51,f52,f53,f54,f55,f56,f57,f58,f59,f60,f61"}
-    data, meta = fetcher.json("eastmoney_history", url_with(EM_HIST, params))
-    rows=normalize_em_history(sym, data, start, end)
-    for row in rows: row.update(snapshot=meta,fetched_at=meta["fetched_at"])
-    return rows, meta
+    errors=[]
+    for base_index, base in enumerate(EM_HIST_URLS):
+        try:
+            data, meta = fetcher.json(f"eastmoney_history_host_{base_index}", url_with(base, params))
+            rows=normalize_em_history(sym, data, start, end)
+            for row in rows: row.update(snapshot=meta,fetched_at=meta["fetched_at"])
+            return rows, meta
+        except Exception as exc:
+            errors.append(f"{base}: {type(exc).__name__}: {exc}")
+    raise RuntimeError("东方财富历史全部公开入口失败："+" | ".join(errors))
 
 
 def normalize_tx_spot(text, target_date, errors=None):
