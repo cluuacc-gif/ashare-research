@@ -80,6 +80,38 @@ def fetch_vendor_census(fetcher, output, through):
                         "official_verified": False, "snapshot": file_record(path, output)}
 
 
+def fetch_tencent_census(fetcher, output, through):
+    """Independent public-vendor full-market census fallback."""
+    rows, metas, pagination = collector.tx_market_census(fetcher)
+    candidates = {ex: {} for ex in ("SH", "SZ", "BJ")}
+    rejected=[]
+    for row in rows:
+        try:
+            sym=collector.symbol(row["symbol"])
+            candidates[sym[-2:]][sym]={"name":str(row.get("name", "")), "list_date":None,
+                                      "discovery_basis":"tencent_current_membership_only"}
+        except (ValueError, TypeError, KeyError) as exc:
+            rejected.append(str(exc))
+    counts={ex:len(v) for ex,v in candidates.items()}
+    rates={ex:(sum(bool(v.get("name", "").strip()) for v in values.values())/len(values)
+               if values else 0.0) for ex,values in candidates.items()}
+    census_pass=(pagination.get("pagination_complete") is True
+                 and all(counts[ex]>=MARKET_COUNT_FLOORS[ex] for ex in counts)
+                 and all(rates[ex]>=0.99 for ex in counts))
+    path=output/"tencent_market_census.json"
+    write_json(path,{"candidates":candidates,"pagination":pagination,"rejected":rejected,
+                     "official_verified":False,"used_for_price_pool":False,"counts":counts,
+                     "minimum_sanity_counts":MARKET_COUNT_FLOORS,
+                     "nonempty_name_rates":rates,"census_probe_pass":census_pass})
+    return candidates,{"source":"tencent_current_market_census",
+                       "source_kind":"public_vendor_current_membership",
+                       "pagination":pagination,"counts":counts,
+                       "minimum_sanity_counts":MARKET_COUNT_FLOORS,
+                       "nonempty_name_rates":rates,"census_probe_pass":census_pass,
+                       "source_urls":[m["url"] for m in metas],"official_verified":False,
+                       "snapshot":file_record(path,output)}
+
+
 def candidate_symbols(values, limit=4):
     """Deterministic bounded probe set; selection is never an investment list."""
     symbols = sorted(values)
@@ -152,16 +184,21 @@ def main():
         # Always test an independent, fully paginated real census.  It is a
         # fallback for source availability, never an official status substitute.
         census = {ex: {} for ex in eligible}
-        try:
-            census, census_meta = fetch_vendor_census(fetcher, output, through)
-            report["market_census_sources"].append(census_meta)
-            report["files"].append(census_meta["snapshot"])
-        except Exception as exc:
-            report["market_census_sources"].append({
-                "source": "eastmoney_current_market_census", "status": "failed",
-                "error": f"{type(exc).__name__}: {exc}"[:1500],
-                "official_verified": False, "census_probe_pass": False,
-            })
+        for census_name, census_getter in (("eastmoney_current_market_census", fetch_vendor_census),
+                                            ("tencent_current_market_census", fetch_tencent_census)):
+            try:
+                discovered, census_meta = census_getter(fetcher, output, through)
+                report["market_census_sources"].append(census_meta)
+                report["files"].append(census_meta["snapshot"])
+                if census_meta["census_probe_pass"]:
+                    census=discovered
+                    break
+            except Exception as exc:
+                report["market_census_sources"].append({
+                    "source":census_name,"status":"failed",
+                    "error":f"{type(exc).__name__}: {exc}"[:1500],
+                    "official_verified":False,"census_probe_pass":False,
+                })
         # Official, sufficiently old symbols are preferred for history probes.
         # If an official endpoint is unavailable, vendor membership may only
         # select a mechanical test symbol and is explicitly labelled as such.
@@ -176,7 +213,9 @@ def main():
                 continue
             succeeded = False
             for sym in candidate_symbols(eligible[exchange]):
-                for provider_name, provider in (("eastmoney_history", collector.em_history), ("tencent_history", collector.tx_history)):
+                for provider_name, provider in (("eastmoney_history", collector.em_history),
+                                                ("tencent_history", collector.tx_history),
+                                                ("sina_history", collector.sina_history)):
                     item = {"exchange": exchange, "symbol": sym, "source": provider_name, "purpose": "technical_acceptance_only", "started_at": collector.stamp(), "source_updated_at": None}
                     item["symbol_discovery_basis"] = eligible[exchange][sym].get("discovery_basis", "official_list")
                     try:
