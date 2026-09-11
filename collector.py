@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""A股行情记录层 v0.2.1（Python 3.10+）。不预测、不交易、不连接预测库。
+"""A股行情记录层 v0.2.2（Python 3.10+）。不预测、不交易、不连接预测库。
 
 核心抓取仅用标准库；官方证券主表适配需要可选 akshare。公告为证据导入接口。
 所有价格为未复权价格，金额为元，成交量为股，百分比为百分数。
@@ -30,7 +30,7 @@ import urllib.request
 import uuid
 from zoneinfo import ZoneInfo
 
-VERSION = "0.2.1"
+VERSION = "0.2.2"
 TZ = ZoneInfo("Asia/Shanghai")
 APP_ID = 0x41534851
 OFFICIAL_DOMAINS = ("sse.com.cn", "szse.cn", "bse.cn", "cninfo.com.cn")
@@ -49,6 +49,8 @@ EM_HIST_URLS = (
 )
 TX_SPOT = "https://qt.gtimg.cn/q="
 TX_HIST = "https://web.ifzq.gtimg.cn/appstock/app/fqkline/get"
+TX_CENSUS = "https://proxy.finance.qq.com/cgi/cgi-bin/rank/hs/getBoardRankList"
+SINA_KLINE = "https://quotes.sina.cn/cn/api/jsonp_v2.php/=/CN_MarketDataService.getKLineData"
 FIELDS = ("prev_close", "open", "high", "low", "close", "pct_change",
           "volume", "amount", "turnover", "amplitude", "total_market_cap",
           "float_market_cap", "limit_up", "limit_down")
@@ -558,6 +560,49 @@ def tx_spot(fetcher, symbols, target_date):
     return result, metas
 
 
+def tx_market_census(fetcher):
+    """Tencent's paginated current A-share board, retained as raw evidence."""
+    rows, metas, expected, seen, issues = [], [], None, set(), []
+    page_size = 200
+    for offset in range(0, 20000, page_size):
+        params = {"_appver":"11.17.0","board_code":"aStock","sort_type":"price",
+                  "direct":"down","offset":str(offset),"count":str(page_size)}
+        try:
+            data, meta = fetcher.json("tencent_market_census", url_with(TX_CENSUS, params))
+        except Exception as exc:
+            issues.append(str(exc)); break
+        metas.append(meta)
+        block = data.get("data") or {}
+        batch = block.get("rank_list")
+        if "total" not in block or not isinstance(batch, list):
+            issues.append("腾讯市场清单结构变化：缺total/rank_list"); break
+        total = int(block["total"])
+        if expected is None:
+            expected = total
+        elif total != expected:
+            issues.append("分页期间证券数量变化"); break
+        if not batch:
+            break
+        for raw in batch:
+            raw_code = raw.get("code") or raw.get("stock_code") or raw.get("symbol")
+            try:
+                sym = symbol(raw_code)
+            except (ValueError, TypeError):
+                continue
+            if sym in seen:
+                continue
+            seen.add(sym)
+            rows.append({"symbol":sym,
+                         "name":str(raw.get("name") or raw.get("stock_name") or raw.get("sname") or ""),
+                         "raw":raw,"_snapshot":meta})
+        if len(rows) >= expected:
+            break
+    if expected is None or len(rows) != expected:
+        issues.append(f"腾讯市场清单分页不完整：{len(rows)}/{expected}")
+    return rows, metas, {"provider_total":expected,"pagination_complete":not issues,
+                         "issues":issues,"endpoint":TX_CENSUS}
+
+
 def tx_history(fetcher, sym, start, end):
     key = sym[-2:].lower()+sym[:6]
     params = {"param":f"{key},day,{start},{end},640,"}
@@ -580,6 +625,32 @@ def tx_history(fetcher, sym, start, end):
         # 本原始接口备用适配只取稳定OHLCV；不猜成交额/市值/历史ST。
         validate_quote(q,end)
         result.append(q)
+    return result, meta
+
+
+def sina_history(fetcher, sym, start, end):
+    """Unadjusted 240-minute bars used only as a third independent history route."""
+    key = sym[-2:].lower()+sym[:6]
+    params = {"symbol":key,"scale":"240","ma":"no","datalen":"1970"}
+    text, meta = fetcher.request("sina_history", url_with(SINA_KLINE, params))
+    match = re.search(r"=\((.*)\);?\s*$", text, re.S)
+    if not match:
+        raise ValueError("新浪K线JSONP结构变化")
+    data = json.loads(match.group(1))
+    if not isinstance(data, list):
+        raise ValueError("新浪K线不是列表")
+    result=[]
+    for values in data:
+        day = date_value(str(values.get("day") or values.get("date") or "")[:10])
+        if not start <= day <= end:
+            continue
+        q={k:number(values.get(k)) for k in ("open","high","low","close","volume","amount")}
+        q.update(symbol=sym,trade_date=day,source="sina_history",fetched_at=meta["fetched_at"],
+                 snapshot=meta,finality="historical_provider")
+        validate_quote(q,end)
+        result.append(q)
+    if not result:
+        raise ValueError("新浪没有返回目标区间未复权日线")
     return result, meta
 
 
