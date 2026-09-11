@@ -13,6 +13,9 @@ on:
       - cloud_probe.py
       - collector.py
       - import_probe_artifact.py
+      - close_snapshot.py
+      - short_term.py
+      - test_short_term.py
       - requirements.txt
       - .github/workflows/cloud-source-acceptance.yml
 
@@ -36,6 +39,8 @@ jobs:
           python-version: '3.12'
       - name: Install collector dependencies
         run: python -m pip install -r requirements.txt
+      - name: Isolated execution-contract unit tests (not market observations)
+        run: python -m unittest -v test_short_term.py
       - name: Read official master and real 250-bar histories
         env:
           REQUESTED_THROUGH: ${{ inputs.through }}
@@ -46,6 +51,20 @@ jobs:
             args+=(--through "$REQUESTED_THROUGH")
           fi
           python cloud_probe.py "${args[@]}"
+      - name: Collect timestamped current full-census close quotes
+        if: always()
+        shell: bash
+        run: |
+          if [ -f cloud-output/source_acceptance.json ]; then
+            python close_snapshot.py --source-dir cloud-output
+          fi
+      - name: Validate new features against real history observations
+        if: always()
+        shell: bash
+        run: |
+          if [ -f cloud-output/source_acceptance.json ]; then
+            python short_term.py audit-source --source-dir cloud-output --output cloud-output/short-term-audit
+          fi
       - name: Preserve actual responses and failure evidence
         if: always()
         uses: actions/upload-artifact@v4
