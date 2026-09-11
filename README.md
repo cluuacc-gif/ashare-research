@@ -44,3 +44,11 @@
 - https://docs.github.com/en/actions/how-tos/manage-workflow-runs/download-workflow-artifacts
 - https://github.com/actions/upload-artifact
 - https://akshare.akfamily.xyz/data/stock/stock.html
+
+## 2026-09-11 超短线条件单研究升级
+
+新增 [执行研究说明](SHORT_TERM_RESEARCH.md)、`short_term.py`、`close_snapshot.py` 和隔离工程测试。目标改为下一交易日条件买入，最早在买入后的下一交易日卖出，第二个交易日触发时间退出；统计买入后涨停及扣费后净盈利，不把当天已涨停/触发但未成交记成收益。
+
+`80%` 是待验证目标，不是保证或硬填概率。本模块尚未训练策略模型；只有完整真实数据和独立样本外成交/成本证据通过才可给具体条件单价位。缺口保留为 `DATA NOT READY`，原预测数据库保持不变。
+
+云端验收新增全市场带时间戳的当日盘后报价和真实历史特征计算，实际取得数量以对应Actions的 `daily_snapshot/data_quality.json` 与 `short-term-audit/short_term_audit.json` 为准。工程测试通过不等于行情完整或80%胜率通过；自动18:00跨日交接仍须独立部署验收。
