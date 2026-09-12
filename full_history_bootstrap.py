@@ -36,6 +36,9 @@ def verified_seed(root):
             original_histories[item["symbol"]] = json.loads(files[item["normalized_ref"]])
     return report, securities, original_histories
 
+def complete_bars(rows):
+    return sum(all(r.get(k) is not None for k in ("open","high","low","close","volume")) for r in rows)
+
 def compact_rows(rows):
     return [[r.get(k) for k in FIELDS] for r in rows]
 
@@ -103,9 +106,9 @@ def run(seed, output, part, parts, minutes):
                     rows.sort(key=lambda r:r["trade_date"])
                     for r in rows: c.validate_quote(r,end)
                     attempt.update(status="retrieved",bars=len(rows),latest_date=rows[-1]["trade_date"])
-                    if chosen is None or len(rows)>len(chosen):
+                    if chosen is None or complete_bars(rows)>complete_bars(chosen):
                         chosen=rows
-                    if len(rows)>=250:
+                    if complete_bars(rows)>=250:
                         item["attempts"].append(attempt)
                         break
                 except Exception as exc:
@@ -125,7 +128,7 @@ def run(seed, output, part, parts, minutes):
             target.parent.mkdir(parents=True,exist_ok=True)
             with gzip.open(target,"wt",encoding="utf-8") as f:
                 json.dump(payload,f,ensure_ascii=False,allow_nan=False,separators=(",",":"))
-            item.update(status="history_250_retrieved" if len(chosen)>=250 else "insufficient_history",
+            item.update(status="history_250_retrieved" if complete_bars(chosen)>=250 else "insufficient_history",
                         bars=len(chosen),ohlcv_bars=sum(all(r.get(k) is not None for k in ("open","high","low","close","volume")) for r in chosen),
                         amount_bars=sum(r.get("amount") is not None for r in chosen),
                         earliest_date=chosen[0]["trade_date"],latest_date=chosen[-1]["trade_date"],
