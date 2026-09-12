@@ -24,11 +24,12 @@ GROUPS={"price":["close"],"returns":["ret1","ret3","ret5","ret10","ret20","ret60
         "volume":["volume_ratio5","volume_ratio20"],"range_volatility":["range","gap","volatility20"]}
 
 def build_frame(index):
-    frames=[]
+    frames=[];observed_dates=set()
     for item in index["items"]:
         if item["ohlcv_bars"]<250: continue
         payload=json.loads(gzip.decompress(Path(item["normalized_local_path"]).read_bytes()))
         d=pd.DataFrame(payload["rows"],columns=payload["fields"]).sort_values("trade_date")
+        observed_dates.update(d.trade_date.tolist())
         for col in ("open","high","low","close","volume"):
             d[col]=pd.to_numeric(d[col],errors="coerce")
         x=pd.DataFrame({"symbol":item["symbol"],"date":d.trade_date,"close":d.close})
@@ -46,7 +47,11 @@ def build_frame(index):
         x=x.replace([np.inf,-np.inf],np.nan).dropna(subset=FEATURES+["forward_return"])
         frames.append(x)
     if not frames: return pd.DataFrame()
-    return pd.concat(frames,ignore_index=True).sort_values(["date","symbol"]).reset_index(drop=True)
+    panel=pd.concat(frames,ignore_index=True)
+    observed=sorted(observed_dates)
+    next_observed=dict(zip(observed[:-1],observed[1:]))
+    panel=panel[panel.outcome_date==panel.date.map(next_observed)]
+    return panel.sort_values(["date","symbol"]).reset_index(drop=True)
 
 def wilson(k,n):
     if not n: return None
@@ -98,7 +103,7 @@ def run(index_path,output):
             "P3b":{"status":"not_evaluable","reason":"historical official limit prices/status unavailable"},
             "limitations":["Current surviving vendor census is not a historical full-market point-in-time universe.",
                "Historical ST, suspension, delisting, corporate actions and complete exchange sessions remain unverified.",
-               "Next observed bar may follow a suspension; this is not certified next-exchange-session labeling.",
+               "Labels require the next date observed across the collected market panel; this calendar is not exchange-certified.",
                "P1/P2 raw close-return research does not evaluate conditional fills, fees, slippage or E+1/E+2 net profit.",
                "Sector, events, funds and official daily limit prices are unavailable; no full-factor model was trained.",
                "Only one prespecified exploratory price/volume model is tested; no daily Top10 or probabilities are published.",
@@ -188,7 +193,7 @@ def run(index_path,output):
     for label,q in result["endpoints"].items():
         if "calibrated" in q:lines.append("| "+label+" | "+format(q["calibrated"]["brier"],".5f")+" | "+format(q["calibration_block_constant_baseline"]["brier"],".5f")+" | "+format(q["calibrated"]["calibration_bias"],".5f")+" |")
     lines+=["","P3a/P3b缺历史官方限价，不能验证。条件单成交、持有E+1/E+2的费用与滑点缺少执行证据，80%净盈利目标未通过。",
-            "当前名单存在幸存者偏差，停牌后的下一条日线不一定是下一交易所交易日；此结果只能说明有限历史面板的探索性表现。",
+            "当前名单存在幸存者偏差，标签已剔除跨越全观察面板交易日期的停牌间隔，但该日期集合仍未经交易所完整校验；此结果只用于探索。",
             "20/60/120/250窗口为历史留出测试，正式前瞻交易日仍为0，二者不混记。",
             "5个百分点分箱、Wilson描述区间、按日期聚类区间、Brier、变量分组置换和Holm多重比较校正在JSON中。",""]
     (out/"A股真实样本模型验证.md").write_text("\n".join(lines),encoding="utf-8")
