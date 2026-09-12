@@ -1,0 +1,113 @@
+name: A股全池真实历史回填与时间外验证
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - full_history_bootstrap.py
+      - verify_full_history.py
+      - validate_history_model.py
+      - .github/workflows/full-history-bootstrap.yml
+permissions:
+  contents: read
+concurrency:
+  group: ashare-full-history-bootstrap
+  cancel-in-progress: false
+jobs:
+  control:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: Compile and enforce existing research gates
+        run: |
+          python -m py_compile full_history_bootstrap.py verify_full_history.py validate_history_model.py
+          python -m unittest -v test_short_term test_two_stage
+  collect:
+    needs: control
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        part: [0, 1, 2, 3, 4, 5, 6, 7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: Restore frozen real 2026-09-11 seed
+        uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 34592999108
+          name: ashare-source-acceptance-34592999108-1
+          path: seed
+      - name: Fetch bounded real unadjusted histories
+        run: python -u full_history_bootstrap.py --seed seed --output history-part-${{ matrix.part }} --part ${{ matrix.part }} --parts 8 --minutes 50
+      - name: Preserve this partition and its source evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ashare-history-part-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.part }}
+          path: history-part-${{ matrix.part }}
+          if-no-files-found: error
+          retention-days: 90
+  validate:
+    needs: [control, collect]
+    if: ${{ always() && needs.control.result == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    permissions:
+      actions: read
+      contents: write
+    env:
+      OMP_NUM_THREADS: "2"
+      OPENBLAS_NUM_THREADS: "2"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: |
+          python -m pip install -r requirements.txt
+          python -m pip install scikit-learn==1.7.2 pyarrow==21.0.0 joblib==1.5.2
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 34592999108
+          name: ashare-source-acceptance-34592999108-1
+          path: seed
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ashare-history-part-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: parts
+      - name: Independently replay all raw history responses
+        run: python -u verify_full_history.py --seed seed --parts parts --output verification
+      - name: Calculate actual chronological model diagnostics
+        run: python -u validate_history_model.py --index verification/verified_history_index.json --output verification
+      - name: Preserve validation report regardless of pass or failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ashare-full-history-validation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: verification
+          if-no-files-found: warn
+          retention-days: 90
+      - name: Preserve immutable public-source evidence beyond artifact retention
+        if: ${{ always() && hashFiles('verification/history_quality.json') != '' }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: bootstrap-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          tar -czf real-history-evidence.tar.gz parts verification
+          sha256sum real-history-evidence.tar.gz > real-history-evidence.sha256
+          gh release create "$RELEASE_TAG" real-history-evidence.tar.gz real-history-evidence.sha256 verification/history_quality.json --target "$GITHUB_SHA" --title "真实历史回填证据 $RELEASE_TAG" --notes "仅为真实行情证据与探索性验证。请读取质量报告，工作流成功不等于 DATA READY、正式模型通过或80%胜率。未修改原行情库、预测库和唯一交接文件。"
+          gh release upload "$RELEASE_TAG" verification/model_validation.json
