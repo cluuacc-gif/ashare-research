@@ -1,0 +1,26 @@
+name: 原库与交接身份保护验证
+on:
+  push:
+    branches: [main]
+    paths:
+      - import_full_history.py
+      - prepare_history_handoff.py
+      - test_history_handoff.py
+      - .github/workflows/history-handoff-safety.yml
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - name: Test identity and non-promotion gates on isolated temporary metadata
+        run: |
+          python -m py_compile import_full_history.py prepare_history_handoff.py
+          python -m unittest -v test_history_handoff
