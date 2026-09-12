@@ -259,6 +259,19 @@ def main():
             raise ValueError("数据库完整性异常")
     finally:
         db.close()
+    # A transferred SQLite file must be self-contained. Do not export only the
+    # main file while an uncheckpointed WAL still holds committed observations.
+    sealed = sqlite3.connect(args.db)
+    try:
+        checkpoint = sealed.execute("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+        if checkpoint[0] != 0:
+            raise ValueError("WAL仍被占用，拒绝导出半完成数据库")
+        mode = sealed.execute("PRAGMA journal_mode=DELETE").fetchone()[0]
+        if mode != "delete" or sealed.execute("PRAGMA integrity_check").fetchone()[0] != "ok":
+            raise ValueError("数据库归档校验失败")
+    finally:
+        sealed.close()
+    summary["archive_journal_mode"] = "delete"
     summary["db_sha256"] = sha(args.db.read_bytes())
     print(json.dumps(summary, ensure_ascii=False))
 
