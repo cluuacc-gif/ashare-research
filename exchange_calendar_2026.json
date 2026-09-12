@@ -1,0 +1,22 @@
+{
+  "schema_version": "1.0",
+  "year": 2026,
+  "timezone": "Asia/Shanghai",
+  "verified_on": "2026-09-12",
+  "regular_sessions": "Monday through Friday excluding exchange closures",
+  "closed_ranges": [
+    ["2026-01-01", "2026-01-03"],
+    ["2026-02-15", "2026-02-23"],
+    ["2026-04-04", "2026-04-06"],
+    ["2026-05-01", "2026-05-05"],
+    ["2026-06-19", "2026-06-21"],
+    ["2026-09-25", "2026-09-27"],
+    ["2026-10-01", "2026-10-07"]
+  ],
+  "sources": [
+    {"exchange": "SH", "published_at": "2025-12-22", "title": "关于上海证券交易所2026年部分节假日休市安排的通知", "url": "https://www.sse.com.cn/disclosure/announcement/general/c/c_20251222_10802507.shtml", "retrieval_basis": "official webpage opened and annual closure ranges checked"},
+    {"exchange": "SZ", "published_at": "2025-12-22", "title": "关于2026年部分节假日休市安排的通知", "document_number": "深证会〔2025〕481号", "url": "https://www.szse.cn/disclosure/notice/t20251222_618087.html", "retrieval_basis": "official source full article returned by search; annual ranges checked"},
+    {"exchange": "BJ", "published_at": "2025-12-22", "title": "关于2026年部分节假日休市安排的公告", "document_number": "北证公告〔2025〕58号", "url": "https://www.bse.cn/important_news/200027428.html", "retrieval_basis": "official source full article returned by search; direct webpage retrieval failed; annual ranges checked"}
+  ],
+  "limits": "2026 annual calendar only. Check new emergency closure announcements each run. An unverified later year must block collection and formal research until refreshed."
+}

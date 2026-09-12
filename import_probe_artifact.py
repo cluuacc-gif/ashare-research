@@ -35,7 +35,7 @@ def verify(artifact):
                 raise ValueError("不安全的归档路径")
         data = {i.filename: archive.read(i) for i in info if not i.is_dir()}
     report = json.loads(data["source_acceptance.json"])
-    if report.get("mode") != "diagnostic/source_probe":
+    if report.get("mode") not in ("diagnostic/source_probe", "diagnostic/evening_collection"):
         raise ValueError("非预期真实源探针产物")
     if report.get("collector_sha256") != sha((ROOT / "collector.py").read_bytes()):
         raise ValueError("采集器版本不一致，须审查后使用对应版本重放")
