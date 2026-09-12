@@ -19,8 +19,15 @@ def capture(source_dir):
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     day = manifest["calendar_upper_bound"]
     started = collector.stamp()
-    if day != collector.now().date().isoformat() or collector.now().time() < dt.time(15, 10):
-        raise ValueError("current quote interface only usable for today's closed session")
+    if day != collector.now().date().isoformat():
+        result = {"mode": "diagnostic/capture_skipped", "data_status": "DATA NOT READY",
+                  "target_date": day, "generated_at": collector.stamp(),
+                  "reason": "Current-quote interface is not an archival endpoint; preserved historical artifact remains separate.",
+                  "new_quote_count": 0, "production_database_written": False}
+        write_json(root/"current_capture_skipped.json", result)
+        return result
+    if collector.now().time() < dt.time(15, 10):
+        raise ValueError("today's session has not closed")
     target = root/"daily_snapshot"
     if target.exists() and any(target.iterdir()):
         raise ValueError("refusing to overwrite a prior collection")
