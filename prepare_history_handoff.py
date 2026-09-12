@@ -28,7 +28,7 @@ def run(handoff,expected,quality,model,task_state,output):
     if previous:current.setdefault("previous_attempts",[]).append(previous)
     db=current["resources"].get("latest_market_database") or previous["market_db"]
     end=q["target_date"]
-    next_day=trade_calendar.next_session(end)
+    next_day=trade_calendar.adjacent(end,1)
     stamp=c.stamp()
     blockers=["云端回填证据尚未合并并同身份保存到当前原行情库",
               "官方全市场历史主表/状态/逐日限价和时点复权仍不足",
