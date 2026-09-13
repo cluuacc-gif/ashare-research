@@ -1,0 +1,86 @@
+name: Preserve real history for verified import and probe missing amount
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/history-import-transport.yml, probe_history_amount.py]
+permissions:
+  contents: read
+concurrency:
+  group: ashare-history-import-transport
+  cancel-in-progress: false
+jobs:
+  preserve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Retrieve existing immutable public-source evidence
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download bootstrap-evidence-34677204472-1 --pattern real-history-evidence.tar.gz --dir "$RUNNER_TEMP/history-download"
+          printf '%s  %s\n' b89e332051ed5c43e4d93e2a4d0ebcff480fa24a2c24350b9136c99df2cbfbc0 "$RUNNER_TEMP/history-download/real-history-evidence.tar.gz" | sha256sum --check -
+      - name: Preserve byte-identical public evidence in an immutable data branch
+        env:
+          EVIDENCE_BRANCH: data/history-34677204472-1
+        run: |
+          git worktree add --detach "$RUNNER_TEMP/history-data" HEAD
+          git -C "$RUNNER_TEMP/history-data" switch --orphan "$EVIDENCE_BRANCH"
+          python - <<'PY'
+          import datetime,hashlib,json,os
+          from pathlib import Path
+          source=Path(os.environ['RUNNER_TEMP'])/'history-download/real-history-evidence.tar.gz'
+          root=Path(os.environ['RUNNER_TEMP'])/'history-data'
+          chunkdir=root/'chunks'
+          chunkdir.mkdir()
+          entries=[]
+          with source.open('rb') as f:
+              i=0
+              while block:=f.read(512*1024):
+                  p=chunkdir/f'{i:04d}.bin'
+                  p.write_bytes(block)
+                  entries.append({'path':str(p.relative_to(root)),'bytes':len(block),'sha256':hashlib.sha256(block).hexdigest()})
+                  i+=1
+          report={'schema_version':'1.0','kind':'byte_identical_public_history_evidence','original_run_id':34677204472,'original_archive':'real-history-evidence.tar.gz','archive_sha256':'b89e332051ed5c43e4d93e2a4d0ebcff480fa24a2c24350b9136c99df2cbfbc0','archive_bytes':source.stat().st_size,'created_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'files':entries,'production_database_written':False,'data_status':'DATA NOT READY'}
+          (root/'index.json').write_text(json.dumps(report,ensure_ascii=False,indent=2)+'\n')
+          (root/'README.md').write_text('Immutable copy of previously public market evidence. Binary chunks reassemble in index order and must match archive SHA256. No user database, credentials or forecasts are included. DATA NOT READY.\n')
+          print(json.dumps({k:v for k,v in report.items() if k!='files'}))
+          PY
+          git -C "$RUNNER_TEMP/history-data" config user.name ashare-research-bot
+          git -C "$RUNNER_TEMP/history-data" config user.email ashare-research-bot@users.noreply.github.com
+          git -C "$RUNNER_TEMP/history-data" add chunks index.json README.md
+          git -C "$RUNNER_TEMP/history-data" commit -m "Preserve immutable real-history bytes for authenticated Git blob import"
+          git -C "$RUNNER_TEMP/history-data" push origin "$EVIDENCE_BRANCH"
+  amount-probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - run: python -u probe_history_amount.py --output amount-probe
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ashare-history-amount-probe-${{ github.run_id }}-${{ github.run_attempt }}
+          path: amount-probe
+          retention-days: 90
+      - name: Publish factual probe summary
+        if: ${{ always() && hashFiles('amount-probe/probe.json') != '' }}
+        run: |
+          mkdir -p reports/history-amount-probe
+          cp amount-probe/probe.json reports/history-amount-probe/latest.json
+          git config user.name ashare-research-bot
+          git config user.email ashare-research-bot@users.noreply.github.com
+          git add reports/history-amount-probe/latest.json
+          git commit -m "Record real bounded history amount probe"
+          git pull --rebase origin main
+          git push origin HEAD:main
