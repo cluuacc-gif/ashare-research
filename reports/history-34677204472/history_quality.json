@@ -1,0 +1,69 @@
+{
+  "schema_version": "1.0",
+  "kind": "full_history_replay_acceptance",
+  "target_date": "2026-09-11",
+  "generated_at": "2026-09-12T14:36:51.765335+08:00",
+  "github_run_id": "34677204472",
+  "commit_sha": "3abc4f8d34f736d242a0776f717b68a2789c7ecc",
+  "seed_run_id": "34592999108",
+  "vendor_universe": 5562,
+  "official_universe": null,
+  "attempted_symbols": 5562,
+  "verified_history_symbols": 5562,
+  "history_250_symbols": 5400,
+  "history_250_vendor_coverage": 0.970873786407767,
+  "history_250_latest_at_target": 5388,
+  "total_real_bars": 3070573,
+  "amount_available_bars": 0,
+  "markets": {
+    "SZ": {
+      "securities": 2901,
+      "bars": 1621825,
+      "history_250": 2858,
+      "latest_250": 2853
+    },
+    "SH": {
+      "securities": 2318,
+      "bars": 1291075,
+      "history_250": 2270,
+      "latest_250": 2263
+    },
+    "BJ": {
+      "securities": 343,
+      "bars": 157673,
+      "history_250": 272,
+      "latest_250": 272
+    }
+  },
+  "actual_providers": {
+    "tencent_history": 5219,
+    "sina_history": 343
+  },
+  "partitions_received": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7
+  ],
+  "pending_symbols": [],
+  "failures": [],
+  "raw_replay_verified": true,
+  "all_250_vendor_bars_complete": false,
+  "bootstrap_complete": false,
+  "data_status": "DATA NOT READY",
+  "model_ready": false,
+  "production_database_written": false,
+  "unique_handoff_updated": false,
+  "limitations": [
+    "Vendor census is not a certified official point-in-time universe.",
+    "Newly listed, suspended and stale histories are retained without invented bars.",
+    "Historical exchange session calendars, corporate actions, statuses and official limit prices are not complete.",
+    "Industry, event and intraday execution evidence is not present in daily OHLCV.",
+    "Raw-history acceptance does not authorize any formal probability or 80% win-rate claim.",
+    "Original market/prediction database identities and original handoff are unchanged by this artifact job."
+  ]
+}
