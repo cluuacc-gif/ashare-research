@@ -1,0 +1,31 @@
+name: 保存真实历史验收报告
+on:
+  push:
+    branches: [main]
+    paths: [.github/workflows/publish-history-reports.yml]
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  preserve:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 34677204472
+          name: ashare-full-history-validation-34677204472-1
+          path: verified-report-source
+      - name: Preserve original JSON and Markdown bytes in the repository
+        run: |
+          mkdir -p reports/history-34677204472
+          cp verified-report-source/history_quality.json verified-report-source/model_validation.json reports/history-34677204472/
+          find verified-report-source -maxdepth 1 -name '*.md' -exec cp {} reports/history-34677204472/ \;
+          git config user.name "ashare-research-bot"
+          git config user.email "ashare-research-bot@users.noreply.github.com"
+          git add reports/history-34677204472
+          git diff --cached --quiet || git commit -m "Preserve original full-history quality and chronological model results"
+          git push origin HEAD:main
