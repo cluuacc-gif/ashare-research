@@ -25,11 +25,19 @@ def inventory(db_path):
         counts = db.execute("SELECT symbol,COUNT(*) AS n,MAX(trade_date) AS latest FROM daily_quotes WHERE open>0 AND high>0 AND low>0 AND close>0 AND volume IS NOT NULL GROUP BY symbol").fetchall()
         by_symbol = {r["symbol"]: dict(r) for r in counts}
         symbols = [r[0] for r in db.execute("SELECT symbol FROM security_master ORDER BY symbol")]
+        progress = {r["symbol"]: r["status"] for r in db.execute("SELECT symbol,status FROM backfill_progress ORDER BY end_date,last_attempt_at")}
+        missing = [s for s in symbols if by_symbol.get(s, {}).get("n", 0) < 250]
+        # A genuine short history already captured once receives daily increments.
+        # It must not trigger another full 250-day download every evening.
+        pending = [s for s in missing if progress.get(s) not in ("insufficient_history", "completed")]
+        inconsistencies = [s for s in missing if progress.get(s) == "completed"]
         return {"sha256": digest(path), "securities": len(symbols),
                 "daily_rows": db.execute("SELECT COUNT(*) FROM daily_quotes").fetchone()[0],
                 "latest_date": db.execute("SELECT MAX(trade_date) FROM daily_quotes").fetchone()[0],
                 "history_250_symbols": sum(v["n"] >= 250 for v in by_symbol.values()),
-                "missing_250_symbols": [s for s in symbols if by_symbol.get(s, {}).get("n", 0) < 250]}
+                "missing_250_symbols": missing, "bootstrap_pending_symbols": pending,
+                "captured_short_history_symbols": [s for s in missing if progress.get(s) == "insufficient_history"],
+                "history_checkpoint_conflicts": inconsistencies}
     finally:
         db.close()
 
@@ -43,7 +51,7 @@ def evening_request(db_path, at, limit=1000):
         raise ValueError("bounded bootstrap batch required")
     inv = inventory(db_path)
     # Exchange round-robin, never a stock recommendation or price-biased list.
-    groups = {ex: iter([s for s in inv["missing_250_symbols"] if s.endswith(ex)]) for ex in ("SH", "SZ", "BJ")}
+    groups = {ex: iter([s for s in inv["bootstrap_pending_symbols"] if s.endswith(ex)]) for ex in ("SH", "SZ", "BJ")}
     selected = []
     while groups and len(selected) < limit:
         for ex in list(groups):
@@ -57,7 +65,9 @@ def evening_request(db_path, at, limit=1000):
             "request_id": "evening-"+at.strftime("%Y%m%dT%H%M%S"),
             "target_date": at.date().isoformat(), "requested_at": at.isoformat(),
             "market_database_sha256_before": inv["sha256"],
-            "bootstrap_symbols": selected, "bootstrap_policy": "only symbols with fewer than 250 observed OHLCV bars; raw history, not model training",
+            "bootstrap_symbols": selected, "bootstrap_policy": "only missing/failed uncaptured histories; captured short histories receive daily increments instead of repeated full backfills",
+            "captured_short_histories_skipped": len(inv["captured_short_history_symbols"]),
+            "history_checkpoint_conflicts": inv["history_checkpoint_conflicts"],
             "formal_prediction": False}
 
 
@@ -71,10 +81,12 @@ def morning_check(handoff_path, db_path, day, at):
     if not cal["is_session"]:
         result["mode"] = "skip/market_closed"
         return result
+    if c.timestamp(at).date().isoformat() != day:
+        result["blockers"].append("generation_date_differs_from_prediction_date")
     expected = adjacent(day, -1)
     result["base_date_required"] = expected
     inv = inventory(db_path)
-    result["inventory"] = {k: v for k, v in inv.items() if k != "missing_250_symbols"}
+    result["inventory"] = {k: v for k, v in inv.items() if k not in ("missing_250_symbols", "bootstrap_pending_symbols", "captured_short_history_symbols")}
     current_ref = handoff.get("latest_attempt", {}).get("market_db") or handoff.get("resources", {}).get("latest_market_database", {})
     if current_ref.get("sha256") != inv["sha256"]:
         result["blockers"].append("current_database_hash_does_not_match_handoff")

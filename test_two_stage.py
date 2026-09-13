@@ -55,10 +55,21 @@ class CalendarTest(unittest.TestCase):
 
     def test_evening_request_enumerates_markets_without_duplicates(self):
         # Control-flow fixture only, no quote values and no database writes.
-        inv = {"sha256": "a"*64, "missing_250_symbols": ["600000.SH", "000001.SZ", "920000.BJ"]}
+        inv = {"sha256": "a"*64, "missing_250_symbols": ["600000.SH", "000001.SZ", "920000.BJ"],
+               "bootstrap_pending_symbols": ["600000.SH", "000001.SZ", "920000.BJ"],
+               "captured_short_history_symbols": [], "history_checkpoint_conflicts": []}
         with patch("two_stage.inventory", return_value=inv):
             result = two_stage.evening_request("unused", "2026-09-14T18:00:00+08:00")
         self.assertEqual(result["bootstrap_symbols"], inv["missing_250_symbols"])
+
+    def test_captured_short_histories_do_not_trigger_repeated_backfill(self):
+        inv = {"sha256": "a"*64, "missing_250_symbols": ["600000.SH", "000001.SZ"],
+               "bootstrap_pending_symbols": ["000001.SZ"],
+               "captured_short_history_symbols": ["600000.SH"], "history_checkpoint_conflicts": []}
+        with patch("two_stage.inventory", return_value=inv):
+            result = two_stage.evening_request("unused", "2026-09-14T18:00:00+08:00")
+        self.assertEqual(result["bootstrap_symbols"], ["000001.SZ"])
+        self.assertEqual(result["captured_short_histories_skipped"], 1)
 
 
 if __name__ == "__main__":
