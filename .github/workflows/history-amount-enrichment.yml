@@ -1,0 +1,84 @@
+name: Enrich genuinely missing historical amount
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [.github/workflows/history-amount-enrichment.yml]
+permissions:
+  contents: read
+concurrency:
+  group: ashare-history-amount-enrichment
+  cancel-in-progress: false
+jobs:
+  amount:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        part: [0,1,2,3,4,5,6,7]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install -r requirements.txt
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: 34592999108
+          name: ashare-source-acceptance-34592999108-1
+          path: seed
+      - run: python -u enrich_history_amount.py --seed seed --output amount-part-${{ matrix.part }} --part ${{ matrix.part }} --parts 8 --minutes 40
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ashare-amount-part-${{ github.run_id }}-${{ github.run_attempt }}-${{ matrix.part }}
+          path: amount-part-${{ matrix.part }}
+          retention-days: 90
+          if-no-files-found: error
+  preserve:
+    needs: amount
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: ashare-amount-part-${{ github.run_id }}-${{ github.run_attempt }}-*
+          path: amount-parts
+      - name: Preserve successful and partial responses with explicit coverage
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: amount-evidence-${{ github.run_id }}-${{ github.run_attempt }}
+        run: |
+          python - <<'PY'
+          import json,datetime,os,hashlib
+          from pathlib import Path
+          summaries=[json.loads(p.read_text()) for p in Path('amount-parts').rglob('amount_part.json')]
+          results={};duplicates=[]
+          for s in summaries:
+              for sym,v in s['results'].items():
+                  if sym in results:duplicates.append(sym)
+                  results[sym]=v
+          d={'kind':'diagnostic/history_amount_enrichment','generated_at':datetime.datetime.now(datetime.timezone.utc).isoformat(),'github_run_id':os.environ['GITHUB_RUN_ID'],'data_status':'DATA NOT READY','model_ready':False,'raw_replay_pending':True,'parts_received':[s['part'] for s in summaries],'attempted_symbols':len(results),'history_250_amount_symbols':sum(x.get('amount_bars',0)>=250 for x in results.values()),'amount_bars':sum(x.get('amount_bars',0) for x in results.values()),'failed_symbols':[s for s,x in results.items() if x.get('status')!='retrieved'],'pending_symbols':sorted({x for s in summaries for x in s['pending_symbols']}),'duplicate_symbols':duplicates,'production_database_written':False}
+          Path('amount_quality.json').write_text(json.dumps(d,ensure_ascii=False,indent=2)+'\n')
+          print(json.dumps(d,ensure_ascii=False))
+          PY
+          tar -czf real-amount-evidence.tar.gz amount-parts amount_quality.json
+          sha256sum real-amount-evidence.tar.gz > real-amount-evidence.sha256
+          gh release create "$RELEASE_TAG" real-amount-evidence.tar.gz real-amount-evidence.sha256 amount_quality.json --target "$GITHUB_SHA" --title "历史成交额真实来源证据 $RELEASE_TAG" --notes "Missing-field enrichment only; source replay and original-database import remain independent gates. DATA NOT READY."
+          mkdir -p reports/history-amount-enrichment
+          cp amount_quality.json reports/history-amount-enrichment/latest.json
+          git config user.name ashare-research-bot
+          git config user.email ashare-research-bot@users.noreply.github.com
+          git add reports/history-amount-enrichment/latest.json
+          git commit -m "Preserve actual missing amount acquisition counts"
+          git pull --rebase origin main
+          git push origin HEAD:main
