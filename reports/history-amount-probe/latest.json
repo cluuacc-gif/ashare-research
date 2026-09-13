@@ -1,0 +1,55 @@
+{
+  "kind": "diagnostic/real_history_amount_source_probe",
+  "generated_at": "2026-09-13T09:09:44.638954+08:00",
+  "target_date": "2026-09-11",
+  "github_run_id": "34729810608",
+  "securities": [
+    {
+      "symbol": "600000.SH",
+      "started_at": "2026-09-13T09:09:44.638985+08:00",
+      "status": "retrieved",
+      "bars": 556,
+      "amount_bars": 556,
+      "first_date": "2024-06-03",
+      "last_date": "2026-09-11",
+      "source_url": "https://finance.sina.com.cn/realstock/company/sh600000/hisdata_klc2/klc_kl.js",
+      "raw_sha256": "deb2be6a0b1f2fde973000f83b206281a3818e555a19ad2340646dd392b4f60c",
+      "normalized_sha256": "f680eec5884693876c9354066208423e544256f8bed6a8923c92d6cca90776e5",
+      "fetched_at": "2026-09-13T09:09:46.704300+08:00",
+      "finished_at": "2026-09-13T09:09:46.904395+08:00"
+    },
+    {
+      "symbol": "000001.SZ",
+      "started_at": "2026-09-13T09:09:46.904589+08:00",
+      "status": "retrieved",
+      "bars": 556,
+      "amount_bars": 556,
+      "first_date": "2024-06-03",
+      "last_date": "2026-09-11",
+      "source_url": "https://finance.sina.com.cn/realstock/company/sz000001/hisdata_klc2/klc_kl.js",
+      "raw_sha256": "843442b632218fcf9afb8ee2f5489a7a6950e88a3d45ca17be9ca4fe5a731297",
+      "normalized_sha256": "31e8b077c1d1dff383b4b826f79b6cc9f369762e953a94a101da575c50aed0f7",
+      "fetched_at": "2026-09-13T09:09:47.431542+08:00",
+      "finished_at": "2026-09-13T09:09:47.699068+08:00"
+    },
+    {
+      "symbol": "920000.BJ",
+      "started_at": "2026-09-13T09:09:47.699265+08:00",
+      "status": "retrieved",
+      "bars": 556,
+      "amount_bars": 556,
+      "first_date": "2024-06-03",
+      "last_date": "2026-09-11",
+      "source_url": "https://finance.sina.com.cn/realstock/company/bj920000/hisdata_klc2/klc_kl.js",
+      "raw_sha256": "1b8f8b1f354bbe717192bce0d47b9d3be09bf8320db966555226181b4b14de87",
+      "normalized_sha256": "7a9a8c9c9d6002100be58470f336e8010bf4c9af66dc43e83192f7a6b63ed64f",
+      "fetched_at": "2026-09-13T09:09:48.805397+08:00",
+      "finished_at": "2026-09-13T09:09:48.871749+08:00"
+    }
+  ],
+  "production_database_written": false,
+  "data_status": "DATA NOT READY",
+  "scope": "three interface test securities, not a watchlist",
+  "finished_at": "2026-09-13T09:09:48.871957+08:00",
+  "all_three_250_with_amount": true
+}
