@@ -1,0 +1,24 @@
+{
+  "schema_version": "1.0",
+  "kind": "verified_public_quote_transport",
+  "base_trade_date": "2026-09-18",
+  "github_run_id": "35355400468",
+  "github_commit": "37d57a2ad57678f0486a45e04b4371bdd81f3140",
+  "archive_sha256": "c411890e08f73cc45f3700dac9e75addea0e75e2ebca248a3294bd7eed23ebab",
+  "archive_bytes": 3416109,
+  "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+  "original_finished_at": "2026-09-18T22:21:47.289963+08:00",
+  "published_at": "2026-09-20T12:55:49.944532+00:00",
+  "raw_replay_verified": true,
+  "securities": 5565,
+  "quotes": 5553,
+  "quote_exchange_counts": {
+    "SH": 2311,
+    "SZ": 2898,
+    "BJ": 344
+  },
+  "data_status": "DATA NOT READY",
+  "model_ready": false,
+  "canonical_database_imported": false,
+  "index_path": "bundles/2026-09-18/35355400468-c411890e08f73cc4/index.json"
+}

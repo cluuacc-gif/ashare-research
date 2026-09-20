@@ -1,0 +1,101 @@
+{
+  "schema_version": "1.0",
+  "datasets": [
+    {
+      "schema_version": "1.0",
+      "kind": "verified_public_quote_transport",
+      "base_trade_date": "2026-09-15",
+      "github_run_id": "34984120218",
+      "github_commit": "37d57a2ad57678f0486a45e04b4371bdd81f3140",
+      "archive_sha256": "d04e6669d117782e3e97a6a2b567f69b428944ebeb49b030d9b6f3abe86f0e07",
+      "archive_bytes": 3411333,
+      "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+      "original_finished_at": "2026-09-15T22:51:04.885636+08:00",
+      "published_at": "2026-09-20T12:55:43.699129+00:00",
+      "raw_replay_verified": true,
+      "securities": 5562,
+      "quotes": 5548,
+      "quote_exchange_counts": {
+        "SH": 2308,
+        "SZ": 2897,
+        "BJ": 343
+      },
+      "data_status": "DATA NOT READY",
+      "model_ready": false,
+      "canonical_database_imported": false,
+      "index_path": "bundles/2026-09-15/34984120218-d04e6669d117782e/index.json"
+    },
+    {
+      "schema_version": "1.0",
+      "kind": "verified_public_quote_transport",
+      "base_trade_date": "2026-09-16",
+      "github_run_id": "35110700301",
+      "github_commit": "37d57a2ad57678f0486a45e04b4371bdd81f3140",
+      "archive_sha256": "9862f86d947311a92375d0cc423202f44da5e94fc787cdb10a7d2d0f96e1f251",
+      "archive_bytes": 3412152,
+      "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+      "original_finished_at": "2026-09-16T22:48:23.166887+08:00",
+      "published_at": "2026-09-20T12:55:45.782602+00:00",
+      "raw_replay_verified": true,
+      "securities": 5564,
+      "quotes": 5550,
+      "quote_exchange_counts": {
+        "SH": 2309,
+        "SZ": 2897,
+        "BJ": 344
+      },
+      "data_status": "DATA NOT READY",
+      "model_ready": false,
+      "canonical_database_imported": false,
+      "index_path": "bundles/2026-09-16/35110700301-9862f86d947311a9/index.json"
+    },
+    {
+      "schema_version": "1.0",
+      "kind": "verified_public_quote_transport",
+      "base_trade_date": "2026-09-17",
+      "github_run_id": "35236085544",
+      "github_commit": "37d57a2ad57678f0486a45e04b4371bdd81f3140",
+      "archive_sha256": "246e42c3a47b8f4e4bfe372c16ee6488e55cf17b55deb827a19d772cbb24ec5b",
+      "archive_bytes": 3412919,
+      "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+      "original_finished_at": "2026-09-17T22:51:50.091522+08:00",
+      "published_at": "2026-09-20T12:55:47.831649+00:00",
+      "raw_replay_verified": true,
+      "securities": 5565,
+      "quotes": 5553,
+      "quote_exchange_counts": {
+        "SH": 2311,
+        "SZ": 2898,
+        "BJ": 344
+      },
+      "data_status": "DATA NOT READY",
+      "model_ready": false,
+      "canonical_database_imported": false,
+      "index_path": "bundles/2026-09-17/35236085544-246e42c3a47b8f4e/index.json"
+    },
+    {
+      "schema_version": "1.0",
+      "kind": "verified_public_quote_transport",
+      "base_trade_date": "2026-09-18",
+      "github_run_id": "35355400468",
+      "github_commit": "37d57a2ad57678f0486a45e04b4371bdd81f3140",
+      "archive_sha256": "c411890e08f73cc45f3700dac9e75addea0e75e2ebca248a3294bd7eed23ebab",
+      "archive_bytes": 3416109,
+      "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+      "original_finished_at": "2026-09-18T22:21:47.289963+08:00",
+      "published_at": "2026-09-20T12:55:49.944532+00:00",
+      "raw_replay_verified": true,
+      "securities": 5565,
+      "quotes": 5553,
+      "quote_exchange_counts": {
+        "SH": 2311,
+        "SZ": 2898,
+        "BJ": 344
+      },
+      "data_status": "DATA NOT READY",
+      "model_ready": false,
+      "canonical_database_imported": false,
+      "index_path": "bundles/2026-09-18/35355400468-c411890e08f73cc4/index.json"
+    }
+  ]
+}
