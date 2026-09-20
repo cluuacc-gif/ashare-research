@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "operation": "recover_existing_evening_artifacts",
+  "runs": [
+    {"run_id": 34984120218, "artifact_id": 10402711758, "expected_date": "2026-09-15"},
+    {"run_id": 35110700301, "artifact_id": 10452187746, "expected_date": "2026-09-16"},
+    {"run_id": 35236085544, "artifact_id": 10503318792, "expected_date": "2026-09-17"},
+    {"run_id": 35355400468, "artifact_id": 10551842409, "expected_date": "2026-09-18"}
+  ]
+}

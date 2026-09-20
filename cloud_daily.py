@@ -36,13 +36,30 @@ def request_for_today(request, now):
     return request
 
 
+def target_session(started, scheduled=False):
+    """A delayed 18:00 timer may still capture the prior close before 09:00.
+
+    The source quote timestamp, never this routing rule, establishes the day.
+    Do not skip over multiple closed days or turn a live quote into history.
+    """
+    day = started.date()
+    if scheduled and started.time() < dt.time(9):
+        previous = day - dt.timedelta(days=1)
+        if trade_calendar.is_session(previous):
+            return previous
+    return day
+
+
 def collect(output, request=None, scheduled=False):
     root = Path(output).resolve()
     if root.exists() and any(root.iterdir()):
         raise ValueError("output must be new; old evidence cannot be overwritten")
     root.mkdir(parents=True, exist_ok=True)
     started = c.now()
-    cal = trade_calendar.context(started.date())
+    target = target_session(started, scheduled)
+    cal = trade_calendar.context(target)
+    cal["actual_run_date"] = started.date().isoformat()
+    cal["delayed_across_midnight"] = target != started.date()
     write_json(root/"calendar.json", cal)
     # Evaluate the real clock first. On a closed day, zero market requests.
     if not cal["is_session"]:
@@ -51,9 +68,14 @@ def collect(output, request=None, scheduled=False):
                   "calendar": cal, "actual_new_quotes": 0, "formal_prediction": False}
         write_json(root/"run_status.json", result)
         return result
-    if started.time() < dt.time(18):
+    if started.time() < dt.time(18) and target == started.date():
         raise ValueError("evening preparation must start at/after 18:00 Asia/Shanghai")
-    req = request_for_today(None if scheduled else request, started)
+    if target != started.date():
+        req = {"target_date": target.isoformat(), "bootstrap_symbols": [],
+               "request_id": "delayed-scheduled-"+target.isoformat(),
+               "actual_started_at": started.isoformat()}
+    else:
+        req = request_for_today(None if scheduled else request, started)
     day = req["target_date"]
     report = {"schema_version": "1.1", "mode": "diagnostic/evening_collection",
               "status": "RUNNING", "started_at": started.isoformat(),

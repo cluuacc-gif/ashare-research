@@ -14,10 +14,12 @@ on:
       - trade_calendar.py
       - exchange_calendar_2026.json
       - test_two_stage.py
+      - close_snapshot.py
+      - publish_evening_transport.py
       - .github/workflows/daily-data.yml
 
 permissions:
-  contents: read
+  contents: write
 
 concurrency:
   group: ashare-after-close
@@ -30,7 +32,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: false
+          persist-credentials: true
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -56,3 +58,23 @@ jobs:
           path: evening-output/
           if-no-files-found: error
           retention-days: 90
+      - name: Publish verified immutable evidence for cross-session recovery
+        if: ${{ always() && hashFiles('evening-output/source_acceptance.json') != '' }}
+        env:
+          DATA_ROOT: ${{ runner.temp }}/evening-data
+        run: |
+          if git ls-remote --exit-code --heads origin data/evening >/dev/null; then
+            git fetch origin data/evening
+            git worktree add --detach "$DATA_ROOT" FETCH_HEAD
+          else
+            git worktree add --detach "$DATA_ROOT" HEAD
+            git -C "$DATA_ROOT" switch --orphan data/evening
+          fi
+          python publish_evening_transport.py --source-dir evening-output --data-root "$DATA_ROOT"
+          git -C "$DATA_ROOT" config user.name ashare-research-bot
+          git -C "$DATA_ROOT" config user.email ashare-research-bot@users.noreply.github.com
+          git -C "$DATA_ROOT" add bundles catalog.json latest.json
+          if ! git -C "$DATA_ROOT" diff --cached --quiet; then
+            git -C "$DATA_ROOT" commit -m "Preserve verified daily source evidence $GITHUB_RUN_ID"
+            git -C "$DATA_ROOT" push origin HEAD:refs/heads/data/evening
+          fi

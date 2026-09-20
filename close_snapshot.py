@@ -10,6 +10,7 @@ import json
 from pathlib import Path
 
 import collector
+import trade_calendar
 from short_term import digest, write_json
 
 
@@ -19,14 +20,18 @@ def capture(source_dir):
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     day = manifest["calendar_upper_bound"]
     started = collector.stamp()
-    if day != collector.now().date().isoformat():
+    clock = collector.now()
+    delayed = (clock.time() < dt.time(9)
+               and day == (clock.date()-dt.timedelta(days=1)).isoformat()
+               and trade_calendar.is_session(day))
+    if day != clock.date().isoformat() and not delayed:
         result = {"mode": "diagnostic/capture_skipped", "data_status": "DATA NOT READY",
                   "target_date": day, "generated_at": collector.stamp(),
                   "reason": "Current-quote interface is not an archival endpoint; preserved historical artifact remains separate.",
                   "new_quote_count": 0, "production_database_written": False}
         write_json(root/"current_capture_skipped.json", result)
         return result
-    if collector.now().time() < dt.time(15, 10):
+    if clock.time() < dt.time(15, 10) and not delayed:
         raise ValueError("today's session has not closed")
     target = root/"daily_snapshot"
     if target.exists() and any(target.iterdir()):

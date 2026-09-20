@@ -12,6 +12,22 @@ import two_stage
 
 
 class CalendarTest(unittest.TestCase):
+    def test_delayed_timer_keeps_prior_close_date(self):
+        at = dt.datetime(2026, 9, 15, 0, 16, tzinfo=ZoneInfo("Asia/Shanghai"))
+        self.assertEqual(str(cloud_daily.target_session(at, True)), "2026-09-14")
+
+    def test_manual_run_does_not_silently_change_date(self):
+        at = dt.datetime(2026, 9, 15, 0, 16, tzinfo=ZoneInfo("Asia/Shanghai"))
+        self.assertEqual(str(cloud_daily.target_session(at, False)), "2026-09-15")
+
+    def test_no_prior_quote_routing_after_cutoff(self):
+        at = dt.datetime(2026, 9, 15, 9, tzinfo=ZoneInfo("Asia/Shanghai"))
+        self.assertEqual(str(cloud_daily.target_session(at, True)), "2026-09-15")
+
+    def test_timer_never_invents_weekend_session(self):
+        at = dt.datetime(2026, 9, 20, 1, tzinfo=ZoneInfo("Asia/Shanghai"))
+        self.assertEqual(str(cloud_daily.target_session(at, True)), "2026-09-20")
+
     def test_friday_to_monday(self):
         self.assertEqual(cal.adjacent("2026-09-11", 1), "2026-09-14")
 
