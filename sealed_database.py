@@ -27,6 +27,11 @@ def inspect_sealed(path):
         header = stream.read(100)
     if header[:16] != b'SQLite format 3\x00' or header[18:20] != bytes((1, 1)):
         raise ValueError('checkpointed DELETE-mode SQLite snapshot required')
+    page_size = int.from_bytes(header[16:18], 'big')
+    page_size = 65536 if page_size == 1 else page_size
+    expected_bytes = page_size * int.from_bytes(header[28:32], 'big')
+    if len(header) != 100 or expected_bytes != path.stat().st_size:
+        raise ValueError('truncated SQLite snapshot: byte count differs from sealed header')
     for suffix in ('-wal', '-journal'):
         sibling = Path(str(path) + suffix)
         if sibling.exists() and sibling.stat().st_size:

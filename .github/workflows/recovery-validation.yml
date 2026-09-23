@@ -1,0 +1,55 @@
+name: Verify recovery with real archived quotes
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - recover_evening_pipeline.py
+      - compact_quote_provenance.py
+      - sealed_database.py
+      - validate_cloud_recovery.py
+      - .github/workflows/recovery-validation.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: ashare-recovery-validation
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+        with:
+          ref: data/evening
+          path: evidence
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify actual saved quotes through import, compaction, freeze and resume
+        run: python validate_cloud_recovery.py --data-root evidence --output validation/real-recovery.json
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: real-recovery-${{ github.run_id }}
+          path: validation/
+          if-no-files-found: warn
+      - name: Publish successful engineering receipt
+        if: success()
+        working-directory: evidence
+        run: |
+          git config user.name ashare-research-bot
+          git config user.email ashare-research-bot@users.noreply.github.com
+          git fetch origin data/evening
+          git reset --hard FETCH_HEAD
+          mkdir -p validation
+          cp ../validation/real-recovery.json validation/recovery-${{ github.run_id }}.json
+          cp ../validation/real-recovery.json validation/latest-recovery.json
+          git add validation/
+          git commit -m "Preserve real recovery acceptance $GITHUB_RUN_ID"
+          git push origin HEAD:refs/heads/data/evening
