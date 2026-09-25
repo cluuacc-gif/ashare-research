@@ -1,0 +1,35 @@
+{
+  "kind": "auto_market_intel_collect",
+  "generated_at": "2026-09-25T15:29:04.780511+08:00",
+  "symbols": 5569,
+  "quotes_captured": 5569,
+  "industries": 49,
+  "industry_members": 2917,
+  "notice_events": 8000,
+  "imported": {
+    "status": 5569,
+    "limits": 5568,
+    "industry": 2917,
+    "news": 8000,
+    "errors": []
+  },
+  "counts_after": {
+    "status_rows": 16707,
+    "status_today": 11138,
+    "limit_rows": 288381,
+    "limit_today": 11136,
+    "industry_members": 8751,
+    "news_events": 8050,
+    "official_status_verified": 0,
+    "official_limit_verified": 0
+  },
+  "fills_receipts_required": false,
+  "note": "Vendor/auto capture for research screening. Official exchange verification still requires sse/szse/bse/cninfo evidence packets.",
+  "data_status": "DATA NOT READY",
+  "working_database": {
+    "application_id": 1095977041,
+    "integrity_check": "ok",
+    "bytes": 899977216,
+    "sha256": "bab683831a816a0ce608b6bc87530d6b7156a416e0a9059e71848e448533c766"
+  }
+}

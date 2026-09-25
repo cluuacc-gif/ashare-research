@@ -1,0 +1,15 @@
+{
+  "kind": "research_fills_ledger",
+  "database": "/home/runner/work/_temp/out/market-database-v9-auto-intel.sqlite3",
+  "fills": 0,
+  "positions": 0,
+  "labeled_positions": 0,
+  "min_labels_for_80_claim": 100,
+  "min_independent_entry_dates": 40,
+  "execution_win_rate_80_validated": false,
+  "blocker": "no_real_broker_fill_receipts",
+  "note": "Research-only mode: no broker connection. User confirmed fill receipts are NOT required; research collects market status/limits/sector/news automatically. E+1/E+2 labels can be simulated from quotes; 80% remains an unvalidated target.",
+  "fills_receipts_required": false,
+  "data_status": "DATA NOT READY",
+  "model_ready": false
+}
