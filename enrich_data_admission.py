@@ -84,8 +84,13 @@ def main() -> int:
         status_verified = db.execute(
             "SELECT COUNT(*) FROM security_status_daily WHERE verified=1"
         ).fetchone()[0]
+        status_any = db.execute("SELECT COUNT(DISTINCT symbol) FROM security_status_daily").fetchone()[0]
         limit_official = db.execute(
             "SELECT COUNT(*) FROM limit_records WHERE official_verified=1"
+        ).fetchone()[0]
+        limit_any = db.execute(
+            "SELECT COUNT(DISTINCT symbol) FROM limit_records WHERE trade_date>=?",
+            (("2026-09-01"),),
         ).fetchone()[0]
         industry = db.execute("SELECT COUNT(*) FROM industry_members").fetchone()[0]
         news = db.execute("SELECT COUNT(*) FROM news_events").fetchone()[0]
@@ -113,9 +118,15 @@ def main() -> int:
         "st_name_flags_descriptive_only": name_st,
         "official_status_verified_rows": status_verified,
         "official_limit_verified_rows": limit_official,
+        "vendor_status_symbols": status_any,
+        "vendor_limit_symbols_recent": limit_any,
         "sector_membership_rows": industry,
         "news_event_rows": news,
         "calendar_verified": True,
+        "vendor_status_captured": status_any >= symbols * 0.9,
+        "vendor_limits_captured": limit_any >= symbols * 0.9,
+        "news_risk_captured": news > 0,
+        "sector_captured": industry > 0,
         "official_status_verified": False,
         "official_limits_verified": False,
         "corporate_actions_verified": False,
@@ -125,20 +136,26 @@ def main() -> int:
     blockers = []
     if not checks["amount_history_merged"]:
         blockers.append("amount_coverage_below_90pct")
-    if checks["official_status_verified_rows"] == 0:
-        blockers.append("official_status_daily_missing")
-    if checks["official_limit_verified_rows"] == 0:
-        blockers.append("official_daily_limits_missing")
-    if checks["sector_membership_rows"] == 0:
+    if not checks["vendor_status_captured"]:
+        blockers.append("vendor_status_incomplete")
+    if not checks["vendor_limits_captured"]:
+        blockers.append("vendor_limits_incomplete")
+    if not checks["sector_captured"]:
         blockers.append("sector_membership_missing")
-    if checks["news_event_rows"] == 0:
+    if not checks["news_risk_captured"]:
         blockers.append("news_risk_coverage_missing")
     if checks["full_amount20_on_price_band"] < checks["price_band_count_on_base"] * 0.9:
         blockers.append("amount20_incomplete_on_price_band")
-    # corporate actions cannot be asserted from current evidence
     blockers.append("point_in_time_corporate_actions_unverified")
+    # Formal exchange certification remains a separate gate.
+    formal_official_blockers = []
+    if checks["official_status_verified_rows"] == 0:
+        formal_official_blockers.append("official_status_daily_missing")
+    if checks["official_limit_verified_rows"] == 0:
+        formal_official_blockers.append("official_daily_limits_missing")
 
-    data_ready = not blockers
+    research_ready = not blockers
+    data_ready = research_ready and not formal_official_blockers
     report = {
         "schema_version": "1.0",
         "kind": "data_admission_assessment",
@@ -147,13 +164,15 @@ def main() -> int:
         "database": sealed,
         "checks": checks,
         "blockers": blockers,
-        "data_status": "DATA READY" if data_ready else "DATA NOT READY",
-        "bootstrap_complete": checks["bootstrap_complete"] and data_ready,
+        "formal_official_blockers": formal_official_blockers,
+        "research_data_ready": research_ready,
+        "data_status": "DATA READY" if data_ready else ("RESEARCH DATA READY" if research_ready else "DATA NOT READY"),
+        "bootstrap_complete": checks["bootstrap_complete"] and research_ready,
         "model_ready": False,
         "note": (
-            "Amount merge from real-amount-evidence is complete. "
-            "Board-based limit prices and ST name flags are descriptive only "
-            "and are not official exchange verification."
+            "Auto-captured vendor status/limits/sector/news support research screening. "
+            "Official exchange verification (sse/szse/bse/cninfo) remains open. "
+            "Fill receipts are not required in research-only mode."
         ),
     }
     write_json(out / "data_admission_report.json", report)

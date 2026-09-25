@@ -75,9 +75,11 @@ def main() -> int:
         "execution_win_rate_80_validated": False,
         "blocker": "no_real_broker_fill_receipts" if fills == 0 else "labels_incomplete",
         "note": (
-            "Research-only mode: no broker connection. Provide real fill receipts "
-            "(symbol, side, time, price, qty, fees, evidence) to complete E+1/E+2 net-profit labels."
+            "Research-only mode: no broker connection. User confirmed fill receipts are NOT required; "
+            "research collects market status/limits/sector/news automatically. "
+            "E+1/E+2 labels can be simulated from quotes; 80% remains an unvalidated target."
         ),
+        "fills_receipts_required": False,
         "data_status": "DATA NOT READY",
         "model_ready": False,
     }

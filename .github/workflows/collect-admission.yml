@@ -31,9 +31,9 @@ jobs:
           echo "DB=$DB" >> "$GITHUB_ENV"
           echo "SHA=$(sha256sum "$DB" | awk '{print $1}')" >> "$GITHUB_ENV"
           echo "using $DB"
-      - name: Collect industry and news
+      - name: Auto-capture status/limits/industry/notices
         run: |
-          python collect_admission_sources.py \
+          python auto_capture_market_intel.py \
             --db "$DB" \
             --expected-db-sha256 "$SHA" \
             --output "$RUNNER_TEMP/out"
