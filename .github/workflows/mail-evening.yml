@@ -1,0 +1,68 @@
+name: Mail 18:00 evening research
+on:
+  schedule:
+    # 10:00 UTC = 18:00 Asia/Shanghai
+    - cron: '0 10 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: ashare-mail-evening
+  cancel-in-progress: false
+jobs:
+  evening:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fetch canonical database from release store
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download canonical-store-v5 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'market-database-v6-imported-20260925.sqlite3' \
+            --pattern 'handoff-v7-updated-20260925.json' \
+            --dir "$RUNNER_TEMP/store" || {
+              gh release download canonical-store-v5 \
+                --repo "$GITHUB_REPOSITORY" \
+                --pattern 'market-database-v5.sqlite3' \
+                --pattern 'handoff-v7.json' \
+                --dir "$RUNNER_TEMP/store"
+            }
+          ls -la "$RUNNER_TEMP/store"
+          DB=$(ls "$RUNNER_TEMP"/store/market-database-*.sqlite3 | tail -1)
+          HO=$(ls "$RUNNER_TEMP"/store/handoff-*.json | tail -1)
+          echo "DB=$DB" >> "$GITHUB_ENV"
+          echo "HO=$HO" >> "$GITHUB_ENV"
+      - name: Build evening report
+        run: |
+          python mail_reports.py --stage evening --db "$DB" --handoff "$HO" \
+            --output-dir mail-out --skip-closed
+      - name: Send or draft email
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          MAIL_TO: ${{ secrets.MAIL_TO || 'mrzouhappy@outlook.com' }}
+        run: |
+          DAY=$(date +%F)
+          BODY="mail-out/evening-${DAY}.md"
+          if [ ! -f "$BODY" ]; then
+            echo "no report body (skip?)"; ls -la mail-out; exit 0
+          fi
+          python send_mail.py \
+            --subject "A股研究 18:00盘后 ${DAY}" \
+            --body-file "$BODY" \
+            --draft-out "mail-out/evening-${DAY}.eml"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: mail-evening-${{ github.run_id }}
+          path: mail-out/
+          if-no-files-found: warn
