@@ -23,6 +23,12 @@ def sha(data):
     return hashlib.sha256(data).hexdigest()
 
 
+def collector_fingerprint(path=None):
+    """Hash collector.py as LF text so Windows CRLF checkouts match Linux runs."""
+    raw = (path or (ROOT / "collector.py")).read_bytes().replace(b"\r\n", b"\n")
+    return sha(raw)
+
+
 def verify(artifact):
     with zipfile.ZipFile(artifact) as archive:
         info = archive.infolist()
@@ -37,7 +43,7 @@ def verify(artifact):
     report = json.loads(data["source_acceptance.json"])
     if report.get("mode") not in ("diagnostic/source_probe", "diagnostic/evening_collection"):
         raise ValueError("非预期真实源探针产物")
-    if report.get("collector_sha256") != sha((ROOT / "collector.py").read_bytes()):
+    if report.get("collector_sha256") != collector_fingerprint():
         raise ValueError("采集器版本不一致，须审查后使用对应版本重放")
     end = c.date_value(report["calendar_upper_bound"])
     if c.timestamp(report["finished_at"]) > c.now():
