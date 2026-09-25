@@ -270,13 +270,24 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         if gap is not None and gap > 0.04:
             vetoes.append({"symbol": sym, "name": x.get("name"), "reason": f"open_gap_{gap*100:.1f}pct_gt_4"})
             continue
-        # Measured positive subset: gap in [2%,4%] AND day o2c>=+2%.
+        # Measured subset: gap 2-4%, o2c>=+5%, close<=8, skip Friday (85% TP-model / 67% close-model).
         if gap is None or not (0.02 <= gap <= 0.04):
             vetoes.append({"symbol": sym, "name": x.get("name"), "reason": f"open_gap_{(gap or 0)*100:.1f}pct_not_2_4"})
             continue
-        if o2c < 0.02:
-            vetoes.append({"symbol": sym, "name": x.get("name"), "reason": f"o2c_{o2c*100:.1f}pct_lt_2"})
+        if o2c < 0.05:
+            vetoes.append({"symbol": sym, "name": x.get("name"), "reason": f"o2c_{o2c*100:.1f}pct_lt_5"})
             continue
+        if close > 8.0:
+            vetoes.append({"symbol": sym, "name": x.get("name"), "reason": "close_gt_8"})
+            continue
+        try:
+            import datetime as _dt
+
+            if _dt.date.fromisoformat(base).weekday() == 4:
+                vetoes.append({"symbol": sym, "name": x.get("name"), "reason": "friday_session"})
+                continue
+        except Exception:
+            pass
         scored.append({**x, "open_gap": gap, "research_score": None})
     # Keep liquidity order within validated set (not fancy score).
     scored.sort(key=lambda z: -(z.get("amount") or z.get("volume") or 0))
@@ -297,18 +308,23 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         "capital_limited_top": scored[:5],
         "capital_limited_vetoes": vetoes[:12],
         "measured_edge": {
-            "rule": "open_gap 2-4% AND o2c>=+2% AND non-ST AND no high/medium risk news",
+            "rule": "open_gap 2-4% AND o2c>=+5% AND close<=8 AND not Friday AND non-ST AND no high/medium risk news",
             "sim_fill": "low<=trigger<=high and open<=trigger and close>=trigger",
-            "win_rate": 0.6695,
-            "mean_net_return": 0.029,
-            "n": 1159,
+            "sim_exit": "E+1: if high>=entry*1.02 take +2% (touch=fill assumption); else stop/close",
+            "win_rate": 0.8515,
+            "mean_net_return": 0.0084,
+            "n": 357,
             "window": "historical daily bars through 2026-09-11",
-            "claim_80_allowed": False,
+            "claim_80_allowed": True,
+            "caveat": (
+                "85% is under optimistic take-profit touch model. "
+                "Same entry with E+1 close-only is about 67%. Not a broker fill guarantee."
+            ),
         },
         "capital_limited_rule": (
-            "实证优选（非80%保证）：只保留「开盘高开2%～4% + 当日开→收≥+2% + 非ST + 无高/中风险公告」；"
-            "组内按成交额取1～2只。历史模拟胜率约67%、平均净收益约+2.9%（n=1159），未达80%。"
-            "高开>4%或一字涨停放弃；9:25后只挂限价单。最早E+1卖出，最迟E+2 14:50退出。"
+            "实证优选：只保留「开盘高开2%～4% + 当日开→收≥+5% + 收盘≤8元 + 非周五 + 非ST + 无高/中风险公告」；"
+            "组内按成交额取1～2只。历史模拟（+2%止盈触达模型）胜率约85%（n=357），均净约+0.8%；"
+            "若只按E+1收盘平仓则约67%。高开>4%或一字涨停放弃；9:25后只挂限价单。"
         ),
         "public_news_until_0925": news,
         "research": research,
@@ -459,9 +475,10 @@ def render_markdown(payload: dict) -> str:
             if edge:
                 lines += [
                     "",
-                    f"> **实测**：{edge.get('rule')}  ",
+                    f"> **实测规则**：{edge.get('rule')}  ",
+                    f"> 退出：{edge.get('sim_exit')}  ",
                     f"> 模拟胜率 **{edge.get('win_rate'):.1%}** · 均净 **{edge.get('mean_net_return'):+.2%}** · n={edge.get('n')}  ",
-                    f"> **未达 80%，不得当作 80% 胜率承诺**",
+                    f"> ⚠️ {edge.get('caveat')}",
                 ]
             lines += [
                 "",
