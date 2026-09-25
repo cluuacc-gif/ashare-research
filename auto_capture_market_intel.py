@@ -233,7 +233,9 @@ def main() -> int:
         raise SystemExit("db sha mismatch")
     before = inspect_sealed(src)
     out = Path(args.output).resolve()
-    out.mkdir(parents=True, exist_ok=False)
+    out.mkdir(parents=True, exist_ok=True)
+    if any(out.iterdir()):
+        raise SystemExit("output directory must be empty: " + str(out))
     working = out / src.name
     shutil.copy2(src, working)
 

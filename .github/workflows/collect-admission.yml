@@ -60,11 +60,12 @@ jobs:
             git -C "$DATA_ROOT" switch --orphan data/evening
           fi
           mkdir -p "$DATA_ROOT/validation"
+          cp "$RUNNER_TEMP/out/auto_intel_report.json" "$DATA_ROOT/validation/auto-intel-latest.json" 2>/dev/null || true
           cp "$RUNNER_TEMP/out/admission_collect.json" "$DATA_ROOT/validation/admission-collect-latest.json" 2>/dev/null || true
           cp "$RUNNER_TEMP/out/fills_ledger.json" "$DATA_ROOT/validation/fills-ledger-latest.json" 2>/dev/null || true
           git -C "$DATA_ROOT" config user.name ashare-research-bot
           git -C "$DATA_ROOT" config user.email ashare-research-bot@users.noreply.github.com
-          git -C "$DATA_ROOT" add validation/admission-collect-latest.json validation/fills-ledger-latest.json 2>/dev/null || true
+          git -C "$DATA_ROOT" add validation/ 2>/dev/null || true
           if ! git -C "$DATA_ROOT" diff --cached --quiet; then
             git -C "$DATA_ROOT" commit -m "Record admission collection ${{ github.run_id }}"
             git -C "$DATA_ROOT" push origin HEAD:refs/heads/data/evening
