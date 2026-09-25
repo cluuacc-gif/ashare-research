@@ -1,4 +1,4 @@
-name: Mail 09:25 post-auction watch
+﻿name: Mail 09:25 post-auction watch
 on:
   schedule:
     # 01:25 UTC = 09:25 Asia/Shanghai
@@ -42,7 +42,7 @@ jobs:
       - name: Build post-auction research watch
         run: |
           python mail_reports.py --stage auction --db "$DB" --handoff "$HO" \
-            --output-dir mail-out --skip-closed
+            --output-dir mail-out 
       - name: Send or draft email
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -56,7 +56,7 @@ jobs:
           BODY="mail-out/auction-${DAY}.md"
           if [ ! -f "$BODY" ]; then echo "no body"; ls -la mail-out; exit 0; fi
           python send_mail.py \
-            --subject "A股研究 09:25竞价后观察 ${DAY}" \
+            --subject "A鑲＄爺绌?09:25绔炰环鍚庤瀵?${DAY}" \
             --body-file "$BODY" \
             --draft-out "mail-out/auction-${DAY}.eml"
       - uses: actions/upload-artifact@v4
@@ -65,3 +65,4 @@ jobs:
           name: mail-auction-${{ github.run_id }}
           path: mail-out/
           if-no-files-found: warn
+

@@ -1,0 +1,47 @@
+name: Auto publish updated market DB after recover
+on:
+  workflow_dispatch:
+    inputs:
+      asset_name:
+        description: Release asset name for updated DB
+        required: true
+        default: market-database-latest.sqlite3
+  workflow_call:
+    inputs:
+      asset_name:
+        required: true
+        type: string
+permissions:
+  contents: write
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download latest working DB artifact or release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/store"
+          gh release download canonical-store-v5 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'market-database-*.sqlite3' \
+            --dir "$RUNNER_TEMP/store"
+          DB=$(ls "$RUNNER_TEMP"/store/market-database-*.sqlite3 | sort | tail -1)
+          echo "DB=$DB" >> "$GITHUB_ENV"
+          echo "using $DB"
+      - name: Upload as named latest asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ASSET: ${{ inputs.asset_name || 'market-database-latest.sqlite3' }}
+        run: |
+          set -e
+          # delete old same-name asset if present
+          RID=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/canonical-store-v5" --jq .id)
+          OLD=$(gh api "repos/$GITHUB_REPOSITORY/releases/$RID/assets" --jq ".[] | select(.name==\"$ASSET\") | .id")
+          if [ -n "$OLD" ]; then
+            gh api -X DELETE "repos/$GITHUB_REPOSITORY/releases/assets/$OLD" || true
+          fi
+          gh release upload canonical-store-v5 "$DB" --repo "$GITHUB_REPOSITORY" --clobber -n "$ASSET"
+          echo "uploaded $ASSET from $DB"

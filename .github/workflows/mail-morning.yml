@@ -1,4 +1,4 @@
-name: Mail 09:00 morning research
+﻿name: Mail 09:00 morning research
 on:
   schedule:
     # 01:00 UTC = 09:00 Asia/Shanghai
@@ -42,7 +42,7 @@ jobs:
       - name: Build morning report (combined with prior evening)
         run: |
           python mail_reports.py --stage morning --db "$DB" --handoff "$HO" \
-            --output-dir mail-out --skip-closed
+            --output-dir mail-out 
       - name: Send or draft email
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -56,7 +56,7 @@ jobs:
           BODY="mail-out/morning-${DAY}.md"
           if [ ! -f "$BODY" ]; then echo "no body"; ls -la mail-out; exit 0; fi
           python send_mail.py \
-            --subject "A股研究 09:00晨间 ${DAY}" \
+            --subject "A鑲＄爺绌?09:00鏅ㄩ棿 ${DAY}" \
             --body-file "$BODY" \
             --draft-out "mail-out/morning-${DAY}.eml"
       - uses: actions/upload-artifact@v4
@@ -65,3 +65,4 @@ jobs:
           name: mail-morning-${{ github.run_id }}
           path: mail-out/
           if-no-files-found: warn
+

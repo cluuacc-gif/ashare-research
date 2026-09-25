@@ -1,4 +1,4 @@
-name: Mail 18:00 evening research
+﻿name: Mail 18:00 evening research
 on:
   schedule:
     # 10:00 UTC = 18:00 Asia/Shanghai
@@ -41,7 +41,7 @@ jobs:
       - name: Build evening report
         run: |
           python mail_reports.py --stage evening --db "$DB" --handoff "$HO" \
-            --output-dir mail-out --skip-closed
+            --output-dir mail-out 
       - name: Send or draft email
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -57,7 +57,7 @@ jobs:
             echo "no report body (skip?)"; ls -la mail-out; exit 0
           fi
           python send_mail.py \
-            --subject "A股研究 18:00盘后 ${DAY}" \
+            --subject "A鑲＄爺绌?18:00鐩樺悗 ${DAY}" \
             --body-file "$BODY" \
             --draft-out "mail-out/evening-${DAY}.eml"
       - uses: actions/upload-artifact@v4
@@ -66,3 +66,4 @@ jobs:
           name: mail-evening-${{ github.run_id }}
           path: mail-out/
           if-no-files-found: warn
+

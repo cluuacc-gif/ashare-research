@@ -124,30 +124,67 @@ def screen_price_band(db, as_of: str, limit: int = 30) -> list[dict]:
     return out
 
 
-def us_market_brief(timeout: float = 8.0) -> dict:
-    """Best-effort US risk-on/off snapshot for overnight linkage notes."""
+def us_market_brief(timeout: float = 5.0) -> dict:
+    """Best-effort US snapshot with cache fallback (90 min). Never blocks mail forever."""
     import urllib.request
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
+    cache_path = Path(__file__).resolve().parent.parent / "staging" / "us_market_cache.json"
+    # allow running from repo root
+    if not cache_path.parent.exists():
+        cache_path = Path("staging/us_market_cache.json")
     symbols = {"^GSPC": "S&P500", "^IXIC": "Nasdaq", "^DJI": "Dow", "NVDA": "NVDA", "AAPL": "AAPL"}
     result = {"source": "yahoo_chart_public", "quotes": [], "note": "descriptive only"}
     url = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=5d&interval=1d"
-    for sym, label in symbols.items():
+
+    def one(label, sym):
+        req = urllib.request.Request(
+            url.format(sym=sym),
+            headers={"User-Agent": "Mozilla/5.0 (research-mail)"},
+        )
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
+            payload = json.loads(resp.read())
+        quote = payload["chart"]["result"][0]["indicators"]["quote"][0]
+        closes = [x for x in quote.get("close") or [] if x is not None]
+        if len(closes) >= 2:
+            chg = closes[-1] / closes[-2] - 1.0
+            return {"label": label, "symbol": sym, "last": closes[-1], "change_1d": round(chg, 4)}
+        raise ValueError("thin closes")
+
+    try:
+        with ThreadPoolExecutor(max_workers=5) as ex:
+            futs = {ex.submit(one, label, sym): label for label, sym in symbols.items()}
+            for fut in as_completed(futs, timeout=timeout + 3):
+                label = futs[fut]
+                try:
+                    result["quotes"].append(fut.result())
+                except Exception as e:
+                    result.setdefault("errors", []).append(f"{label}:{type(e).__name__}")
+    except Exception as e:
+        result.setdefault("errors", []).append(f"pool:{type(e).__name__}")
+
+    if result["quotes"]:
         try:
-            req = urllib.request.Request(
-                url.format(sym=sym),
-                headers={"User-Agent": "Mozilla/5.0 (research-mail)"},
+            cache_path.parent.mkdir(parents=True, exist_ok=True)
+            cache_path.write_text(
+                json.dumps({"saved_at": stamp(), "payload": result}, ensure_ascii=False),
+                encoding="utf-8",
             )
-            with urllib.request.urlopen(req, timeout=timeout) as resp:
-                payload = json.loads(resp.read())
-            quote = payload["chart"]["result"][0]["indicators"]["quote"][0]
-            closes = [x for x in quote.get("close") or [] if x is not None]
-            if len(closes) >= 2:
-                chg = closes[-1] / closes[-2] - 1.0
-                result["quotes"].append(
-                    {"label": label, "symbol": sym, "last": closes[-1], "change_1d": round(chg, 4)}
-                )
-        except Exception as e:
-            result.setdefault("errors", []).append(f"{label}:{type(e).__name__}")
+        except Exception:
+            pass
+    elif cache_path.is_file():
+        try:
+            cached = json.loads(cache_path.read_text(encoding="utf-8"))
+            old = cached.get("payload") or {}
+            if old.get("quotes"):
+                result = {
+                    **old,
+                    "source": "cached",
+                    "cache_saved_at": cached.get("saved_at"),
+                    "errors": result.get("errors") or [],
+                }
+        except Exception:
+            pass
     return result
 
 
@@ -499,6 +536,16 @@ def render_markdown(payload: dict) -> str:
                 "2. 9:25–9:30 只对优选标的挂**限价单**（不追市价）；单笔不超过你可承受风险  ",
                 "3. 成交后：最早 **E+1** 卖出；最迟 **E+2 14:50** 时间退出；跌破计划失效位就认错  ",
                 "4. 未成交/跌停锁住要如实记，不能当成功",
+            ]
+        else:
+            lines += [
+                "",
+                "## 资金有限优选（只做 1～3 只）",
+                "",
+                "### 今日无合格标的 → **建议空仓 / 不交易**",
+                "",
+                "> 没有同时满足「高开2%～4% + 开收≥5% + 收盘≤8 + 非周五 + 非ST + 无高/中风险公告」的票。",
+                "> **空仓也是策略**，不要为了出手而降低标准。",
             ]
         lines += ["", f"> {payload.get('auction_note') or ''}", ""]
 
