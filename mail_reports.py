@@ -267,81 +267,144 @@ STAGE_TITLES = {
 }
 
 
+def _fmt_num(value, digits=2):
+    if value is None:
+        return "—"
+    try:
+        return f"{float(value):,.{digits}f}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _fmt_pct(value, digits=2):
+    if value is None:
+        return "—"
+    try:
+        return f"{float(value) * 100:.{digits}f}%"
+    except (TypeError, ValueError):
+        return str(value)
+
+
 def render_markdown(payload: dict) -> str:
+    """Readable research mail body. Display only — data semantics unchanged."""
     stage = payload["stage"]
+    cal = payload.get("calendar") or {}
+    research = payload.get("research") or {}
+    inv = research.get("inventory") or {}
+    band = research.get("price_band_5_10") or []
+    status_label = "开盘" if cal.get("is_session") else "休市"
+    data_status = research.get("data_status") or payload.get("handoff_status") or "—"
+    model_ready = "是" if research.get("model_ready") else "否"
+
     lines = [
         f"# {STAGE_TITLES[stage]}",
         "",
-        f"- 生成时间：{payload['generated_at']}",
-        f"- 目标交易日：{payload['target_date']}",
-        f"- 信息截止：{payload['information_cutoff']}",
-        f"- 版本：{payload['version']}",
+        f"**{payload.get('target_date')} · {status_label}** ｜ 信息截止 `{payload.get('information_cutoff')}`",
         "",
-        "## 交易日历",
-        f"- 是否开盘：{payload['calendar']['is_session']}",
-        f"- 上一交易日：{payload['calendar'].get('previous_session')}",
-        f"- 下一交易日：{payload['calendar'].get('next_session')}",
+        "## 一眼速览",
+        "",
+        "| 项目 | 内容 |",
+        "| --- | --- |",
+        f"| 目标交易日 | **{payload.get('target_date')}**（{status_label}） |",
+        f"| 上一 / 下一交易日 | {cal.get('previous_session') or '—'} / **{cal.get('next_session') or '—'}** |",
+        f"| 最新行情日 | **{inv.get('latest_date') or '—'}** |",
+        f"| 当日报价 / 证券数 | {_fmt_num(inv.get('base_quotes'), 0)} / {_fmt_num(inv.get('securities'), 0)} |",
+        f"| 5～10 元筛选 | **{len(band)}** 只（描述性） |",
+        f"| 数据状态 | **{data_status}** |",
+        f"| 模型就绪 | **{model_ready}** |",
+        f"| 生成时间 | {payload.get('generated_at')} |",
         "",
     ]
+
     if stage == "evening":
         us = payload.get("us_overnight_linkage") or {}
-        lines += ["## 美股隔夜连带（描述性）", ""]
-        for q in us.get("quotes") or []:
-            lines.append(
-                f"- {q['label']}: {q['last']}  日变动 {q['change_1d']*100:.2f}%"
-            )
+        lines += ["## 美股隔夜连带（背景，非信号）", ""]
+        quotes = us.get("quotes") or []
+        if quotes:
+            lines += ["| 指数/个股 | 最新 | 日变动 |", "| --- | ---: | ---: |"]
+            for q in quotes:
+                lines.append(
+                    f"| {q.get('label', q.get('symbol'))} | {_fmt_num(q.get('last'))} | {_fmt_pct(q.get('change_1d'))} |"
+                )
+        else:
+            lines.append("（本轮未取到美股行情）")
         if us.get("errors"):
-            lines.append(f"- 部分标的获取失败：{us['errors']}")
-        lines += ["", "连带说明：美股科技强势/弱势可能影响次日A股科技与风险偏好，仅作背景，不构成信号。", ""]
+            lines += ["", f"获取失败：{'；'.join(us['errors'])}"]
+        lines += [
+            "",
+            "> 美股科技强弱可能影响次日 A 股风险偏好，**仅作背景**，不构成买卖信号。",
+            "",
+        ]
+
     if stage in ("morning", "auction"):
         news = payload.get("public_news_until_0900") or payload.get("public_news_until_0925") or []
-        lines += ["## 截止时点公开消息", ""]
+        cutoff = "09:00" if stage == "morning" else "09:25"
+        lines += [f"## 截至 {cutoff} 的公开消息", ""]
         if news:
-            for item in news[:20]:
+            for item in news[:15]:
                 if isinstance(item, dict):
-                    lines.append(f"- {item.get('time', '')} {item.get('title', item)}")
+                    t = item.get("time") or item.get("published_at") or ""
+                    title = item.get("title") or str(item)
+                    lines.append(f"- `{t}` {title}" if t else f"- {title}")
                 else:
                     lines.append(f"- {item}")
+            if len(news) > 15:
+                lines.append(f"- …另有 {len(news) - 15} 条，见完整记录")
         else:
-            lines.append("- （未提供可核验新闻源，或新闻文件为空）")
+            lines.append("- （暂无已入库公开消息，或新闻文件为空）")
         lines.append("")
+
     if stage == "auction":
-        lines += ["## 集合竞价后研究观察（非买入指令）", ""]
-        for i, row in enumerate(payload.get("watchlist_research_only") or [], 1):
+        watch = payload.get("watchlist_research_only") or []
+        lines += [
+            "## 09:25 观察名单（研究用 · 非买入指令）",
+            "",
+        ]
+        if watch:
+            lines += [
+                "| # | 代码 | 名称 | 行业 | 收盘 | 成交额 | 涨停基因 | ST |",
+                "| ---: | --- | --- | --- | ---: | ---: | ---: | --- |",
+            ]
+            for i, row in enumerate(watch, 1):
+                lines.append(
+                    f"| {i} | `{row.get('symbol')}` | {row.get('name') or ''} | {row.get('industry') or '—'} | "
+                    f"{_fmt_num(row.get('close'))} | {_fmt_num(row.get('amount') or row.get('volume'), 0)} | "
+                    f"{row.get('limit_like_days') or 0} | {'是' if row.get('is_st') else '否'} |"
+                )
+        else:
+            lines.append("（当前无可列观察标的）")
+        lines += ["", f"> {payload.get('auction_note') or ''}", ""]
+
+    if band:
+        lines += [
+            "## 5～10 元成交额前排（描述性筛选）",
+            "",
+            "| 代码 | 名称 | 行业 | 收盘 | 开→收 | 成交额 | 涨停基因 | ST |",
+            "| --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
+        ]
+        for row in band[:12]:
             lines.append(
-                f"{i}. {row['symbol']} {row.get('name') or ''}  close={row['close']}  "
-                f"vol={row['volume']}  bars={row['bars']}  limit_like={row['limit_like_days']}"
+                f"| `{row.get('symbol')}` | {row.get('name') or ''} | {row.get('industry') or '—'} | "
+                f"{_fmt_num(row.get('close'))} | {_fmt_pct(row.get('open_to_close'))} | "
+                f"{_fmt_num(row.get('amount') or row.get('volume'), 0)} | {row.get('limit_like_days') or 0} | "
+                f"{'是' if row.get('is_st') else '否'} |"
             )
-        lines.append("")
-    research = payload.get("research") or {}
-    inv = research.get("inventory") or {}
+        lines += ["", f"> {research.get('price_band_note') or ''}", ""]
+
+    if stage == "evening" and payload.get("base_trade_date"):
+        pass
+    if payload.get("base_trade_date") and stage in ("morning", "auction"):
+        lines += ["## 口径", "", f"- 基础行情日：`{payload.get('base_trade_date')}`", ""]
+
     lines += [
-        "## 数据库存量",
-        f"- 最新行情日：{inv.get('latest_date')}",
-        f"- 日线行数：{inv.get('daily_rows')}",
-        f"- 证券数：{inv.get('securities')}",
-        f"- 当日报价：{inv.get('base_quotes')}",
+        "## 合规说明",
         "",
-        "## 5～10元描述性筛选（节选）",
+        f"{payload.get('disclaimer') or ''}",
         "",
-    ]
-    for row in (research.get("price_band_5_10") or [])[:12]:
-        st = " ST" if row.get("is_st") else ""
-        ind = f" {row['industry']}" if row.get("industry") else ""
-        lines.append(
-            f"- {row['symbol']}{st} {row.get('name') or ''}{ind} close={row['close']} vol={row['volume']} "
-            f"o2c={row['open_to_close']} limit_like={row['limit_like_days']}"
-        )
-    lines += [
+        "本邮件为**研究材料**，不连接券商、不自动下单。80% 为待验证目标，**不是承诺**。",
         "",
-        f"说明：{research.get('price_band_note')}",
-        f"数据状态：{research.get('data_status')}；模型就绪：{research.get('model_ready')}",
-        f"交接状态：{payload.get('handoff_status')}",
-        "",
-        "## 合规声明",
-        payload.get("disclaimer", ""),
-        "",
-        "本邮件为研究材料，不连接券商、不自动下单。80%净胜率为待验证目标，不是承诺。",
+        "---",
+        f"`{payload.get('version')}` · 交接状态：{payload.get('handoff_status') or '—'}",
     ]
     return "\n".join(lines) + "\n"
 
