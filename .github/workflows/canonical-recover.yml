@@ -1,0 +1,155 @@
+name: Canonical evening recover from release store
+on:
+  workflow_dispatch:
+    inputs:
+      expected_db_sha256:
+        description: Expected canonical database SHA256
+        required: false
+        default: 3fbca100c033c344dd3afc9232fe3cf05b008cd4f35509b82786fdbc24e06468
+      release_tag:
+        description: Release tag holding market-database-v5.sqlite3
+        required: false
+        default: canonical-store-v5
+  workflow_call:
+    inputs:
+      expected_db_sha256:
+        description: Expected canonical database SHA256
+        required: false
+        type: string
+        default: 3fbca100c033c344dd3afc9232fe3cf05b008cd4f35509b82786fdbc24e06468
+      release_tag:
+        description: Release tag holding market-database-v5.sqlite3
+        required: false
+        type: string
+        default: canonical-store-v5
+permissions:
+  contents: write
+  actions: read
+concurrency:
+  group: ashare-canonical-recover
+  cancel-in-progress: false
+jobs:
+  recover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore data/evening transport
+        env:
+          DATA_ROOT: ${{ runner.temp }}/evening-data
+        run: |
+          if git ls-remote --exit-code --heads origin data/evening >/dev/null; then
+            git fetch origin data/evening
+            git worktree add --detach "$DATA_ROOT" FETCH_HEAD
+          else
+            echo "data/evening branch missing" >&2
+            exit 1
+          fi
+      - name: Download canonical database from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release_tag || 'canonical-store-v5' }}
+          EXPECTED_SHA: ${{ inputs.expected_db_sha256 || '3fbca100c033c344dd3afc9232fe3cf05b008cd4f35509b82786fdbc24e06468' }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/canonical"
+          gh release download "$RELEASE_TAG" \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'market-database-v5.sqlite3' \
+            --pattern 'handoff-v7.json' \
+            --pattern 'canonical-manifest.json' \
+            --dir "$RUNNER_TEMP/canonical"
+          ACTUAL=$(sha256sum "$RUNNER_TEMP/canonical/market-database-v5.sqlite3" | awk '{print $1}')
+          echo "actual=$ACTUAL"
+          echo "expected=$EXPECTED_SHA"
+          if [ "$ACTUAL" != "$EXPECTED_SHA" ]; then
+            echo "canonical database SHA256 mismatch; refuse" >&2
+            exit 1
+          fi
+          ls -la "$RUNNER_TEMP/canonical"
+      - name: Run recover_evening_pipeline on isolated copy
+        env:
+          DATA_ROOT: ${{ runner.temp }}/evening-data
+          OUT: ${{ runner.temp }}/evening-out
+          EXPECTED_SHA: ${{ inputs.expected_db_sha256 || '3fbca100c033c344dd3afc9232fe3cf05b008cd4f35509b82786fdbc24e06468' }}
+        run: |
+          python recover_evening_pipeline.py \
+            --db "$RUNNER_TEMP/canonical/market-database-v5.sqlite3" \
+            --expected-db-sha256 "$EXPECTED_SHA" \
+            --data-root "$DATA_ROOT" \
+            --output "$OUT"
+          ls -la "$OUT"
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          out = Path(__import__('os').environ['OUT'])
+          prep = json.loads((out / 'preparation.json').read_text())
+          print(json.dumps({
+              'base_trade_date': prep.get('base_trade_date'),
+              'next_trade_date': prep.get('next_trade_date'),
+              'daily_rows': prep.get('daily_rows'),
+              'base_quotes': prep.get('base_quotes'),
+              'imports': len(prep.get('imports') or []),
+              'canonical_database_imported': prep.get('canonical_database_imported'),
+              'data_status': prep.get('data_status'),
+              'model_ready': prep.get('model_ready'),
+          }, ensure_ascii=False, indent=2))
+          PY
+      - name: Upload preparation artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: evening-preparation-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/evening-out/preparation.json
+            ${{ runner.temp }}/evening-out/compaction.json
+            ${{ runner.temp }}/evening-out/import_progress.json
+            ${{ runner.temp }}/evening-out/frozen_inputs.zip
+          if-no-files-found: error
+      - name: Upload working sealed database
+        uses: actions/upload-artifact@v4
+        with:
+          name: evening-working-db-${{ github.run_id }}
+          path: ${{ runner.temp }}/evening-out/market-database-v5.sqlite3
+          if-no-files-found: error
+      - name: Publish updated database to data/evening validation pointer
+        env:
+          GH_TOKEN: ${{ github.token }}
+          OUT: ${{ runner.temp }}/evening-out
+          DATA_ROOT: ${{ runner.temp }}/evening-data
+        run: |
+          python - <<'PY'
+          import json, os, hashlib
+          from pathlib import Path
+          out = Path(os.environ['OUT'])
+          prep = json.loads((out / 'preparation.json').read_text())
+          working = out / 'market-database-v5.sqlite3'
+          h = hashlib.sha256(working.read_bytes()).hexdigest()
+          payload = {
+              'kind': 'canonical_recover_preparation',
+              'generated_at': prep.get('generated_at'),
+              'github_run_id': os.environ.get('GITHUB_RUN_ID'),
+              'github_commit': os.environ.get('GITHUB_SHA'),
+              'base_trade_date': prep.get('base_trade_date'),
+              'next_trade_date': prep.get('next_trade_date'),
+              'daily_rows': prep.get('daily_rows'),
+              'base_quotes': prep.get('base_quotes'),
+              'working_database_sha256': h,
+              'canonical_database_imported': False,
+              'persistence_pending': True,
+              'data_status': prep.get('data_status'),
+              'model_ready': False,
+              'prediction_database_touched': False,
+          }
+          Path(os.environ['DATA_ROOT'], 'validation', 'canonical-recover-latest.json').write_text(
+              json.dumps(payload, ensure_ascii=False, indent=2) + '\n', encoding='utf-8')
+          print(json.dumps(payload, ensure_ascii=False, indent=2))
+          PY
+          git -C "$DATA_ROOT" config user.name ashare-research-bot
+          git -C "$DATA_ROOT" config user.email ashare-research-bot@users.noreply.github.com
+          git -C "$DATA_ROOT" add validation/canonical-recover-latest.json
+          if ! git -C "$DATA_ROOT" diff --cached --quiet; then
+            git -C "$DATA_ROOT" commit -m "Record canonical recover preparation run ${{ github.run_id }}"
+            git -C "$DATA_ROOT" push origin HEAD:refs/heads/data/evening
+          fi
