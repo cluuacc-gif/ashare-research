@@ -310,15 +310,18 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         "measured_edge": {
             "rule": "open_gap 2-4% AND o2c>=+5% AND close<=8 AND not Friday AND non-ST AND no high/medium risk news",
             "sim_fill": "low<=trigger<=high and open<=trigger and close>=trigger",
-            "sim_exit": "E+1: if high>=entry*1.02 take +2% (touch=fill assumption); else stop/close",
-            "win_rate": 0.8515,
+            "sim_exit": "E+1 stop/close; +2% take-profit variants below",
+            "win_rate_tp_touch": 0.852,
+            "win_rate_tp_close_pessimistic": 0.593,
+            "win_rate_e1_close": 0.593,
+            "oos_n_tp_touch": 27,
             "mean_net_return": 0.0084,
             "n": 357,
-            "window": "historical daily bars through 2026-09-11",
-            "claim_80_allowed": True,
+            "window": "through 2026-09-11; OOS split 2026-04-15",
+            "claim_80_allowed": False,
             "caveat": (
-                "85% is under optimistic take-profit touch model. "
-                "Same entry with E+1 close-only is about 67%. Not a broker fill guarantee."
+                "止盈触达模型全样本约85%，但样本外仅27笔且悲观止盈/收盘口径样本外约59%。"
+                "不作80%实盘承诺。"
             ),
         },
         "capital_limited_rule": (
@@ -476,8 +479,8 @@ def render_markdown(payload: dict) -> str:
                 lines += [
                     "",
                     f"> **实测规则**：{edge.get('rule')}  ",
-                    f"> 退出：{edge.get('sim_exit')}  ",
-                    f"> 模拟胜率 **{edge.get('win_rate'):.1%}** · 均净 **{edge.get('mean_net_return'):+.2%}** · n={edge.get('n')}  ",
+                    f"> 止盈触达 **{edge.get('win_rate_tp_touch', 0):.1%}** ｜ 悲观止盈 **{edge.get('win_rate_tp_close_pessimistic', 0):.1%}** ｜ E+1收盘 **{edge.get('win_rate_e1_close', 0):.1%}**  ",
+                    f"> 样本外(2026-04-15后)仅 **{edge.get('oos_n_tp_touch')}** 笔，止盈触达约85%但不够稳  ",
                     f"> ⚠️ {edge.get('caveat')}",
                 ]
             lines += [
