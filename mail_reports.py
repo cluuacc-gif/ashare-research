@@ -236,6 +236,21 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
             -(x.get("amount") or x.get("volume") or 0),
         ),
     )[:15]
+    # Limited-capital shortlist: prefer liquid + historical limit activity + mid band + mild positive o2c.
+    scored = []
+    for x in ranked:
+        close = float(x.get("close") or 0)
+        amount = float(x.get("amount") or x.get("volume") or 0)
+        gene = float(x.get("limit_like_days") or 0)
+        o2c = float(x.get("open_to_close") or 0.0)
+        # 5–7.5 slightly preferred over near-10 for capital efficiency (research heuristic only).
+        price_score = 1.0 if 5.0 <= close <= 7.5 else 0.6
+        gene_score = min(gene / 5.0, 1.0)
+        liq_score = min(amount / 1_000_000_000.0, 1.0) if amount else 0.0
+        mom_score = 0.5 + min(max(o2c, -0.05), 0.08) * 4  # mild bonus for not-crashed
+        total = round(0.35 * gene_score + 0.30 * liq_score + 0.20 * price_score + 0.15 * mom_score, 4)
+        scored.append({**x, "research_score": total})
+    scored.sort(key=lambda z: (-z["research_score"], -(z.get("amount") or 0)))
     return {
         "stage": "auction",
         "version": VERSION,
@@ -250,6 +265,13 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
             "不是已验证的涨停预测，也不是买入指令。"
         ),
         "watchlist_research_only": ranked,
+        "capital_limited_top": scored[:5],
+        "capital_limited_rule": (
+            "资金有限时只做1～3只：优先「历史涨停特征高 + 成交额大 + 收盘价5～7.5元 + 非ST」；"
+            "集合竞价若高开>4%或已封涨停则放弃追入；9:25后只挂限价单，不市价追。"
+            "买入后最早下一交易日卖出，最迟第二个交易日14:50时间退出。"
+            "以上是研究排序规则，不是已验证高胜率策略。"
+        ),
         "public_news_until_0925": news,
         "research": research,
         "handoff_status": handoff.get("status"),
@@ -362,7 +384,7 @@ def render_markdown(payload: dict) -> str:
         ]
         if watch:
             lines += [
-                "| # | 代码 | 名称 | 行业 | 收盘 | 成交额 | 涨停基因 | ST |",
+                "| # | 代码 | 名称 | 行业 | 收盘 | 成交额 | 历史涨停特征 | ST |",
                 "| ---: | --- | --- | --- | ---: | ---: | ---: | --- |",
             ]
             for i, row in enumerate(watch, 1):
@@ -371,15 +393,45 @@ def render_markdown(payload: dict) -> str:
                     f"{_fmt_num(row.get('close'))} | {_fmt_num(row.get('amount') or row.get('volume'), 0)} | "
                     f"{row.get('limit_like_days') or 0} | {'是' if row.get('is_st') else '否'} |"
                 )
+            lines += [
+                "",
+                "> **历史涨停特征**：历史上近似涨停（涨约≥9.5% 且一字/高波动）天数，越大越“有涨停基因”；**不是**未来涨停概率。",
+            ]
         else:
             lines.append("（当前无可列观察标的）")
+        top = payload.get("capital_limited_top") or []
+        if top:
+            lines += [
+                "",
+                "## 资金有限优选（只做 1～3 只）",
+                "",
+                "| 优先 | 代码 | 名称 | 研究分 | 收盘 | 成交额 | 历史涨停特征 | 说明 |",
+                "| ---: | --- | --- | ---: | ---: | ---: | ---: | --- |",
+            ]
+            for i, row in enumerate(top, 1):
+                lines.append(
+                    f"| {i} | `{row.get('symbol')}` | {row.get('name') or ''} | "
+                    f"{row.get('research_score', 0):.3f} | {_fmt_num(row.get('close'))} | "
+                    f"{_fmt_num(row.get('amount') or row.get('volume'), 0)} | {row.get('limit_like_days') or 0} | "
+                    f"{'ST不碰' if row.get('is_st') else '可观察'} |"
+                )
+            lines += [
+                "",
+                f"> {payload.get('capital_limited_rule') or ''}",
+                "",
+                "**集合竞价/挂单纪律（研究口径）**  ",
+                "1. 9:25 看竞价：高开 ≤ +2% 较理想；高开 > +4% 或一字/已触涨停 → **放弃**  ",
+                "2. 9:25–9:30 只对优选标的挂**限价单**（不追市价）；单笔不超过你可承受风险  ",
+                "3. 成交后：最早 **E+1** 卖出；最迟 **E+2 14:50** 时间退出；跌破计划失效位就认错  ",
+                "4. 未成交/跌停锁住要如实记，不能当成功",
+            ]
         lines += ["", f"> {payload.get('auction_note') or ''}", ""]
 
     if band:
         lines += [
             "## 5～10 元成交额前排（描述性筛选）",
             "",
-            "| 代码 | 名称 | 行业 | 收盘 | 开→收 | 成交额 | 涨停基因 | ST |",
+            "| 代码 | 名称 | 行业 | 收盘 | 开→收 | 成交额 | 历史涨停特征 | ST |",
             "| --- | --- | --- | ---: | ---: | ---: | ---: | --- |",
         ]
         for row in band[:12]:
