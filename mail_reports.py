@@ -326,8 +326,23 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         except Exception:
             pass
         scored.append({**x, "open_gap": gap, "research_score": None})
-    # Keep liquidity order within validated set (not fancy score).
-    scored.sort(key=lambda z: -(z.get("amount") or z.get("volume") or 0))
+    # Signal-quality layer: market gate, industry heat, height risk, open momentum.
+    from signal_quality import score_symbol
+
+    quality_rows = []
+    for x in scored:
+        q = score_symbol(db, x.get("symbol"), base, x.get("open_gap"), x.get("open_to_close"))
+        if q.get("veto"):
+            vetoes.append({"symbol": x.get("symbol"), "name": x.get("name"), "reason": "quality:" + ",".join(q["veto"])})
+            continue
+        quality_rows.append({**x, "quality": q, "research_score": q.get("quality_score")})
+    quality_rows.sort(
+        key=lambda z: (
+            -(z.get("research_score") or 0),
+            -(z.get("amount") or z.get("volume") or 0),
+        )
+    )
+    scored = quality_rows
     return {
         "stage": "auction",
         "version": VERSION,
