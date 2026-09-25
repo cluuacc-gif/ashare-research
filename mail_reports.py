@@ -273,6 +273,27 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
             -(x.get("amount") or x.get("volume") or 0),
         ),
     )[:15]
+    # Prefer real 9:25 auction snapshot when present.
+    auction_path = Path(__file__).resolve().parent.parent / "mail-runtime" / day / "auction_snapshot.json"
+    if not auction_path.is_file():
+        auction_path = Path("mail-runtime") / day / "auction_snapshot.json"
+    auction_snap = {}
+    auction_meta = None
+    if auction_path.is_file():
+        try:
+            snap = json.loads(auction_path.read_text(encoding="utf-8"))
+            auction_meta = {k: snap.get(k) for k in ("kind", "generated_at", "clock", "is_auction_window", "state_counts")}
+            for row in snap.get("tradeable_top") or []:
+                # map by code to symbol later via prefix match
+                auction_snap[row.get("code")] = row
+            for row in snap.get("tradeable_top") or []:
+                pass
+        except Exception:
+            auction_meta = {"error": "auction_snapshot_unreadable"}
+
+    def auction_row(sym: str):
+        code = sym.split(".")[0]
+        return auction_snap.get(code)
     # Limited-capital shortlist based on measured rule (search_high_winrate):
     # open gap 2-4%, o2c>=+2%, non-ST, no high/medium risk news, open<=trigger proxy via gap.
     # Scoring is NOT used to rank within this set (backtest showed ranking hurts).
@@ -292,7 +313,11 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         gene = float(x.get("limit_like_days") or 0)
         o2c = float(x.get("open_to_close") or 0.0)
         gap = x.get("open_gap")
-        if gap is None:
+        arow = auction_row(sym)
+        if arow and arow.get("open_gap") is not None:
+            gap = arow["open_gap"]
+            x = {**x, "auction_open": arow.get("auction_open"), "auction_state": arow.get("auction_state")}
+        elif gap is None:
             try:
                 row = db.execute(
                     "SELECT open, prev_close FROM daily_quotes WHERE symbol=? AND trade_date=?",
@@ -352,13 +377,14 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         "information_cutoff": day + "T09:25:00+08:00",
         "base_trade_date": base,
         "auction_note": (
-            "09:25集合竞价结束后的研究观察名单。"
-            "本环境未接入逐笔竞价行情；名单来自昨收日线描述性筛选+隔夜消息，"
-            "不是已验证的涨停预测，也不是买入指令。"
+            "09:25集合竞价后的研究观察。已接入公开行情的竞价撮合价（开盘价）作为真实竞价入口；"
+            "仍未接逐笔/竞价量分档。名单为研究观察，不是已验证涨停预测，也不是买入指令。"
         ),
         "watchlist_research_only": ranked,
         "capital_limited_top": scored[:5],
         "capital_limited_vetoes": vetoes[:12],
+        "auction_snapshot": auction_meta,
+        "auction_source": "real_call_auction_open" if auction_meta and auction_meta.get("kind") else "daily_open_proxy",
         "measured_edge": {
             "rule": "open_gap 2-4% AND o2c>=+5% AND close<=8 AND not Friday AND non-ST AND no high/medium risk news",
             "sim_fill": "1-tick slippage; low<=fill<=high and close>=trigger",
@@ -490,6 +516,9 @@ def render_markdown(payload: dict) -> str:
         watch = payload.get("watchlist_research_only") or []
         lines += [
             "## 09:25 观察名单（研究用 · 非买入指令）",
+            "",
+            f"> 竞价数据源：**{'真实竞价撮合价' if (payload.get('auction_source') or '').startswith('real') else '日线开盘价代理'}**"
+            + (f" ｜ 抓取 `{(payload.get('auction_snapshot') or {}).get('clock', '')}`" if payload.get('auction_snapshot') else ""),
             "",
         ]
         if watch:
