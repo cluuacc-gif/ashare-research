@@ -258,6 +258,31 @@ def morning_report(db, day: str, handoff: dict, news_path: Path | None = None) -
     }
 
 
+def _load_yesterday_review() -> dict:
+    """Load previous auction shortlist json for hindsight review."""
+    root = Path(__file__).resolve().parent.parent / "mail-runtime"
+    if not root.is_dir():
+        root = Path("mail-runtime")
+    if not root.is_dir():
+        return {}
+    days = sorted([p.name for p in root.iterdir() if p.is_dir() and p.name[:2] == "20"])
+    if not days:
+        return {}
+    # find previous day folder with auction json
+    for d in reversed(days):
+        p = root / d / "auction.json"
+        if not p.is_file():
+            p = root / d / f"auction-{d}.json"
+        if p.is_file():
+            try:
+                data = json.loads(p.read_text(encoding="utf-8"))
+                top = (data.get("capital_limited_top") or [])[:5]
+                return {"date": d, "names": [{"symbol": x.get("symbol"), "name": x.get("name")} for x in top]}
+            except Exception:
+                continue
+    return {}
+
+
 def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -> dict:
     cal = require_session(day)
     base = cal.get("previous_session") or day
@@ -352,11 +377,13 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
             pass
         scored.append({**x, "open_gap": gap, "research_score": None})
     # Signal-quality layer: market gate, industry heat, height risk, open momentum.
-    from signal_quality import score_symbol
+    from signal_quality import score_symbol  # noqa: F401
+    from signal_quality_plus import composite_quality
 
     quality_rows = []
     for x in scored:
-        q = score_symbol(db, x.get("symbol"), base, x.get("open_gap"), x.get("open_to_close"))
+        arow = auction_row(x.get("symbol") or "")
+        q = composite_quality(db, x.get("symbol"), base, x.get("open_gap"), x.get("open_to_close"), arow)
         if q.get("veto"):
             vetoes.append({"symbol": x.get("symbol"), "name": x.get("name"), "reason": "quality:" + ",".join(q["veto"])})
             continue
@@ -368,6 +395,25 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         )
     )
     scored = quality_rows
+    # Action card + yesterday review helpers
+    top3 = scored[:3]
+    action_card = []
+    for row in top3:
+        close = float(row.get("close") or 0)
+        trigger = round(close * 1.005, 2)  # research proxy near open breakout
+        cap = round(close * 1.025, 2)
+        stop = round(close * 0.97, 2)
+        action_card.append(
+            {
+                "symbol": row.get("symbol"),
+                "name": row.get("name"),
+                "limit_price": cap,
+                "trigger_hint": trigger,
+                "stop": stop,
+                "quality": row.get("research_score"),
+            }
+        )
+    yday = _load_yesterday_review()
     return {
         "stage": "auction",
         "version": VERSION,
@@ -376,6 +422,9 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         "calendar": cal,
         "information_cutoff": day + "T09:25:00+08:00",
         "base_trade_date": base,
+        "action_card": action_card,
+        "yesterday_review": yday,
+        "empty_signal": not scored,
         "auction_note": (
             "09:25集合竞价后的研究观察。已接入公开行情的竞价撮合价（开盘价）作为真实竞价入口；"
             "仍未接逐笔/竞价量分档。名单为研究观察，不是已验证涨停预测，也不是买入指令。"
@@ -459,6 +508,29 @@ def render_markdown(payload: dict) -> str:
         "",
         f"**{payload.get('target_date')} · {status_label}** ｜ 信息截止 `{payload.get('information_cutoff')}`",
         "",
+    ]
+    if stage == "auction" and payload.get("empty_signal"):
+        lines += ["> ## 今日无合格标的 → **建议空仓 / 不交易**", ""]
+    if stage == "auction" and payload.get("action_card"):
+        lines += [
+            "## 今日操作卡（研究限价，非券商指令）",
+            "",
+            "| 标的 | 限价上限 | 触发参考 | 止损 | 质量分 |",
+            "| --- | ---: | ---: | ---: | ---: |",
+        ]
+        for a in payload["action_card"]:
+            lines.append(
+                f"| `{a.get('symbol')}` {a.get('name') or ''} | {_fmt_num(a.get('limit_price'))} | "
+                f"{_fmt_num(a.get('trigger_hint'))} | {_fmt_num(a.get('stop'))} | {a.get('quality') or '—'} |"
+            )
+        lines += ["", "> 9:25–9:30 只挂限价；高开>4% 或已封涨停放弃。", ""]
+    yr = payload.get("yesterday_review") or {}
+    if yr.get("names"):
+        lines += [f"## 昨日回顾（{yr.get('date')} 观察名单）", ""]
+        for n in yr["names"]:
+            lines.append(f"- `{n.get('symbol')}` {n.get('name') or ''}")
+        lines += ["", "> 是否达标请对照实盘/模拟成交；累计胜率见模拟台账。", ""]
+    lines += [
         "## 一眼速览",
         "",
         "| 项目 | 内容 |",
