@@ -346,25 +346,26 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         "capital_limited_vetoes": vetoes[:12],
         "measured_edge": {
             "rule": "open_gap 2-4% AND o2c>=+5% AND close<=8 AND not Friday AND non-ST AND no high/medium risk news",
-            "sim_fill": "low<=trigger<=high and open<=trigger and close>=trigger",
-            "sim_exit": "E+1 stop/close; +2% take-profit variants below",
-            "win_rate_tp_touch": 0.852,
-            "win_rate_tp_close_pessimistic": 0.593,
-            "win_rate_e1_close": 0.593,
+            "sim_fill": "1-tick slippage; low<=fill<=high and close>=trigger",
+            "preferred_exit": "E+1 close or +2% TP-close; do NOT hold to E+2 (worse)",
+            "win_rate_tp_touch": 0.85,
+            "win_rate_tp_close_pessimistic": 0.80,
+            "win_rate_e1_close": 0.80,
+            "mean_net_e1_close": 0.048,
+            "regime_note": "up-regime e_close ~88% (n=136); flat/down too few samples",
             "oos_n_tp_touch": 27,
-            "mean_net_return": 0.0084,
-            "n": 357,
-            "window": "through 2026-09-11; OOS split 2026-04-15",
+            "sizing": "1-2% risk per trade, max 1-3 names, skip if empty",
             "claim_80_allowed": False,
             "caveat": (
-                "止盈触达模型全样本约85%，但样本外仅27笔且悲观止盈/收盘口径样本外约59%。"
-                "不作80%实盘承诺。"
+                "加1 tick滑点后保守样本n≈160：E+1收盘/悲观止盈约80%，均净约0.5%～4.8%；"
+                "持有到E+2胜率很差。样本外仍稀疏，不作实盘80%承诺。"
             ),
         },
         "capital_limited_rule": (
-            "实证优选：只保留「开盘高开2%～4% + 当日开→收≥+5% + 收盘≤8元 + 非周五 + 非ST + 无高/中风险公告」；"
-            "组内按成交额取1～2只。历史模拟（+2%止盈触达模型）胜率约85%（n=357），均净约+0.8%；"
-            "若只按E+1收盘平仓则约67%。高开>4%或一字涨停放弃；9:25后只挂限价单。"
+            "实证优选：「开盘高开2%～4% + 当日开→收≥+5% + 收盘≤8元 + 非周五 + 非ST + 无高/中风险公告」；"
+            "组内按成交额取1～2只。仓位：单笔风险1%～2%，最多1～3只，无信号则空仓。"
+            "退出：优先E+1收盘或+2%止盈（收盘确认），不要扛到E+2。"
+            "市场状态偏多时更稳。加滑点后保守胜率约80%（样本~160），仍非实盘承诺。"
         ),
         "public_news_until_0925": news,
         "research": research,
@@ -515,9 +516,9 @@ def render_markdown(payload: dict) -> str:
             if edge:
                 lines += [
                     "",
-                    f"> **实测规则**：{edge.get('rule')}  ",
-                    f"> 止盈触达 **{edge.get('win_rate_tp_touch', 0):.1%}** ｜ 悲观止盈 **{edge.get('win_rate_tp_close_pessimistic', 0):.1%}** ｜ E+1收盘 **{edge.get('win_rate_e1_close', 0):.1%}**  ",
-                    f"> 样本外(2026-04-15后)仅 **{edge.get('oos_n_tp_touch')}** 笔，止盈触达约85%但不够稳  ",
+                    f"> **实测（含1 tick滑点）**：{edge.get('preferred_exit') or ''}  ",
+                    f"> 止盈触达 **{edge.get('win_rate_tp_touch', 0):.0%}** ｜ 悲观止盈 **{edge.get('win_rate_tp_close_pessimistic', 0):.0%}** ｜ E+1收盘 **{edge.get('win_rate_e1_close', 0):.0%}**（均净 {edge.get('mean_net_e1_close', 0):+.1%}）  ",
+                    f"> 仓位：{edge.get('sizing') or ''}  ",
                     f"> ⚠️ {edge.get('caveat')}",
                 ]
             lines += [
