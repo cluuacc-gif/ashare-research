@@ -52,12 +52,18 @@ def main() -> int:
 
     try:
         context = ssl.create_default_context()
-        with smtplib.SMTP(host, port, timeout=30) as smtp:
-            smtp.ehlo()
-            smtp.starttls(context=context)
-            smtp.ehlo()
-            smtp.login(user, password)
-            smtp.send_message(msg)
+        if port == 465:
+            # QQ/163 style implicit SSL
+            with smtplib.SMTP_SSL(host, port, timeout=30, context=context) as smtp:
+                smtp.login(user, password)
+                smtp.send_message(msg)
+        else:
+            with smtplib.SMTP(host, port, timeout=30) as smtp:
+                smtp.ehlo()
+                smtp.starttls(context=context)
+                smtp.ehlo()
+                smtp.login(user, password)
+                smtp.send_message(msg)
         print(f"sent to {args.mail_to} via {host}:{port}")
         return 0
     except Exception as e:
