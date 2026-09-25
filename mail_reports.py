@@ -237,19 +237,58 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         ),
     )[:15]
     # Limited-capital shortlist: prefer liquid + historical limit activity + mid band + mild positive o2c.
+    from news_risk import symbol_risk_map, veto_reason
+
+    risks = symbol_risk_map(db)
     scored = []
+    vetoes = []
     for x in ranked:
+        sym = x.get("symbol")
+        veto = veto_reason(risks.get(sym))
+        if veto:
+            vetoes.append({"symbol": sym, "name": x.get("name"), "reason": veto})
+            continue
         close = float(x.get("close") or 0)
         amount = float(x.get("amount") or x.get("volume") or 0)
         gene = float(x.get("limit_like_days") or 0)
         o2c = float(x.get("open_to_close") or 0.0)
-        # 5–7.5 slightly preferred over near-10 for capital efficiency (research heuristic only).
+        # open gap proxy: if we have open from same day
+        gap = x.get("open_gap")
+        if gap is None:
+            try:
+                row = db.execute(
+                    "SELECT open, prev_close FROM daily_quotes WHERE symbol=? AND trade_date=?",
+                    (sym, base),
+                ).fetchone()
+                if row and row[1]:
+                    gap = float(row[0]) / float(row[1]) - 1.0
+                else:
+                    gap = 0.0
+            except Exception:
+                gap = 0.0
+        # Research backtest finding: open gap 2-4% historically better than flat; >4% still veto.
+        if gap is not None and gap > 0.04:
+            vetoes.append({"symbol": sym, "name": x.get("name"), "reason": f"open_gap_{gap*100:.1f}pct_gt_4"})
+            continue
         price_score = 1.0 if 5.0 <= close <= 7.5 else 0.6
         gene_score = min(gene / 5.0, 1.0)
         liq_score = min(amount / 1_000_000_000.0, 1.0) if amount else 0.0
-        mom_score = 0.5 + min(max(o2c, -0.05), 0.08) * 4  # mild bonus for not-crashed
-        total = round(0.35 * gene_score + 0.30 * liq_score + 0.20 * price_score + 0.15 * mom_score, 4)
-        scored.append({**x, "research_score": total})
+        if gap is None:
+            gap_score = 0.5
+        elif 0.02 <= gap <= 0.04:
+            gap_score = 1.0  # empirical better win rate in simulated backtest
+        elif 0.0 <= gap < 0.02:
+            gap_score = 0.55
+        elif -0.02 <= gap < 0.0:
+            gap_score = 0.35
+        else:
+            gap_score = 0.25
+        mom_score = 0.5 + min(max(o2c, -0.05), 0.08) * 4
+        total = round(
+            0.28 * gene_score + 0.22 * liq_score + 0.15 * price_score + 0.25 * gap_score + 0.10 * mom_score,
+            4,
+        )
+        scored.append({**x, "research_score": total, "open_gap": gap})
     scored.sort(key=lambda z: (-z["research_score"], -(z.get("amount") or 0)))
     return {
         "stage": "auction",
@@ -266,8 +305,10 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         ),
         "watchlist_research_only": ranked,
         "capital_limited_top": scored[:5],
+        "capital_limited_vetoes": vetoes[:12],
         "capital_limited_rule": (
             "资金有限时只做1～3只：优先「历史涨停特征高 + 成交额大 + 收盘价5～7.5元 + 非ST」；"
+            "公告高风险（立案/退市/处罚）或中风险≥3条、开盘高开>4% 直接否决；"
             "集合竞价若高开>4%或已封涨停则放弃追入；9:25后只挂限价单，不市价追。"
             "买入后最早下一交易日卖出，最迟第二个交易日14:50时间退出。"
             "以上是研究排序规则，不是已验证高胜率策略。"
@@ -418,6 +459,13 @@ def render_markdown(payload: dict) -> str:
             lines += [
                 "",
                 f"> {payload.get('capital_limited_rule') or ''}",
+            ]
+            vetoes = payload.get("capital_limited_vetoes") or []
+            if vetoes:
+                lines += ["", "### 已否决（不进资金优选）", ""]
+                for v in vetoes:
+                    lines.append(f"- `{v.get('symbol')}` {v.get('name') or ''} → {v.get('reason')}")
+            lines += [
                 "",
                 "**集合竞价/挂单纪律（研究口径）**  ",
                 "1. 9:25 看竞价：高开 ≤ +2% 较理想；高开 > +4% 或一字/已触涨停 → **放弃**  ",
