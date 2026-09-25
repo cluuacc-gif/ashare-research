@@ -92,7 +92,7 @@ def metrics(d,label,p):
 
 def run(index_path,output):
     out=Path(output);out.mkdir(parents=True,exist_ok=True)
-    index=json.loads(Path(index_path).read_text())
+    index=json.loads(Path(index_path).read_text(encoding="utf-8"))
     d=build_frame(index)
     result={"schema_version":"1.0","model_version":VERSION,"kind":"diagnostic/historical_research",
             "generated_at":c.stamp(),"github_run_id":os.environ.get("GITHUB_RUN_ID"),
