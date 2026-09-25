@@ -1,8 +1,10 @@
 name: Collect admission sources (industry/news/official)
 on:
   schedule:
-    # 02:00 UTC = 10:00 Asia/Shanghai, after morning mail window
+    # 02:00 UTC = 10:00 Asia/Shanghai
     - cron: '0 2 * * 1-5'
+    # 10:30 UTC = 18:30 Asia/Shanghai
+    - cron: '30 10 * * 1-5'
   workflow_dispatch:
 permissions:
   contents: write

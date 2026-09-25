@@ -40,6 +40,20 @@ def clear_proxy():
         os.environ.pop(k, None)
 
 
+def get_with_retry(sess, url, retries=3, timeout=30, **kwargs):
+    last = None
+    for i in range(retries):
+        try:
+            r = sess.get(url, timeout=timeout, **kwargs)
+            if getattr(r, "status_code", 500) == 200:
+                return r
+            last = RuntimeError(f"HTTP {r.status_code}")
+        except Exception as e:
+            last = e
+        time.sleep(0.5 * (i + 1))
+    raise last if last else RuntimeError("request failed")
+
+
 def to_tx(sym: str) -> str:
     code, ex = sym.split(".")
     return ("sh" if ex == "SH" else "sz" if ex == "SZ" else "bj") + code
@@ -103,7 +117,7 @@ def fetch_tx_quotes(sess, symbols, batch=60):
         chunk = symbols[i : i + batch]
         codes = ",".join(to_tx(s) for s in chunk)
         try:
-            r = sess.get("https://qt.gtimg.cn/q=" + codes, timeout=30)
+            r = get_with_retry(sess, "https://qt.gtimg.cn/q=" + codes, timeout=30)
             for line in r.text.splitlines():
                 row = parse_tx_line(line)
                 if not row:
@@ -188,7 +202,7 @@ def fetch_sina_industry(sess):
                 % (page, key)
             )
             try:
-                rr = sess.get(u, timeout=30)
+                rr = get_with_retry(sess, u, timeout=30)
                 rows = json.loads(rr.text or "[]")
             except Exception:
                 break

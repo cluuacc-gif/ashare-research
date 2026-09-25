@@ -50,30 +50,38 @@ def main() -> int:
         print("SMTP not configured and no --draft-out; nothing sent")
         return 2
 
-    try:
-        context = ssl.create_default_context()
-        if port == 465:
-            # QQ/163 style implicit SSL
-            with smtplib.SMTP_SSL(host, port, timeout=30, context=context) as smtp:
-                smtp.login(user, password)
-                smtp.send_message(msg)
-        else:
-            with smtplib.SMTP(host, port, timeout=30) as smtp:
-                smtp.ehlo()
-                smtp.starttls(context=context)
-                smtp.ehlo()
-                smtp.login(user, password)
-                smtp.send_message(msg)
-        print(f"sent to {args.mail_to} via {host}:{port}")
-        return 0
-    except Exception as e:
-        if draft:
-            draft.parent.mkdir(parents=True, exist_ok=True)
-            draft.write_bytes(msg.as_bytes())
-            print(f"send failed ({type(e).__name__}: {e}); draft saved to {draft}")
+    import time
+
+    last_err = None
+    for attempt in range(1, 4):
+        try:
+            context = ssl.create_default_context()
+            if port == 465:
+                # QQ/163 style implicit SSL
+                with smtplib.SMTP_SSL(host, port, timeout=30, context=context) as smtp:
+                    smtp.login(user, password)
+                    smtp.send_message(msg)
+            else:
+                with smtplib.SMTP(host, port, timeout=30) as smtp:
+                    smtp.ehlo()
+                    smtp.starttls(context=context)
+                    smtp.ehlo()
+                    smtp.login(user, password)
+                    smtp.send_message(msg)
+            print(f"sent to {args.mail_to} via {host}:{port} attempt={attempt}")
             return 0
-        print(f"send failed: {type(e).__name__}: {e}")
-        return 1
+        except Exception as e:
+            last_err = e
+            print(f"send attempt {attempt} failed: {type(e).__name__}: {e}")
+            if attempt < 3:
+                time.sleep(2 * attempt)
+    if draft:
+        draft.parent.mkdir(parents=True, exist_ok=True)
+        draft.write_bytes(msg.as_bytes())
+        print(f"send failed ({type(last_err).__name__}: {last_err}); draft saved to {draft}")
+        return 0
+    print(f"send failed: {type(last_err).__name__}: {last_err}")
+    return 1
 
 
 if __name__ == "__main__":

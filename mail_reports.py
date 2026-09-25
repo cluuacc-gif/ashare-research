@@ -66,13 +66,13 @@ def screen_price_band(db, as_of: str, limit: int = 30) -> list[dict]:
     """Descriptive 5-10 yuan screen. Not a buy list until gates pass."""
     rows = db.execute(
         """
-        SELECT symbol, close, open, high, low, volume,
+        SELECT symbol, close, open, high, low, volume, amount,
                (high/low - 1.0) AS intraday_range,
                (close/NULLIF(open,0) - 1.0) AS open_to_close
         FROM daily_quotes
         WHERE trade_date=? AND close BETWEEN ? AND ?
           AND volume IS NOT NULL AND volume > 0
-        ORDER BY volume DESC
+        ORDER BY COALESCE(amount, volume) DESC
         LIMIT ?
         """,
         (as_of, PRICE_LO, PRICE_HI, limit),
@@ -97,15 +97,28 @@ def screen_price_band(db, as_of: str, limit: int = 30) -> list[dict]:
             """,
             (r["symbol"], as_of),
         ).fetchone()[0]
+        ind = db.execute(
+            "SELECT industry FROM industry_members WHERE symbol=? ORDER BY observed_at DESC LIMIT 1",
+            (r["symbol"],),
+        ).fetchone()
+        industry = ind["industry"] if ind else None
+        st = db.execute(
+            "SELECT is_st FROM security_status_daily WHERE symbol=? ORDER BY observed_at DESC LIMIT 1",
+            (r["symbol"],),
+        ).fetchone()
+        is_st = int(st["is_st"] or 0) if st else 0
         out.append(
             {
                 "symbol": r["symbol"],
                 "name": name["name"] if name else None,
                 "close": r["close"],
                 "volume": r["volume"],
+                "amount": r["amount"],
                 "open_to_close": round(r["open_to_close"] or 0.0, 4),
                 "bars": hist,
                 "limit_like_days": limit_like,
+                "industry": industry,
+                "is_st": bool(is_st),
             }
         )
     return out
@@ -217,8 +230,11 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
         news = json.loads(Path(news_path).read_text(encoding="utf-8"))
     # Research watch order: active + historical limit behavior + price band.
     ranked = sorted(
-        research["price_band_5_10"],
-        key=lambda x: (-(x.get("limit_like_days") or 0), -(x.get("volume") or 0)),
+        [x for x in research["price_band_5_10"] if not x.get("is_st")],
+        key=lambda x: (
+            -(x.get("limit_like_days") or 0),
+            -(x.get("amount") or x.get("volume") or 0),
+        ),
     )[:15]
     return {
         "stage": "auction",
@@ -310,8 +326,10 @@ def render_markdown(payload: dict) -> str:
         "",
     ]
     for row in (research.get("price_band_5_10") or [])[:12]:
+        st = " ST" if row.get("is_st") else ""
+        ind = f" {row['industry']}" if row.get("industry") else ""
         lines.append(
-            f"- {row['symbol']} {row.get('name') or ''} close={row['close']} vol={row['volume']} "
+            f"- {row['symbol']}{st} {row.get('name') or ''}{ind} close={row['close']} vol={row['volume']} "
             f"o2c={row['open_to_close']} limit_like={row['limit_like_days']}"
         )
     lines += [

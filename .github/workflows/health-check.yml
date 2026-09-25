@@ -1,0 +1,46 @@
+name: Health check pipeline
+on:
+  schedule:
+    # 00:30 UTC = 08:30 Asia/Shanghai before morning mails
+    - cron: '30 0 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Download latest market DB
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/store" "$RUNNER_TEMP/out"
+          gh release download canonical-store-v5 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'market-database-*.sqlite3' \
+            --dir "$RUNNER_TEMP/store"
+          DB=$(ls "$RUNNER_TEMP"/store/market-database-*.sqlite3 | sort | tail -1)
+          echo "DB=$DB" >> "$GITHUB_ENV"
+          echo "using $DB"
+      - name: Run health check
+        env:
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+        run: |
+          python health_check.py --db "$DB" --output "$RUNNER_TEMP/out/health.json" || true
+          cat "$RUNNER_TEMP/out/health.json"
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: health-${{ github.run_id }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: warn
