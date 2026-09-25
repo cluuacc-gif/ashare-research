@@ -1,0 +1,16 @@
+{
+  "kind": "canonical_recover_preparation",
+  "generated_at": "2026-09-25T10:44:40.328326+08:00",
+  "github_run_id": "36087252608",
+  "github_commit": "edc6b97585fcc58d81f2118a8b08d368d564c9cf",
+  "base_trade_date": "2026-09-24",
+  "next_trade_date": "2026-09-28",
+  "daily_rows": 3114998,
+  "base_quotes": 5557,
+  "working_database_sha256": "430260de91ffadd0666d5a0544478bbbc75685402f9fc2cd97c082d7f429d644",
+  "canonical_database_imported": false,
+  "persistence_pending": true,
+  "data_status": "DATA NOT READY",
+  "model_ready": false,
+  "prediction_database_touched": false
+}
