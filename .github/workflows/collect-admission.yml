@@ -1,0 +1,71 @@
+name: Collect admission sources (industry/news/official)
+on:
+  schedule:
+    # 02:00 UTC = 10:00 Asia/Shanghai, after morning mail window
+    - cron: '0 2 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  collect:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install deps
+        run: python -m pip install requests
+      - name: Download current market DB from release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/store" "$RUNNER_TEMP/out"
+          gh release download canonical-store-v5 \
+            --repo "$GITHUB_REPOSITORY" \
+            --pattern 'market-database-*.sqlite3' \
+            --dir "$RUNNER_TEMP/store"
+          DB=$(ls "$RUNNER_TEMP"/store/market-database-*.sqlite3 | sort | tail -1)
+          echo "DB=$DB" >> "$GITHUB_ENV"
+          echo "SHA=$(sha256sum "$DB" | awk '{print $1}')" >> "$GITHUB_ENV"
+          echo "using $DB"
+      - name: Collect industry and news
+        run: |
+          python collect_admission_sources.py \
+            --db "$DB" \
+            --expected-db-sha256 "$SHA" \
+            --output "$RUNNER_TEMP/out"
+      - name: Fills ledger status
+        run: |
+          python research_fills_ledger.py --db "$RUNNER_TEMP/out/$(basename "$DB")" \
+            --output "$RUNNER_TEMP/out/fills_ledger.json" || true
+      - uses: actions/upload-artifact@v4
+        with:
+          name: admission-collect-${{ github.run_id }}
+          path: ${{ runner.temp }}/out/
+          if-no-files-found: error
+      - name: Publish admission report pointer
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          DATA_ROOT: ${{ runner.temp }}/evening-data
+        run: |
+          if git ls-remote --exit-code --heads origin data/evening >/dev/null; then
+            git fetch origin data/evening
+            git worktree add --detach "$DATA_ROOT" FETCH_HEAD
+          else
+            git worktree add --detach "$DATA_ROOT" HEAD
+            git -C "$DATA_ROOT" switch --orphan data/evening
+          fi
+          mkdir -p "$DATA_ROOT/validation"
+          cp "$RUNNER_TEMP/out/admission_collect.json" "$DATA_ROOT/validation/admission-collect-latest.json" 2>/dev/null || true
+          cp "$RUNNER_TEMP/out/fills_ledger.json" "$DATA_ROOT/validation/fills-ledger-latest.json" 2>/dev/null || true
+          git -C "$DATA_ROOT" config user.name ashare-research-bot
+          git -C "$DATA_ROOT" config user.email ashare-research-bot@users.noreply.github.com
+          git -C "$DATA_ROOT" add validation/admission-collect-latest.json validation/fills-ledger-latest.json 2>/dev/null || true
+          if ! git -C "$DATA_ROOT" diff --cached --quiet; then
+            git -C "$DATA_ROOT" commit -m "Record admission collection ${{ github.run_id }}"
+            git -C "$DATA_ROOT" push origin HEAD:refs/heads/data/evening
+          fi
