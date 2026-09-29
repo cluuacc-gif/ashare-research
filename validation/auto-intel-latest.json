@@ -1,6 +1,6 @@
 {
   "kind": "auto_market_intel_collect",
-  "generated_at": "2026-09-29T02:20:17.481596+08:00",
+  "generated_at": "2026-09-29T15:57:21.665847+08:00",
   "symbols": 5569,
   "quotes_captured": 5569,
   "industries": 49,
@@ -19,7 +19,7 @@
     "limit_rows": 288382,
     "limit_today": 5569,
     "industry_members": 8748,
-    "news_events": 8349,
+    "news_events": 8369,
     "official_status_verified": 0,
     "official_limit_verified": 0
   },
@@ -29,7 +29,7 @@
   "working_database": {
     "application_id": 1095977041,
     "integrity_check": "ok",
-    "bytes": 900161536,
-    "sha256": "0e69998600f5021eea05bfc274be74d7cb659fa33f41cba14e9d30675da48b7b"
+    "bytes": 900182016,
+    "sha256": "f8427f15e93d458d83b0499c2a2bad19d17681caf4df517db8a8b3fc7bffa810"
   }
 }
