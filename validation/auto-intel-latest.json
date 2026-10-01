@@ -1,6 +1,6 @@
 {
   "kind": "auto_market_intel_collect",
-  "generated_at": "2026-10-01T16:20:26.483175+08:00",
+  "generated_at": "2026-10-02T01:13:33.964708+08:00",
   "symbols": 5569,
   "quotes_captured": 5569,
   "industries": 49,
@@ -30,6 +30,6 @@
     "application_id": 1095977041,
     "integrity_check": "ok",
     "bytes": 900395008,
-    "sha256": "9cc37317662444369a1ba612facc4faafb1ca524cd2b1d519a707d8aad67e7d0"
+    "sha256": "1e40c5eb85e660d07f3a00b6c3e86d8a0bd97d90cc8df91bc1a95155f9fa7f90"
   }
 }
