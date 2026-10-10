@@ -1,5 +1,6 @@
 {
   "operation": "replay_archived_quotes",
-  "requested_at": "2026-10-10T14:23:05+08:00",
+  "requested_at": "2026-10-10T14:34:00+08:00",
+  "validation_attempt": 2,
   "purpose": "Deploy and validate automatic pipeline against existing real archived data; draft report only."
 }
