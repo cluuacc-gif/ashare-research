@@ -96,13 +96,23 @@ def entries(root):
     return sorted(rows, key=lambda r: (r['base_trade_date'], r['original_finished_at'], r['index_path']))
 
 
-def prepare_current(source, expected_sha, root, output):
+def prepare_current(source, expected_sha, root, output, target_day=None):
     source, out = Path(source).resolve(), Path(output).resolve()
     if not source.is_file() or sha256(source) != expected_sha:
         raise ValueError('current canonical database missing or hash mismatch; no replacement created')
     original = inspect_sealed(source)
     if original['application_id'] != c.APP_ID:
         raise ValueError('canonical market database identity mismatch')
+    with sqlite3.connect(source.as_uri() + '?mode=ro', uri=True) as baseline:
+        initial_latest = baseline.execute('SELECT MAX(trade_date) FROM daily_quotes').fetchone()[0]
+        initial_rows = baseline.execute('SELECT COUNT(*) FROM daily_quotes').fetchone()[0]
+    catalog = entries(root)
+    target_day = target_day or catalog[-1]['base_trade_date']
+    if not context(target_day)['is_session'] or initial_latest > target_day:
+        raise ValueError('target must be a session and cannot move the current database backwards')
+    catalog = [e for e in catalog if e['base_trade_date'] <= target_day]
+    if not catalog or catalog[-1]['base_trade_date'] != target_day:
+        raise ValueError('verified transport missing for required target session')
     out.mkdir(parents=True, exist_ok=False)
     working = out / source.name
     shutil.copy2(source, working)
@@ -112,7 +122,7 @@ def prepare_current(source, expected_sha, root, output):
         imported = {r[0] for r in db.execute(
             "SELECT sha256 FROM source_log WHERE operation='verified_artifact_import'")}
     records = []
-    for entry in entries(root):
+    for entry in catalog:
         if entry['archive_sha256'] in imported:
             records.append({'base_trade_date': entry['base_trade_date'], 'sha256': entry['archive_sha256'], 'already_imported': True})
             continue
@@ -130,10 +140,15 @@ def prepare_current(source, expected_sha, root, output):
         base = db.execute('SELECT MAX(trade_date) FROM daily_quotes').fetchone()[0]
         inventory = dict(db.execute('SELECT trade_date,COUNT(*) FROM daily_quotes GROUP BY trade_date'))
         total = db.execute('SELECT COUNT(*) FROM daily_quotes').fetchone()[0]
-    latest = entries(root)[-1]['base_trade_date']
+    latest = target_day
     if base != latest:
         raise ValueError('working database latest date differs from latest transport')
+    from pipeline_stage import check_database
+    engineering_quality = check_database(working, base, initial_latest, initial_rows)
+    write_json(out / 'engineering_quality.json', engineering_quality)
     frozen = prepare(working, base, adjacent(base, 1), sealed['sha256'], out / 'frozen')
+    if frozen['descriptive_features_count'] <= 0:
+        raise ValueError('no descriptive features passed formula checks')
     with zipfile.ZipFile(out / 'frozen_inputs.zip', 'x', zipfile.ZIP_DEFLATED) as archive:
         for path in sorted((out / 'frozen').rglob('*')):
             if path.is_file(): archive.write(path, path.relative_to(out / 'frozen'))
@@ -144,6 +159,7 @@ def prepare_current(source, expected_sha, root, output):
               'input_database': original, 'working_database': {**sealed, 'path': str(working)},
               'source_database_unchanged': True, 'daily_rows': total, 'base_quotes': inventory[base],
               'imports': records, 'frozen_quality': frozen,
+              'engineering_quality': engineering_quality,
               'bundle': {'path': str(out / 'frozen_inputs.zip'), 'sha256': sha256(out / 'frozen_inputs.zip')},
               'canonical_database_imported': False, 'persistence_pending': True,
               'data_status': 'DATA NOT READY', 'model_ready': False, 'prediction_database_touched': False}
@@ -157,5 +173,6 @@ if __name__ == '__main__':
     p.add_argument('--expected-db-sha256', required=True)
     p.add_argument('--data-root', required=True)
     p.add_argument('--output', required=True)
+    p.add_argument('--target-day')
     a = p.parse_args()
-    print(json.dumps(prepare_current(a.db, a.expected_db_sha256, a.data_root, a.output), ensure_ascii=False))
+    print(json.dumps(prepare_current(a.db, a.expected_db_sha256, a.data_root, a.output, a.target_day), ensure_ascii=False))

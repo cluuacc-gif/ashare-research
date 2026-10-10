@@ -1,80 +1,154 @@
-name: A-share 18:00 daily data preparation
-
+name: A-share automatic after-close pipeline
 on:
   schedule:
-    # GitHub cron uses UTC: 10:00 UTC = 18:00 Asia/Shanghai.
+    # 10:00 UTC = 18:00 Asia/Shanghai; delayed runs retain source quote date.
     - cron: '0 10 * * 1-5'
   workflow_dispatch:
   push:
     branches: [main]
     paths:
       - requests/after-close.json
-      - cloud_daily.py
-      - two_stage.py
-      - trade_calendar.py
-      - exchange_calendar_2026.json
-      - test_two_stage.py
-      - close_snapshot.py
-      - publish_evening_transport.py
-      - .github/workflows/daily-data.yml
-
+      - requests/prepare-current.json
 permissions:
   contents: write
-
+  actions: read
 concurrency:
-  group: ashare-after-close
+  group: ashare-evening-writer
   cancel-in-progress: false
-
 jobs:
   collect:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    outputs:
+      has_quotes: ${{ steps.route.outputs.has_quotes }}
+      target_day: ${{ steps.route.outputs.target_day }}
+      transport_commit: ${{ steps.transport.outputs.commit }}
+    env:
+      TZ: Asia/Shanghai
     steps:
       - uses: actions/checkout@v4
         with:
-          persist-credentials: true
+          fetch-depth: 2
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Install pinned dependencies
-        run: python -m pip install -r requirements.txt
-      - name: Verify session and stage boundaries
-        run: python -m unittest -v test_two_stage.py
-      - name: Collect real close data or skip a verified closed day
+      - name: Choose collection or archived recovery
+        id: mode
         env:
-          EVENT_NAME: ${{ github.event_name }}
-        shell: bash
+          EVENT: ${{ github.event_name }}
+          BEFORE: ${{ github.event.before }}
         run: |
-          if [ "$EVENT_NAME" = schedule ]; then
-            python cloud_daily.py --scheduled --output evening-output
-          else
-            python cloud_daily.py --request requests/after-close.json --output evening-output
+          CATCHUP=false
+          if [ "$EVENT" = push ] && git diff --name-only "$BEFORE" HEAD | rg -q '^requests/prepare-current.json$'; then
+            CATCHUP=true
           fi
-      - name: Save real responses and calendar/quality diagnostics
-        if: always()
-        uses: actions/upload-artifact@v4
+          echo "catchup=$CATCHUP" >> "$GITHUB_OUTPUT"
+      - name: Install collection dependencies
+        if: steps.mode.outputs.catchup != 'true'
+        run: python -m pip install -r requirements.txt
+      - name: Verify stage boundaries and automation controls
+        run: python -m unittest -v test_two_stage.py test_auto_pipeline.py
+      - name: Collect actual close quotes
+        if: steps.mode.outputs.catchup != 'true'
+        env:
+          EVENT: ${{ github.event_name }}
+        run: |
+          if [ "$EVENT" = push ]; then
+            python cloud_daily.py --request requests/after-close.json --output evening-output
+          else
+            python cloud_daily.py --scheduled --output evening-output
+          fi
+      - name: Restore transport branch
+        run: |
+          git fetch origin data/evening
+          git worktree add --detach "$RUNNER_TEMP/transport" FETCH_HEAD
+      - name: Publish verified raw transport
+        if: steps.mode.outputs.catchup != 'true'
+        run: |
+          if [ -f evening-output/source_acceptance.json ]; then
+            python publish_evening_transport.py --source-dir evening-output --data-root "$RUNNER_TEMP/transport"
+            git -C "$RUNNER_TEMP/transport" config user.name ashare-research-bot
+            git -C "$RUNNER_TEMP/transport" config user.email ashare-research-bot@users.noreply.github.com
+            git -C "$RUNNER_TEMP/transport" add bundles catalog.json latest.json
+            if ! git -C "$RUNNER_TEMP/transport" diff --cached --quiet; then
+              git -C "$RUNNER_TEMP/transport" commit -m "Preserve verified close quotes $GITHUB_RUN_ID"
+              git -C "$RUNNER_TEMP/transport" push origin HEAD:refs/heads/data/evening
+            fi
+          fi
+      - name: Pin target session
+        id: route
+        env:
+          CATCHUP: ${{ steps.mode.outputs.catchup }}
+        run: |
+          if [ "$CATCHUP" = true ]; then
+            python pipeline_stage.py --root "$RUNNER_TEMP/transport" --catchup
+          else
+            python pipeline_stage.py --root evening-output
+          fi
+      - name: Pin exact transport commit
+        id: transport
+        run: echo "commit=$(git -C "$RUNNER_TEMP/transport" rev-parse HEAD)" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@v4
+        if: always() && steps.mode.outputs.catchup != 'true'
         with:
           name: ashare-evening-${{ github.run_id }}-${{ github.run_attempt }}
           path: evening-output/
-          if-no-files-found: error
+          if-no-files-found: warn
           retention-days: 90
-      - name: Publish verified immutable evidence for cross-session recovery
-        if: ${{ always() && hashFiles('evening-output/source_acceptance.json') != '' }}
+  prepare:
+    needs: collect
+    if: needs.collect.outputs.has_quotes == 'true'
+    uses: ./.github/workflows/prepared-snapshot.yml
+    with:
+      target_day: ${{ needs.collect.outputs.target_day }}
+      transport_commit: ${{ needs.collect.outputs.transport_commit }}
+    secrets: inherit
+  evening_mail:
+    needs: prepare
+    uses: ./.github/workflows/mail-evening.yml
+    with:
+      target_day: ${{ needs.prepare.outputs.target_day }}
+      release_tag: ${{ needs.prepare.outputs.release_tag }}
+      dry_run: ${{ github.event_name == 'push' }}
+    secrets: inherit
+  failure_notice:
+    needs: [collect, prepare, evening_mail]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.prepare.result == 'failure' || needs.evening_mail.result == 'failure') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Save and deliver an explicit pipeline failure notice
         env:
-          DATA_ROOT: ${{ runner.temp }}/evening-data
+          COLLECT: ${{ needs.collect.result }}
+          PREPARE: ${{ needs.prepare.result }}
+          MAIL: ${{ needs.evening_mail.result }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          SMTP_FROM: ${{ secrets.SMTP_FROM }}
+          MAIL_TO: ${{ secrets.MAIL_TO }}
+          EVENT: ${{ github.event_name }}
         run: |
-          if git ls-remote --exit-code --heads origin data/evening >/dev/null; then
-            git fetch origin data/evening
-            git worktree add --detach "$DATA_ROOT" FETCH_HEAD
-          else
-            git worktree add --detach "$DATA_ROOT" HEAD
-            git -C "$DATA_ROOT" switch --orphan data/evening
-          fi
-          python publish_evening_transport.py --source-dir evening-output --data-root "$DATA_ROOT"
-          git -C "$DATA_ROOT" config user.name ashare-research-bot
-          git -C "$DATA_ROOT" config user.email ashare-research-bot@users.noreply.github.com
-          git -C "$DATA_ROOT" add bundles catalog.json latest.json
-          if ! git -C "$DATA_ROOT" diff --cached --quiet; then
-            git -C "$DATA_ROOT" commit -m "Preserve verified daily source evidence $GITHUB_RUN_ID"
-            git -C "$DATA_ROOT" push origin HEAD:refs/heads/data/evening
-          fi
+          mkdir -p failure-out
+          python - <<'PY'
+          import os
+          from pathlib import Path
+          text='# A股自动流程故障\n\n'
+          text+='采集：'+os.environ['COLLECT']+'；入库／校验／冻结／发布：'+os.environ['PREPARE']+'；晚报：'+os.environ['MAIL']+'\n\n'
+          text+='本次未完成全部流程，不能视为当天研究成功。最近已验证版本保留；请检查运行记录。\n'
+          text+='https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['GITHUB_RUN_ID']+'\n'
+          Path('failure-out/notice.md').write_text(text,encoding='utf-8')
+          PY
+          EXTRA=""
+          if [ "$EVENT" = push ]; then EXTRA="--draft-only"; fi
+          python send_mail.py --subject "A股自动流程故障 $GITHUB_RUN_ID" --body-file failure-out/notice.md \
+            --draft-out failure-out/notice.eml --status-out failure-out/delivery.json $EXTRA
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: pipeline-failure-${{ github.run_id }}-${{ github.run_attempt }}
+          path: failure-out/

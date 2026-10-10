@@ -1,0 +1,74 @@
+name: Import check freeze and publish current snapshot
+on:
+  workflow_call:
+    inputs:
+      target_day:
+        required: true
+        type: string
+      transport_commit:
+        required: true
+        type: string
+    outputs:
+      release_tag:
+        value: ${{ jobs.prepare.outputs.release_tag }}
+      target_day:
+        value: ${{ jobs.prepare.outputs.target_day }}
+permissions:
+  contents: write
+jobs:
+  prepare:
+    outputs:
+      release_tag: ${{ steps.publish.outputs.release_tag }}
+      target_day: ${{ steps.publish.outputs.target_day }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      TZ: Asia/Shanghai
+      GH_TOKEN: ${{ github.token }}
+      TARGET_DAY: ${{ inputs.target_day }}
+      TRANSPORT_COMMIT: ${{ inputs.transport_commit }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Restore hashed current database and matching handoff
+        run: python pipeline_state.py restore --destination "$RUNNER_TEMP/current"
+      - name: Restore exact immutable transport commit
+        run: |
+          git fetch origin data/evening
+          git worktree add --detach "$RUNNER_TEMP/transport" "$TRANSPORT_COMMIT"
+      - name: Incremental import then quality gate then freeze
+        run: |
+          SHA=$(sha256sum "$DB" | cut -d ' ' -f1)
+          python recover_evening_pipeline.py --db "$DB" --expected-db-sha256 "$SHA" \
+            --data-root "$RUNNER_TEMP/transport" --target-day "$TARGET_DAY" --output "$RUNNER_TEMP/prepared"
+      - name: Publish immutable assets and update current pointer only after readback
+        id: publish
+        run: python pipeline_state.py publish --restored "$RUNNER_TEMP/current" --output "$RUNNER_TEMP/prepared"
+      - name: Independent restore in a fresh directory
+        env:
+          RELEASE_TAG: ${{ steps.publish.outputs.release_tag }}
+        run: |
+          python pipeline_state.py restore --release-tag "$RELEASE_TAG" --destination "$RUNNER_TEMP/readback"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          a=json.loads((root/'prepared/published_manifest.json').read_text())
+          b=json.loads((root/'readback/restore.json').read_text())['manifest']
+          assert a==b and b['base_trade_date']==os.environ['TARGET_DAY']
+          print(json.dumps({'snapshot_readback_verified':True,'target_day':b['base_trade_date'],
+                'daily_rows':b['daily_rows'],'quotes':b['base_quotes'],'formal_data_ready':False,'model_ready':False}))
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: preparation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/prepared/preparation.json
+            ${{ runner.temp }}/prepared/import_progress.json
+            ${{ runner.temp }}/prepared/engineering_quality.json
+            ${{ runner.temp }}/prepared/published_manifest.json
+            ${{ runner.temp }}/prepared/published/quality.md
+          if-no-files-found: warn

@@ -9,6 +9,9 @@ on:
 permissions:
   contents: write
   actions: read
+concurrency:
+  group: ashare-evening-writer
+  cancel-in-progress: false
 jobs:
   collect:
     runs-on: ubuntu-latest
