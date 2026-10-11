@@ -1,4 +1,4 @@
 {
-  "request_id": "production-model-bootstrap-20261011",
+  "request_id": "production-model-bootstrap-20261011-path-fix",
   "purpose": "Train and verify production model on current verified real data; defer win-rate optimization"
 }

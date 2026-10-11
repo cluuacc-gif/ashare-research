@@ -28,7 +28,7 @@ def pointer(repo):
 
 
 def verify_bundle(root, manifest):
-    root = Path(root)
+    root = Path(root).resolve()
     if sorted(manifest['files']) != sorted(FILES):
         raise ValueError('model artifact set mismatch')
     for name,item in manifest['files'].items():
@@ -83,7 +83,7 @@ def restore(repo, destination, release_tag=None, snapshot=None):
 
 
 def publish(repo, output, run_id):
-    out = Path(output)
+    out = Path(output).resolve()
     predictions = json.loads((out/'predictions.json').read_text())
     old, blob = pointer(repo)
     source, source_blob = data_pointer(repo)

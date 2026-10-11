@@ -618,7 +618,7 @@ def render_markdown(payload: dict) -> str:
                 lines.append(
                     f"| {i} | `{row.get('symbol')}` | {row.get('name') or ''} | {row.get('industry') or '—'} | "
                     f"{_fmt_num(row.get('close'))} | {_fmt_num(row.get('amount') or row.get('volume'), 0)} | "
-                    f"{row.get('limit_like_days') or 0} | {'是' if row.get('is_st') else '否'} |"
+                    f"{_fmt_num(row.get('limit_like_days'), 0)} | {'未知' if row.get('is_st') is None else ('是' if row.get('is_st') else '否')} |"
                 )
             lines += [
                 "",
@@ -641,7 +641,7 @@ def render_markdown(payload: dict) -> str:
                 lines.append(
                     f"| {i} | `{row.get('symbol')}` | {row.get('name') or ''} | "
                     f"{score_s} | {_fmt_num(row.get('close'))} | "
-                    f"{_fmt_num(row.get('amount') or row.get('volume'), 0)} | {row.get('limit_like_days') or 0} | "
+                    f"{_fmt_num(row.get('amount') or row.get('volume'), 0)} | {_fmt_num(row.get('limit_like_days'), 0)} | "
                     f"{'ST不碰' if row.get('is_st') else '可观察'} |"
                 )
             edge = payload.get("measured_edge") or {}
@@ -693,8 +693,8 @@ def render_markdown(payload: dict) -> str:
             lines.append(
                 f"| `{row.get('symbol')}` | {row.get('name') or ''} | {row.get('industry') or '—'} | "
                 f"{_fmt_num(row.get('close'))} | {_fmt_pct(row.get('open_to_close'))} | "
-                f"{_fmt_num(row.get('amount') or row.get('volume'), 0)} | {row.get('limit_like_days') or 0} | "
-                f"{'是' if row.get('is_st') else '否'} |"
+                f"{_fmt_num(row.get('amount') or row.get('volume'), 0)} | {_fmt_num(row.get('limit_like_days'), 0)} | "
+                f"{'未知' if row.get('is_st') is None else ('是' if row.get('is_st') else '否')} |"
             )
         lines += ["", f"> {research.get('price_band_note') or ''}", ""]
 

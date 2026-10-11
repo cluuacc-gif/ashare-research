@@ -2,6 +2,7 @@
 import copy
 import datetime as dt
 import json
+import os
 from pathlib import Path
 import sqlite3
 import tempfile
@@ -71,6 +72,31 @@ class SplitTests(unittest.TestCase):
 
 
 class StoreTests(unittest.TestCase):
+    def test_verify_bundle_accepts_relative_output_directory(self):
+        with tempfile.TemporaryDirectory() as d:
+            root=Path(d)
+            metadata={'model_id':'fixture','base_trade_date':'2026-10-09','target_trade_date':'2026-10-12',
+                      'generated_at':'2026-10-11T13:00:00+08:00','generated_before_open':True,
+                      'snapshot_release':'fixture-source','input_database_sha256':'fixture-sha','prediction_count':1}
+            rows=[{'symbol':'fixture','name':'fixture','close':6.,'P1':.5,'P2':.1,'rank':1}]
+            model.write_prediction_db(root/'predictions.sqlite3',rows,metadata)
+            model.write(root/'predictions.json',{**metadata,'rows':rows})
+            model.write(root/'validation.json',{**metadata,'purged_time_split_verified':True,
+                'status':'TRAIN_SAVE_RELOAD_PREDICT_VERIFIED','split':{
+                    'train':{'last_outcome_date':'2025-01-01'},
+                    'calibration':{'first_input_date':'2025-01-02','last_outcome_date':'2025-06-01'},
+                    'test':{'first_input_date':'2025-06-02','last_outcome_date':'2026-10-09'}}})
+            model.write(root/'input_manifest.json',{'release_tag':'fixture-source','database':{'sha256':'fixture-sha'}})
+            model.write(root/'model_handoff.json',{'latest_model':metadata})
+            for name in ('model.joblib','historical_holdout.csv.gz','prediction_inputs.csv.gz'):
+                (root/name).write_bytes(b'UNIT_FIXTURE_NOT_MODEL_EVIDENCE')
+            manifest={**metadata,'files':{name:model.ref(root/name) for name in model_store.FILES}}
+            actual,_=model_store.verify_bundle(os.path.relpath(root,Path.cwd()),manifest)
+            self.assertEqual(actual['rows'],rows)
+            (root/'predictions.json').write_text('corrupt')
+            with self.assertRaisesRegex(ValueError,'bytes/hash mismatch'):
+                model_store.verify_bundle(root,manifest)
+
     def test_prediction_sqlite_contains_only_new_generation(self):
         with tempfile.TemporaryDirectory() as d:
             path=Path(d)/'fixture.sqlite3'
