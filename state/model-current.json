@@ -1,0 +1,64 @@
+{
+  "model_id": "price-volume-production-v1-2026-10-09-4af6a3267dba143b",
+  "model_version": "price-volume-production-v1",
+  "base_trade_date": "2026-10-09",
+  "target_trade_date": "2026-10-12",
+  "snapshot_release": "prepared-2026-10-09-38031409718-1",
+  "input_database_sha256": "e9530b82b11e5e252d214808cc262979707086bcce51097007cb78a41d0a96f9",
+  "prediction_count": 1248,
+  "generated_at": "2026-10-11T13:17:55.971122+08:00",
+  "model_ready": true,
+  "formal_trade_ready": false,
+  "win_rate_gate": "deferred_by_user",
+  "schema_version": "1.0",
+  "release_tag": "model-2026-10-09-38114199092-1",
+  "github_run_id": "38114199092",
+  "github_commit": "b9a938ed4707e296b147f5de0396033d786111c8",
+  "files": {
+    "model.joblib": {
+      "name": "model.joblib",
+      "bytes": 184812,
+      "sha256": "4af6a3267dba143bf925bdc72f3649324fe8b9463889d1bfd770c2fe5e1066ac"
+    },
+    "validation.json": {
+      "name": "validation.json",
+      "bytes": 6756,
+      "sha256": "1fb1f547dd2aa46c827987f370e48888a0d3f15220988229e45e9583b51a3c6a"
+    },
+    "predictions.json": {
+      "name": "predictions.json",
+      "bytes": 252355,
+      "sha256": "e6f1e22c564141ccb34b5ecdd110e0df7f747e5e9f7256952fa32c4774c77c62"
+    },
+    "predictions.sqlite3": {
+      "name": "predictions.sqlite3",
+      "bytes": 360448,
+      "sha256": "875574cefa045c59183932f22c1e1ab6567b96af1e083f33afe0e49178825b18"
+    },
+    "input_manifest.json": {
+      "name": "input_manifest.json",
+      "bytes": 1616,
+      "sha256": "a8867a32d655d3bdb8b7b693bf8154b0febd9b5a7f4f1684713d0bd959ed3f8f"
+    },
+    "model_handoff.json": {
+      "name": "model_handoff.json",
+      "bytes": 57361,
+      "sha256": "3ab85f7695b8078799859a138737b434198a875a3a1d6577e031499a6a56ac8c"
+    },
+    "historical_holdout.csv.gz": {
+      "name": "historical_holdout.csv.gz",
+      "bytes": 1218802,
+      "sha256": "9cfb5242d1717315a07b67b4ba1b0a652df9327673c7859b1fda351846ebca26"
+    },
+    "prediction_inputs.csv.gz": {
+      "name": "prediction_inputs.csv.gz",
+      "bytes": 166309,
+      "sha256": "b19e7e8636a3fdc235fc3616895e3e377d473880e2a0202a4142491466f833d6"
+    }
+  },
+  "parent_pointer_blob_sha": null,
+  "data_pointer_blob_sha": "6e6200bf3c12ae193a5f8175eb70f86bf3c8913b",
+  "publication_started_at": "2026-10-11T13:17:57.672399+08:00",
+  "assets_readback_verified_at": "2026-10-11T13:18:00.569956+08:00",
+  "forward_eligible": true
+}
