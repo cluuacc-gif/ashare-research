@@ -3,17 +3,17 @@
   "model_version": "price-volume-production-v1",
   "base_trade_date": "2026-10-09",
   "target_trade_date": "2026-10-12",
-  "snapshot_release": "prepared-2026-10-09-38031409718-1",
+  "snapshot_release": "prepared-2026-10-09-38114388933-1",
   "input_database_sha256": "e9530b82b11e5e252d214808cc262979707086bcce51097007cb78a41d0a96f9",
   "prediction_count": 1248,
-  "generated_at": "2026-10-11T13:17:55.971122+08:00",
+  "generated_at": "2026-10-11T13:25:16.678618+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "deferred_by_user",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-09-38114199092-1",
-  "github_run_id": "38114199092",
-  "github_commit": "b9a938ed4707e296b147f5de0396033d786111c8",
+  "release_tag": "model-2026-10-09-38114388933-1",
+  "github_run_id": "38114388933",
+  "github_commit": "3ba69e296d1da0a77e5846875696c532f6d75110",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
@@ -23,27 +23,27 @@
     "validation.json": {
       "name": "validation.json",
       "bytes": 6756,
-      "sha256": "1fb1f547dd2aa46c827987f370e48888a0d3f15220988229e45e9583b51a3c6a"
+      "sha256": "6bf26cb765aea0c0f33d4c6388c2d36c469937cefbc7de33e202702116c55370"
     },
     "predictions.json": {
       "name": "predictions.json",
       "bytes": 252355,
-      "sha256": "e6f1e22c564141ccb34b5ecdd110e0df7f747e5e9f7256952fa32c4774c77c62"
+      "sha256": "a3f9e794cfb30ef0bb8aef75a14d9d7718ac11870895ac498bb4fcf8ae0d3915"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
       "bytes": 360448,
-      "sha256": "875574cefa045c59183932f22c1e1ab6567b96af1e083f33afe0e49178825b18"
+      "sha256": "4f57adf20de452b8d66598fb7738c4a16ca4257fde6afa5177c27e21e3a0dcdf"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
-      "bytes": 1616,
-      "sha256": "a8867a32d655d3bdb8b7b693bf8154b0febd9b5a7f4f1684713d0bd959ed3f8f"
+      "bytes": 1654,
+      "sha256": "cfcaa1666d7f99e3a5eea9d1c5b942a8b8fdc54d0ad86ada41f583608e72e9d6"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 57361,
-      "sha256": "3ab85f7695b8078799859a138737b434198a875a3a1d6577e031499a6a56ac8c"
+      "bytes": 58460,
+      "sha256": "18237e323d65a5db80f7732474287076cbc2ee5fe9d9fd089a528b101e60790e"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
@@ -56,9 +56,9 @@
       "sha256": "b19e7e8636a3fdc235fc3616895e3e377d473880e2a0202a4142491466f833d6"
     }
   },
-  "parent_pointer_blob_sha": null,
-  "data_pointer_blob_sha": "6e6200bf3c12ae193a5f8175eb70f86bf3c8913b",
-  "publication_started_at": "2026-10-11T13:17:57.672399+08:00",
-  "assets_readback_verified_at": "2026-10-11T13:18:00.569956+08:00",
+  "parent_pointer_blob_sha": "ed6c1cee3f6b34e04b8b1d245448086e9945f62a",
+  "data_pointer_blob_sha": "dce23a056b93b14d2c0106865d87c87f93970f22",
+  "publication_started_at": "2026-10-11T13:25:18.584489+08:00",
+  "assets_readback_verified_at": "2026-10-11T13:25:22.046582+08:00",
   "forward_eligible": true
 }
