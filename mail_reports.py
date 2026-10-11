@@ -124,36 +124,44 @@ def screen_price_band(db, as_of: str, limit: int = 30) -> list[dict]:
     return out
 
 
-def us_market_brief(timeout: float = 5.0) -> dict:
+def us_market_brief(timeout: float = 5.0, cache_path=None) -> dict:
     """Best-effort US snapshot with cache fallback (90 min). Never blocks mail forever."""
     import urllib.request
+    import math
+    from urllib.parse import quote
     from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    cache_path = Path(__file__).resolve().parent.parent / "staging" / "us_market_cache.json"
+    cache_path = Path(cache_path) if cache_path else Path(__file__).resolve().parent.parent / "staging" / "us_market_cache.json"
     # allow running from repo root
     if not cache_path.parent.exists():
         cache_path = Path("staging/us_market_cache.json")
     symbols = {"^GSPC": "S&P500", "^IXIC": "Nasdaq", "^DJI": "Dow", "NVDA": "NVDA", "AAPL": "AAPL"}
-    result = {"source": "yahoo_chart_public", "quotes": [], "note": "descriptive only"}
+    result = {"schema_version":"us-background-v2", "source": "yahoo_chart_public", "quotes": [], "note": "descriptive only", "fetched_at":stamp()}
     url = "https://query1.finance.yahoo.com/v8/finance/chart/{sym}?range=5d&interval=1d"
 
     def one(label, sym):
         req = urllib.request.Request(
-            url.format(sym=sym),
+            url.format(sym=quote(sym,safe='')),
             headers={"User-Agent": "Mozilla/5.0 (research-mail)"},
         )
         with urllib.request.urlopen(req, timeout=timeout) as resp:
             payload = json.loads(resp.read())
-        quote = payload["chart"]["result"][0]["indicators"]["quote"][0]
-        closes = [x for x in quote.get("close") or [] if x is not None]
+        chart = payload["chart"]["result"][0]
+        meta = chart.get('meta') or {}
+        if meta.get('symbol') != sym:
+            raise ValueError('provider returned different ticker')
+        values = chart["indicators"]["quote"][0]
+        closes = [x for x in values.get("close") or [] if isinstance(x,(float,int)) and math.isfinite(x) and x>0]
         if len(closes) >= 2:
             chg = closes[-1] / closes[-2] - 1.0
-            return {"label": label, "symbol": sym, "last": closes[-1], "change_1d": round(chg, 4)}
+            market_time = meta.get('regularMarketTime')
+            quoted_at = dt.datetime.fromtimestamp(market_time,TZ).isoformat() if isinstance(market_time,(float,int)) else None
+            return {"label": label, "symbol": sym, "last": closes[-1], "change_1d": round(chg, 4),"quoted_at":quoted_at}
         raise ValueError("thin closes")
 
     try:
         with ThreadPoolExecutor(max_workers=5) as ex:
-            futs = {ex.submit(one, label, sym): label for label, sym in symbols.items()}
+            futs = {ex.submit(one, label, sym): label for sym, label in symbols.items()}
             for fut in as_completed(futs, timeout=timeout + 3):
                 label = futs[fut]
                 try:
@@ -164,6 +172,8 @@ def us_market_brief(timeout: float = 5.0) -> dict:
         result.setdefault("errors", []).append(f"pool:{type(e).__name__}")
 
     if result["quotes"]:
+        order={sym:i for i,sym in enumerate(symbols)}
+        result['quotes'].sort(key=lambda r:order[r['symbol']])
         try:
             cache_path.parent.mkdir(parents=True, exist_ok=True)
             cache_path.write_text(
@@ -176,7 +186,9 @@ def us_market_brief(timeout: float = 5.0) -> dict:
         try:
             cached = json.loads(cache_path.read_text(encoding="utf-8"))
             old = cached.get("payload") or {}
-            if old.get("quotes"):
+            saved_at=dt.datetime.fromisoformat(cached['saved_at'])
+            age=dt.datetime.now(TZ)-saved_at if saved_at.tzinfo is not None else dt.timedelta(days=999)
+            if old.get("quotes") and old.get('schema_version')=='us-background-v2' and dt.timedelta(0)<=age<=dt.timedelta(minutes=90):
                 result = {
                     **old,
                     "source": "cached",

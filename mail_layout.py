@@ -1,6 +1,7 @@
 """Concise research email content, with matching plain text and safe inline HTML."""
 import html
 import math
+import datetime as dt
 from urllib.parse import quote
 
 VERSION = 'research-email-v2'
@@ -76,12 +77,19 @@ def content(payload):
     if stage=='evening':
         us=payload.get('us_overnight_linkage') or {}
         source='缓存行情' if us.get('source')=='cached' else '公开行情'
-        sections.append({'title':'海外市场背景','columns':['指数／标的','最新价格','日涨跌'],
-            'rows':[[r.get('label') or r.get('symbol') or '—',number(r.get('last')),pct(r.get('change_1d'))] for r in us.get('quotes',[])[:5]],
-            'note':(source+'；仅作背景，不进入当前价量模型。') if us.get('quotes') else '本次未取得可用海外行情，模型价量预测已单独计算。'})
+        def market_time(value):
+            try: return dt.datetime.fromisoformat(value).strftime('%m-%d %H:%M')
+            except (TypeError,ValueError): return '未知'
+        sections.append({'title':'海外市场背景','columns':['指数／标的','最新价格','日涨跌','报价时间'],
+            'rows':[[r.get('label') or r.get('symbol') or '—',number(r.get('last')),pct(r.get('change_1d')),market_time(r.get('quoted_at'))] for r in us.get('quotes',[])[:5]],
+            'note':(source+'；报价时间为北京时间。仅作背景，不进入当前价量模型。') if us.get('quotes') else '本次未取得可用海外行情，模型价量预测已单独计算。'})
     else:
         news=payload.get('public_news_until_0925') if stage=='auction' else payload.get('public_news_until_0900')
         news=news or []
+        def news_time(row):
+            try: return dt.datetime.fromisoformat(row.get('published_at') or row.get('time')).timestamp()
+            except (AttributeError,TypeError,ValueError): return float('-inf')
+        news=sorted(news,key=news_time,reverse=True)
         sections.append({'title':'已入库公开消息','columns':['发布时间','消息'],
             'rows':[[r.get('published_at') or r.get('time') or '—',r.get('title') or '—'] for r in news[:5] if isinstance(r,dict)],
             'note':f"按发布时间与入库时间双重截断至 {payload.get('information_cutoff','—')}；不进入当前价量模型。" if news else '本期没有符合截止时间的已入库消息，不代表市场没有消息。'})

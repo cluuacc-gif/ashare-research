@@ -7,6 +7,7 @@ import os
 from pathlib import Path
 import tempfile
 import unittest
+from urllib.parse import urlparse,unquote
 from unittest.mock import patch
 
 import collector as c
@@ -103,6 +104,38 @@ class GateTests(unittest.TestCase):
 
 
 class RenderingTests(unittest.TestCase):
+    def test_latest_news_first_across_timestamp_offsets(self):
+        value=payload('morning')
+        value['public_news_until_0900']=[{'title':'later','published_at':'2026-10-09T02:00:00+00:00'},
+                                       {'title':'earlier','published_at':'2026-10-09T09:00:00+08:00'}]
+        section=next(s for s in mail_layout.content(value)['sections'] if s['title']=='已入库公开消息')
+        self.assertEqual(section['rows'][0][1],'later')
+
+    def test_us_tickers_and_labels_are_not_swapped(self):
+        with tempfile.TemporaryDirectory() as d:
+            requested=[]
+            def response(request,timeout):
+                symbol=unquote(urlparse(request.full_url).path.rsplit('/',1)[-1]);requested.append(symbol)
+                from unittest.mock import MagicMock
+                result=MagicMock()
+                result.__enter__.return_value.read.return_value=json.dumps({'chart':{'result':[
+                    {'meta':{'symbol':symbol,'regularMarketTime':1791576000},'indicators':{'quote':[{'close':[100.,101.]}]}}]}}).encode()
+                return result
+            with patch('urllib.request.urlopen',side_effect=response):
+                result=mail_reports.us_market_brief(cache_path=Path(d)/'cache.json')
+            self.assertEqual(set(requested),{'^GSPC','^IXIC','^DJI','NVDA','AAPL'})
+            self.assertEqual({r['symbol']:r['label'] for r in result['quotes']},
+                             {'^GSPC':'S&P500','^IXIC':'Nasdaq','^DJI':'Dow','NVDA':'NVDA','AAPL':'AAPL'})
+            self.assertTrue(all(r['quoted_at'] for r in result['quotes']))
+
+    def test_legacy_or_expired_us_cache_not_reused(self):
+        with tempfile.TemporaryDirectory() as d:
+            path=Path(d)/'cache.json'
+            for schema,date in [('old',c.stamp()),('us-background-v2','2026-01-01T00:00:00+08:00')]:
+                path.write_text(json.dumps({'saved_at':date,'payload':{'schema_version':schema,'quotes':[{'last':99.}]}}))
+                with patch('urllib.request.urlopen',side_effect=OSError('fixture unavailable')):
+                    self.assertEqual(mail_reports.us_market_brief(cache_path=path)['quotes'],[])
+
     def test_html_escapes_untrusted_content_and_preserves_probability_semantics(self):
         value=payload(); html=mail_layout.render_html(value); text=mail_layout.render_text(value)
         self.assertIn('&lt;script&gt;',html);self.assertNotIn('<script>',html)
