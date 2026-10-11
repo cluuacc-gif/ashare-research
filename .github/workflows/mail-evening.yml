@@ -8,6 +8,9 @@ on:
       release_tag:
         required: true
         type: string
+      model_tag:
+        required: true
+        type: string
       dry_run:
         type: boolean
         default: false
@@ -22,6 +25,7 @@ jobs:
       GH_TOKEN: ${{ github.token }}
       TARGET_DAY: ${{ inputs.target_day }}
       RELEASE_TAG: ${{ inputs.release_tag }}
+      MODEL_TAG: ${{ inputs.model_tag }}
       DRY_RUN: ${{ inputs.dry_run }}
     steps:
       - uses: actions/checkout@v4
@@ -30,6 +34,8 @@ jobs:
           python-version: '3.12'
       - name: Independently restore the exact release published by preparation
         run: python pipeline_state.py restore --release-tag "$RELEASE_TAG" --destination "$RUNNER_TEMP/current"
+      - name: Restore exact matching published model and predictions
+        run: python model_store.py restore --release-tag "$MODEL_TAG" --store "$RUNNER_TEMP/current" --destination "$RUNNER_TEMP/model"
       - name: Generate and deliver with exact target date and file path
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
@@ -41,7 +47,7 @@ jobs:
         run: |
           EXTRA=""
           if [ "$DRY_RUN" = true ]; then EXTRA="--dry-run"; fi
-          python snapshot_mail.py --stage evening --day "$TARGET_DAY" --store "$RUNNER_TEMP/current" --output mail-out $EXTRA
+          python snapshot_mail.py --stage evening --day "$TARGET_DAY" --store "$RUNNER_TEMP/current" --model-store "$RUNNER_TEMP/model" --output mail-out $EXTRA
       - uses: actions/upload-artifact@v4
         if: always()
         with:

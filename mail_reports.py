@@ -541,10 +541,26 @@ def render_markdown(payload: dict) -> str:
         f"| 当日报价 / 证券数 | {_fmt_num(inv.get('base_quotes'), 0)} / {_fmt_num(inv.get('securities'), 0)} |",
         f"| 5～10 元筛选 | **{len(band)}** 只（描述性） |",
         f"| 数据状态 | **{data_status}** |",
-        f"| 模型就绪 | **{model_ready}** |",
+        f"| 模型训练／预测流程就绪 | **{model_ready}** |",
         f"| 生成时间 | {payload.get('generated_at')} |",
         "",
     ]
+
+    predictions = research.get('model_predictions')
+    if predictions:
+        validation = research['model_validation']
+        lines += [f"## 价量模型预测（{predictions['target_trade_date']}）", "",
+            f"模型 `{predictions['model_id']}`；输入截至 {predictions['base_trade_date']}；已保存 {predictions['prediction_count']} 只预测。", "",
+            "P1：次日收盘相对本日收盘上涨；P2：次日收盘涨幅≥5%。以下按P2排序，均为原始未复权价格事件概率。", "",
+            "| 排名 | 代码 | 名称 | 本日收盘 | P1 | P2 |", "| ---: | --- | --- | ---: | ---: | ---: |"]
+        for row in predictions['rows'][:10]:
+            lines.append(f"| {row['rank']} | `{row['symbol']}` | {row.get('name') or ''} | {row['close']:.2f} | {row['P1']:.1%} | {row['P2']:.1%} |")
+        lines += ["", "### 历史时间外测试（胜率优化暂后置）", "",
+            "| 价格事件 | 测试样本 | 日期数 | Top10事件发生率 | Brier | 常数基准Brier |",
+            "| --- | ---: | ---: | ---: | ---: | ---: |"]
+        for label, m in validation['endpoints'].items():
+            lines.append(f"| {label} | {m['n']} | {m['independent_dates']} | {m['top10_event_frequency']:.1%} | {m['brier']:.5f} | {m['calibration_block_constant_baseline_brier']:.5f} |")
+        lines += ["", "> 运行条件不要求80%胜率。以上为历史价格事件统计，不能当作成交净盈利胜率。官方状态、复权和涨停限价仍待核验；P3与E+1/E+2净盈利概率暂缺，交易准入未通过。", ""]
 
     if stage == "evening":
         us = payload.get("us_overnight_linkage") or {}

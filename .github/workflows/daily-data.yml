@@ -107,17 +107,24 @@ jobs:
       target_day: ${{ needs.collect.outputs.target_day }}
       transport_commit: ${{ needs.collect.outputs.transport_commit }}
     secrets: inherit
-  evening_mail:
+  formal_model:
     needs: prepare
+    uses: ./.github/workflows/formal-model.yml
+    with:
+      release_tag: ${{ needs.prepare.outputs.release_tag }}
+    secrets: inherit
+  evening_mail:
+    needs: [prepare, formal_model]
     uses: ./.github/workflows/mail-evening.yml
     with:
       target_day: ${{ needs.prepare.outputs.target_day }}
       release_tag: ${{ needs.prepare.outputs.release_tag }}
+      model_tag: ${{ needs.formal_model.outputs.model_tag }}
       dry_run: ${{ github.event_name == 'push' }}
     secrets: inherit
   failure_notice:
-    needs: [collect, prepare, evening_mail]
-    if: ${{ always() && (needs.collect.result == 'failure' || needs.prepare.result == 'failure' || needs.evening_mail.result == 'failure') }}
+    needs: [collect, prepare, formal_model, evening_mail]
+    if: ${{ always() && (needs.collect.result == 'failure' || needs.prepare.result == 'failure' || needs.formal_model.result == 'failure' || needs.evening_mail.result == 'failure') }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -129,6 +136,7 @@ jobs:
           COLLECT: ${{ needs.collect.result }}
           PREPARE: ${{ needs.prepare.result }}
           MAIL: ${{ needs.evening_mail.result }}
+          MODEL: ${{ needs.formal_model.result }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -142,7 +150,7 @@ jobs:
           import os
           from pathlib import Path
           text='# A股自动流程故障\n\n'
-          text+='采集：'+os.environ['COLLECT']+'；入库／校验／冻结／发布：'+os.environ['PREPARE']+'；晚报：'+os.environ['MAIL']+'\n\n'
+          text+='采集：'+os.environ['COLLECT']+'；入库／校验／冻结／发布：'+os.environ['PREPARE']+'；模型训练／预测／发布：'+os.environ['MODEL']+'；晚报：'+os.environ['MAIL']+'\n\n'
           text+='本次未完成全部流程，不能视为当天研究成功。最近已验证版本保留；请检查运行记录。\n'
           text+='https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['GITHUB_RUN_ID']+'\n'
           Path('failure-out/notice.md').write_text(text,encoding='utf-8')

@@ -25,7 +25,7 @@ def delivery_record(repo, stage, day):
         raise
 
 
-def report(stage, day, store):
+def report(stage, day, store, model_store=None):
     saved = json.loads((store/'restore.json').read_text())['manifest']
     if not saved.get('preparation_ready'):
         raise ValueError('unprepared seed cannot generate daily research')
@@ -41,6 +41,10 @@ def report(stage, day, store):
     payload['snapshot_release'] = saved['release_tag']
     payload['base_trade_date'] = expected
     payload['engineering_preparation_ready'] = True
+    if model_store is not None:
+        from model_store import attach
+        attach(payload, model_store, saved)
+        payload['disclaimer'] = payload['disclaimer'].replace('无正式概率，', '已附价量模型概率，')
     at = c.now()
     late = at.date().isoformat() != day or (stage == 'morning' and at.time() >= dt.time(9,20))
     payload['late'] = late
@@ -57,6 +61,7 @@ def main():
     p.add_argument('--day', required=True)
     p.add_argument('--store', required=True)
     p.add_argument('--output', required=True)
+    p.add_argument('--model-store')
     p.add_argument('--dry-run', action='store_true')
     a = p.parse_args()
     out, store = Path(a.output).resolve(), Path(a.store).resolve()
@@ -69,13 +74,14 @@ def main():
     if previous and previous.get('smtp_accepted'):
         write(out/'delivery.json', {**previous,'state':'already_smtp_accepted','duplicate_suppressed':True})
         return 0
-    value = report(a.stage,a.day,store)
+    value = report(a.stage,a.day,store,a.model_store)
     from mail_reports import render_markdown
     body = out/f'{a.stage}-{a.day}.md'
     write(out/f'{a.stage}-{a.day}.json',value)
     rendered = render_markdown(value)
     banner = '迟到补发／回顾' if value['late'] else '研究简报'
-    body.write_text(f'> {banner}；行情已自动入库、检查、冻结并独立读回。正式数据与模型准入仍未通过。\n\n'+rendered,encoding='utf-8')
+    model_note = '价量模型已训练并独立读回；交易数据准入仍未通过。' if value['research'].get('model_ready') else '正式数据与模型准入仍未通过。'
+    body.write_text(f'> {banner}；行情已自动入库、检查、冻结并独立读回。{model_note}\n\n'+rendered,encoding='utf-8')
     command = [sys.executable,'send_mail.py','--subject',f'A股研究 {a.day} {banner}',
                '--body-file',str(body),'--draft-out',str(out/'report.eml'),'--status-out',str(out/'delivery.json')]
     if a.dry_run: command.append('--draft-only')

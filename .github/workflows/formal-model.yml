@@ -1,0 +1,107 @@
+name: Train publish and verify production price model
+on:
+  workflow_call:
+    inputs:
+      release_tag:
+        type: string
+        required: true
+    outputs:
+      model_tag:
+        value: ${{ jobs.model.outputs.model_tag }}
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Exact prepared release (empty uses current)
+        type: string
+        required: false
+  push:
+    branches: [main]
+    paths: [requests/formal-model.json]
+permissions:
+  contents: write
+jobs:
+  model:
+    concurrency:
+      group: ashare-model-writer
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      model_tag: ${{ steps.publish.outputs.model_tag }}
+    env:
+      TZ: Asia/Shanghai
+      GH_TOKEN: ${{ github.token }}
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      RELEASE_TAG: ${{ inputs.release_tag }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-model.txt
+      - name: Install reproducible model runtime
+        run: python -m pip install -r requirements-model.txt
+      - name: Verify causal boundaries and model persistence controls
+        run: python -m unittest -v test_formal_model.py test_auto_pipeline.py
+      - name: Restore independently verified exact data snapshot
+        run: |
+          EXTRA=()
+          if [ -n "$RELEASE_TAG" ]; then EXTRA=(--release-tag "$RELEASE_TAG"); fi
+          python pipeline_state.py restore --destination "$RUNNER_TEMP/current" "${EXTRA[@]}"
+      - name: Train calibrate test save reload and predict from real history
+        run: python formal_price_model.py --store "$RUNNER_TEMP/current" --output model-out
+      - name: Publish model prediction database and handoff after independent readback
+        id: publish
+        run: python model_store.py publish --output model-out
+      - name: Restore published model in a separate directory and verify inference
+        env:
+          MODEL_TAG: ${{ steps.publish.outputs.model_tag }}
+        run: |
+          python model_store.py restore --release-tag "$MODEL_TAG" --store "$RUNNER_TEMP/current" --destination "$RUNNER_TEMP/model-readback"
+          python - <<'PY'
+          import json, os, joblib, pandas as pd, numpy as np
+          from pathlib import Path
+          from formal_price_model import predict
+          root=Path(os.environ['RUNNER_TEMP'])/'model-readback'
+          bundle=joblib.load(root/'model.joblib')
+          held=pd.read_csv(root/'historical_holdout.csv.gz')
+          validation=json.loads((root/'validation.json').read_text())
+          assert len(held)==validation['endpoints']['P1']['n']
+          assert bundle['split']==validation['split']
+          inputs=pd.read_csv(root/'prediction_inputs.csv.gz',float_precision='round_trip')
+          actual=predict(bundle,inputs)
+          saved={r['symbol']:r for r in json.loads((root/'predictions.json').read_text())['rows']}
+          assert len(saved)==len(inputs)
+          for label in ('P1','P2'):
+              expected=np.array([saved[s][label] for s in inputs.symbol])
+              assert np.allclose(actual[label],expected,rtol=0,atol=1e-12)
+          assert json.loads((root/'model_restore.json').read_text())['verified']
+          print(json.dumps({'independent_model_release_readback':True,'model_id':validation['model_id'],
+                            'prediction_count':validation['prediction_count'],'model_ready':True,'formal_trade_ready':False}))
+          PY
+      - name: Render both evening and next-session morning report previews from published assets
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])
+          manifest=json.loads((root/'current/restore.json').read_text())['manifest']
+          for stage,day in [('evening',manifest['base_trade_date']),('morning',manifest['next_trade_date'])]:
+              subprocess.run([sys.executable,'snapshot_mail.py','--stage',stage,'--day',day,
+                  '--store',str(root/'current'),'--model-store',str(root/'model-readback'),
+                  '--output','model-preview/'+stage,'--dry-run'],check=True)
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: formal-model-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            model-out/validation.json
+            model-out/published_model_manifest.json
+            model-out/model.joblib
+            model-out/predictions.json
+            model-out/predictions.sqlite3
+            model-preview/
+          if-no-files-found: warn
