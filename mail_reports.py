@@ -754,16 +754,9 @@ def main() -> int:
             "calendar": cal,
         }
         write_json(out_dir / f"{args.stage}-{args.day}.skip.json", note)
-        if args.skip_closed:
-            print(json.dumps(note, ensure_ascii=False))
-            return 0
-        # Still emit a short closed-day notice so schedules are observable.
-        md = (
-            f"# 休市跳过\n\n目标日 {args.day} 非交易日（交易所公告日历）。\n"
-            f"下一交易日：{cal.get('next_session')}\n"
-        )
-        (out_dir / f"{args.stage}-{args.day}.md").write_text(md, encoding="utf-8")
-        write_json(out_dir / f"{args.stage}-{args.day}.json", note)
+        # Keep an internal skip record only. No closed-day notice body may be sent.
+        for suffix in ('.md','.txt','.html','.eml','.json'):
+            (out_dir / f"{args.stage}-{args.day}{suffix}").unlink(missing_ok=True)
         print(json.dumps(note, ensure_ascii=False))
         return 0
 

@@ -32,11 +32,20 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Skip delivery on closed target or execution sessions
+        id: gate
+        run: |
+          EXTRA=""
+          if [ "$DRY_RUN" = true ]; then EXTRA="--preview"; fi
+          python mail_gate.py --day "$TARGET_DAY" --output mail-out/session-gate.json $EXTRA
       - name: Independently restore the exact release published by preparation
+        if: steps.gate.outputs.send_allowed == 'true'
         run: python pipeline_state.py restore --release-tag "$RELEASE_TAG" --destination "$RUNNER_TEMP/current"
       - name: Restore exact matching published model and predictions
+        if: steps.gate.outputs.send_allowed == 'true'
         run: python model_store.py restore --release-tag "$MODEL_TAG" --store "$RUNNER_TEMP/current" --destination "$RUNNER_TEMP/model"
       - name: Generate and deliver with exact target date and file path
+        if: steps.gate.outputs.send_allowed == 'true'
         env:
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}

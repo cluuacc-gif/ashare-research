@@ -20,15 +20,17 @@ from zoneinfo import ZoneInfo
 from email.utils import format_datetime
 
 
-def build_message(subject: str, body: str, mail_to: str, mail_from: str) -> EmailMessage:
+def build_message(subject: str, body: str, mail_to: str, mail_from: str, html_body=None) -> EmailMessage:
     msg = EmailMessage()
     msg["Subject"] = subject
     msg["From"] = mail_from
     msg["To"] = mail_to
     msg["Date"] = format_datetime(datetime.now(ZoneInfo("Asia/Shanghai")))
-    identity = hashlib.sha256((subject + '\n' + body + '\n' + mail_to).encode()).hexdigest()
+    identity = hashlib.sha256((subject + '\n' + body + '\n' + (html_body or '') + '\n' + mail_to).encode()).hexdigest()
     msg["Message-ID"] = f"<{identity}@ashare-research.local>"
     msg.set_content(body)
+    if html_body:
+        msg.add_alternative(html_body, subtype='html')
     return msg
 
 
@@ -36,25 +38,39 @@ def main() -> int:
     p = argparse.ArgumentParser(description=__doc__)
     p.add_argument("--subject", required=True)
     p.add_argument("--body-file", required=True)
+    p.add_argument("--html-file", help="HTML alternative; plain text remains available")
+    p.add_argument("--research-day", help="enforce target-day and execution-day exchange session gates")
     p.add_argument("--mail-to", default=os.environ.get("MAIL_TO", ""))
     p.add_argument("--draft-out", help="write .eml here when SMTP is not configured or send fails")
     p.add_argument("--status-out", help="machine-readable delivery result; never includes credentials")
     p.add_argument("--draft-only", action="store_true", help="explicit offline preview; does not claim delivery")
     args = p.parse_args()
 
+    def closed_session():
+        if not args.research_day: return False
+        from mail_gate import check, save
+        gate = check(args.research_day, preview=args.draft_only)
+        if gate['allowed']: return False
+        save(args.status_out or Path(args.body_file).with_suffix('.delivery.json'), gate)
+        print('Research mail skipped: ' + gate['reason'])
+        return True
+
+    if closed_session(): return 0
     body = Path(args.body_file).read_text(encoding="utf-8")
+    html_body = Path(args.html_file).read_text(encoding='utf-8') if args.html_file else None
     host = os.environ.get("SMTP_HOST", "").strip()
     user = os.environ.get("SMTP_USER", "").strip()
     password = os.environ.get("SMTP_PASSWORD", "").strip()
     mail_from = os.environ.get("SMTP_FROM", user or "noreply@localhost")
     port = int(os.environ.get("SMTP_PORT", "587"))
-    msg = build_message(args.subject, body, args.mail_to, mail_from)
+    msg = build_message(args.subject, body, args.mail_to, mail_from, html_body)
 
     draft = Path(args.draft_out) if args.draft_out else None
     status_path = Path(args.status_out) if args.status_out else Path(args.body_file).with_suffix('.delivery.json')
 
     def status(state, attempt=0, error=None):
         value = {'state': state, 'report_sha256': hashlib.sha256(body.encode()).hexdigest(),
+                 'html_sha256': hashlib.sha256(html_body.encode()).hexdigest() if html_body else None,
                  'message_id': msg['Message-ID'], 'attempts': attempt,
                  'recorded_at': datetime.now(ZoneInfo('Asia/Shanghai')).isoformat(),
                  'smtp_accepted': state == 'smtp_accepted', 'receipt_confirmed': False,
@@ -84,12 +100,14 @@ def main() -> int:
 
     last_err = None
     for attempt in range(1, 4):
+        if closed_session(): return 0
         try:
             context = ssl.create_default_context()
             if port == 465:
                 # QQ/163 style implicit SSL
                 with smtplib.SMTP_SSL(host, port, timeout=30, context=context) as smtp:
                     smtp.login(user, password)
+                    if closed_session(): return 0
                     refused = smtp.send_message(msg)
             else:
                 with smtplib.SMTP(host, port, timeout=30) as smtp:
@@ -97,6 +115,7 @@ def main() -> int:
                     smtp.starttls(context=context)
                     smtp.ehlo()
                     smtp.login(user, password)
+                    if closed_session(): return 0
                     refused = smtp.send_message(msg)
             if refused:
                 status('recipient_refused', attempt, 'SMTPRecipientsRefused')

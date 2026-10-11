@@ -1,0 +1,101 @@
+name: Verify upgraded research emails and closed-session suppression
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [requests/mail-preview.json]
+permissions:
+  contents: read
+  actions: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      TZ: Asia/Shanghai
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify holiday, weekend, delayed-send, MIME and content semantics
+        run: python -m unittest -v test_mail_upgrade.py test_auto_pipeline.py test_two_stage.py
+      - name: Exercise actual closed-session report and sender paths without SMTP credentials
+        run: |
+          python - <<'PY'
+          import json, sys, subprocess
+          from pathlib import Path
+          from mail_gate import check
+          gate=check()
+          if not gate['allowed']:
+              root=Path('mail-verification/closed-session')
+              for stage in ['evening','morning','auction']:
+                  out=root/stage
+                  subprocess.run([sys.executable,'snapshot_mail.py','--stage',stage,'--day',gate['target_date'],
+                      '--store','NONEXISTENT_CLOSED_DAY_DATABASE','--output',str(out)],check=True)
+                  result=json.loads((out/'delivery.json').read_text())
+                  assert not result['smtp_accepted'] and not list(out.glob('*.eml'))
+              subprocess.run([sys.executable,'send_mail.py','--subject','closed-session control',
+                  '--body-file','NONEXISTENT_CLOSED_DAY_BODY','--research-day',gate['target_date'],
+                  '--status-out',str(root/'sender.json')],check=True)
+              assert not json.loads((root/'sender.json').read_text())['smtp_accepted']
+              print(json.dumps({'actual_closed_session':gate['target_date'],'research_reports_skipped':3,'smtp_sent':False}))
+          PY
+      - name: Restore independently verified latest real data
+        run: python pipeline_state.py restore --destination "$RUNNER_TEMP/current"
+      - name: Restore published model matching real data
+        run: python model_store.py restore --store "$RUNNER_TEMP/current" --destination "$RUNNER_TEMP/model"
+      - name: Generate three-stage real model previews and inspect actual MIME
+        run: |
+          python - <<'PY'
+          import json, os, sys, subprocess
+          from pathlib import Path
+          from email import policy
+          from email.parser import BytesParser
+          root=Path(os.environ['RUNNER_TEMP'])
+          data=json.loads((root/'current/restore.json').read_text())['manifest']
+          model=json.loads((root/'model/model_restore.json').read_text())['manifest']
+          for stage in ['evening','morning','auction']:
+              day=data['base_trade_date'] if stage=='evening' else data['next_trade_date']
+              out=Path('mail-verification')/stage
+              subprocess.run([sys.executable,'snapshot_mail.py','--stage',stage,'--day',day,
+                  '--store',str(root/'current'),'--model-store',str(root/'model'),
+                  '--output',str(out),'--dry-run'],check=True)
+              payload=json.loads((out/f'{stage}-{day}.json').read_text())
+              assert payload['research']['model_ready']
+              assert payload['research']['model_release']==model['release_tag']
+              assert payload['research']['model_predictions']['prediction_count']==model['prediction_count']
+              message=BytesParser(policy=policy.default).parsebytes((out/'report.eml').read_bytes())
+              assert message.get_content_type()=='multipart/alternative'
+              assert '模型观察 Top10' in message.get_body(preferencelist=('html',)).get_content()
+              assert 'P1＝下一交易日收盘' in message.get_body(preferencelist=('plain',)).get_content()
+              assert not json.loads((out/'delivery.json').read_text())['smtp_accepted']
+          print(json.dumps({'real_model_email_previews':3,'predictions':model['prediction_count'],
+                           'multipart_html_and_text':True,'live_mail_sent':False},ensure_ascii=False))
+          PY
+      - name: Capture desktop and phone HTML layouts
+        run: |
+          if [ -z "$(fc-list :lang=zh | head -n 1)" ]; then
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq fonts-noto-cjk
+          fi
+          CHROME=$(command -v google-chrome || command -v chromium || true)
+          if [ -z "$CHROME" ]; then echo "Chrome renderer unavailable"; exit 1; fi
+          python - <<'PY'
+          import json, subprocess, shutil
+          from pathlib import Path
+          chrome=shutil.which('google-chrome') or shutil.which('chromium')
+          path=next(Path('mail-verification/evening').glob('*.html')).resolve()
+          for name,width in [('desktop',800),('mobile',390)]:
+              subprocess.run([chrome,'--headless','--no-sandbox','--disable-gpu','--hide-scrollbars',
+                  '--force-device-scale-factor=1',f'--window-size={width},2500',
+                  '--screenshot='+str(Path('mail-verification',name+'.png').resolve()),path.as_uri()],check=True)
+          print('Both real HTML layouts rendered')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: email-upgrade-${{ github.run_id }}-${{ github.run_attempt }}
+          path: mail-verification/
+          if-no-files-found: warn

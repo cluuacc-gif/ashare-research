@@ -1,4 +1,4 @@
-name: Mail morning from matching verified data and model
+name: Mail 09:00 morning model research
 on:
   schedule:
     - cron: '0 1 * * 1-5'
@@ -9,49 +9,8 @@ concurrency:
   group: ashare-mail-morning
   cancel-in-progress: false
 jobs:
-  morning:
-    runs-on: ubuntu-latest
-    timeout-minutes: 25
-    env:
-      TZ: Asia/Shanghai
-      GH_TOKEN: ${{ github.token }}
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: '3.12'
-      - name: Determine Shanghai target session
-        id: date
-        run: |
-          python - <<'PYDAY'
-          import os, collector
-          from trade_calendar import context
-          day=collector.now().date().isoformat()
-          with open(os.environ['GITHUB_OUTPUT'],'a') as stream:
-              stream.write('day='+day+'\n')
-              stream.write('is_session='+str(context(day)['is_session']).lower()+'\n')
-          PYDAY
-      - name: Restore current hashed data snapshot
-        if: steps.date.outputs.is_session == 'true'
-        run: python pipeline_state.py restore --destination "$RUNNER_TEMP/current"
-      - name: Restore model matching current snapshot
-        if: steps.date.outputs.is_session == 'true'
-        run: python model_store.py restore --store "$RUNNER_TEMP/current" --destination "$RUNNER_TEMP/model"
-      - name: Render and deliver exact-day morning report
-        if: steps.date.outputs.is_session == 'true'
-        env:
-          DAY: ${{ steps.date.outputs.day }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM }}
-          MAIL_TO: ${{ secrets.MAIL_TO }}
-        run: |
-          python snapshot_mail.py --stage morning --day "$DAY" --store "$RUNNER_TEMP/current" --model-store "$RUNNER_TEMP/model" --output mail-out
-      - uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: mail-morning-${{ github.run_id }}-${{ github.run_attempt }}
-          path: mail-out/
-          if-no-files-found: warn
+  mail:
+    uses: ./.github/workflows/session-report.yml
+    with:
+      stage: morning
+    secrets: inherit
