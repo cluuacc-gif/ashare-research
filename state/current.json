@@ -2,13 +2,13 @@
   "schema_version": "2.0",
   "market_file_id": "libfile_d756624099288191b2687f1948b17c94",
   "handoff_file_id": "libfile_d5f3ecbb7d448191adaa8f1cbf66e977",
-  "release_tag": "prepared-2026-10-09-38031409718-1",
+  "release_tag": "prepared-2026-10-09-38114388933-1",
   "base_trade_date": "2026-10-09",
   "next_trade_date": "2026-10-12",
-  "generated_at": "2026-10-10T14:38:41.104275+08:00",
-  "published_at": "2026-10-10T14:38:46.132221+08:00",
-  "github_run_id": "38031409718",
-  "github_commit": "05bf67bd50516e351084c511dea54b7df2f2e45f",
+  "generated_at": "2026-10-11T13:21:05.088370+08:00",
+  "published_at": "2026-10-11T13:21:08.703405+08:00",
+  "github_run_id": "38114388933",
+  "github_commit": "3ba69e296d1da0a77e5846875696c532f6d75110",
   "data_status": "DATA NOT READY",
   "model_ready": false,
   "preparation_ready": true,
@@ -16,7 +16,7 @@
   "engineering_quality": {
     "name": "engineering_quality.json",
     "bytes": 582,
-    "sha256": "dc2353563a1a826924ea3449370612a7a78ed20ddb3b29af114257310a7b3a40"
+    "sha256": "43879aa7e74cfabfc9ea5ce66843f1e4401cec85d2ee4e5caf394ca9f9843854"
   },
   "daily_rows": 3142791,
   "base_quotes": 5559,
@@ -27,23 +27,23 @@
   },
   "handoff": {
     "name": "handoff.json",
-    "bytes": 55489,
-    "sha256": "b0b331f796b566c8fbb5909930307a14de5006bef23a49dfea781fde8fee8360"
+    "bytes": 56588,
+    "sha256": "beb170979d86cd1f99fcf858404e687b07cfeed5fea397fc891a4d5da03c2b9f"
   },
   "frozen": {
     "name": "frozen.zip",
-    "bytes": 3407069,
-    "sha256": "3c914a005a663b66eecc944d3a806c830a0de5ab0c7dfd0249d7971012d8640f"
+    "bytes": 3407072,
+    "sha256": "a46b8d7e7b44aa080793ea9bbeff098a6c4f71f8e0228ba466af9271ef46747b"
   },
   "quality": {
     "name": "quality.json",
     "bytes": 8839,
-    "sha256": "17c6a15ad72a0ea6cef9170ce7e55b3011dc9e5f8c7b48a802d1bc876e28700f"
+    "sha256": "77a87623255fa409992ad61c94e8cf37f0f61d550dbf072d9f1da2fa81950818"
   },
   "quality_markdown": {
     "name": "quality.md",
     "bytes": 651,
-    "sha256": "1c34e4e3b0ba6d1aec75581e3dfe3b68f19699534aa966bdf72fc5563774bde7"
+    "sha256": "6cf76acab264a1b9404db86a9c102b03e61e736335e0bc92813ace11ed688db6"
   },
-  "parent_pointer_blob_sha": null
+  "parent_pointer_blob_sha": "6e6200bf3c12ae193a5f8175eb70f86bf3c8913b"
 }
