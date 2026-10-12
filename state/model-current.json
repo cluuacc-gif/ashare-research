@@ -1,64 +1,64 @@
 {
-  "model_id": "price-volume-production-v1-2026-10-09-4af6a3267dba143b",
+  "model_id": "price-volume-production-v1-2026-10-12-b1f5798268b7a587",
   "model_version": "price-volume-production-v1",
-  "base_trade_date": "2026-10-09",
-  "target_trade_date": "2026-10-12",
-  "snapshot_release": "prepared-2026-10-09-38114388933-1",
-  "input_database_sha256": "e9530b82b11e5e252d214808cc262979707086bcce51097007cb78a41d0a96f9",
-  "prediction_count": 1248,
-  "generated_at": "2026-10-11T13:25:16.678618+08:00",
+  "base_trade_date": "2026-10-12",
+  "target_trade_date": "2026-10-13",
+  "snapshot_release": "prepared-2026-10-12-38299537372-1",
+  "input_database_sha256": "5e9ff23e70f39f386a757e11ac65de75c3f4d42aa659fd3c09bee6bec245a257",
+  "prediction_count": 1255,
+  "generated_at": "2026-10-13T03:53:35.270205+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "deferred_by_user",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-09-38114388933-1",
-  "github_run_id": "38114388933",
-  "github_commit": "3ba69e296d1da0a77e5846875696c532f6d75110",
+  "release_tag": "model-2026-10-12-38299537372-1",
+  "github_run_id": "38299537372",
+  "github_commit": "d012ea6bf7eea031cd3d9995258d0f58669970f0",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 184812,
-      "sha256": "4af6a3267dba143bf925bdc72f3649324fe8b9463889d1bfd770c2fe5e1066ac"
+      "bytes": 184743,
+      "sha256": "b1f5798268b7a587959b1db554c23aa639b8c99ed59e1f0f76f6f160687c927f"
     },
     "validation.json": {
       "name": "validation.json",
-      "bytes": 6756,
-      "sha256": "6bf26cb765aea0c0f33d4c6388c2d36c469937cefbc7de33e202702116c55370"
+      "bytes": 6625,
+      "sha256": "f942073fe447c7a9fd3317a1536ff470b3a7f839c2825e7e3b4c2c99fdc49e1f"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 252355,
-      "sha256": "a3f9e794cfb30ef0bb8aef75a14d9d7718ac11870895ac498bb4fcf8ae0d3915"
+      "bytes": 255467,
+      "sha256": "6f2db21429d071450e99701d8adec251bf6c58e478a0dbfcdf39aac8c7fb2d85"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
-      "bytes": 360448,
-      "sha256": "4f57adf20de452b8d66598fb7738c4a16ca4257fde6afa5177c27e21e3a0dcdf"
+      "bytes": 364544,
+      "sha256": "c62e0fdb3382f3fcdd4b5b33986a14effd69da42cf0a66d7b1172dac000bbf85"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "cfcaa1666d7f99e3a5eea9d1c5b942a8b8fdc54d0ad86ada41f583608e72e9d6"
+      "sha256": "2d78979a8fd69d3f3a6ff2ee124c97a952f68fac22eae8302a7fc9d55b6da260"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 58460,
-      "sha256": "18237e323d65a5db80f7732474287076cbc2ee5fe9d9fd089a528b101e60790e"
+      "bytes": 59559,
+      "sha256": "fdd451b470c84839236b69fc95b20a96884f8ddfafeade44340cd00177333d1a"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
-      "bytes": 1218802,
-      "sha256": "9cfb5242d1717315a07b67b4ba1b0a652df9327673c7859b1fda351846ebca26"
+      "bytes": 1225186,
+      "sha256": "873b1d8f5d018fe285aa220b31a1666c25369ace09b198cdf33003e849cf6d82"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 166309,
-      "sha256": "b19e7e8636a3fdc235fc3616895e3e377d473880e2a0202a4142491466f833d6"
+      "bytes": 168415,
+      "sha256": "17a73097b968ffdf1c879872ba92d01b18002b01c976d97a9d861a14c0bb0701"
     }
   },
-  "parent_pointer_blob_sha": "ed6c1cee3f6b34e04b8b1d245448086e9945f62a",
-  "data_pointer_blob_sha": "dce23a056b93b14d2c0106865d87c87f93970f22",
-  "publication_started_at": "2026-10-11T13:25:18.584489+08:00",
-  "assets_readback_verified_at": "2026-10-11T13:25:22.046582+08:00",
+  "parent_pointer_blob_sha": "fe30a15c8c10b938c479bb1bca9473db7f0009ee",
+  "data_pointer_blob_sha": "a2b81d23728a3632b9d05adb8759b630bc414219",
+  "publication_started_at": "2026-10-13T03:53:37.123515+08:00",
+  "assets_readback_verified_at": "2026-10-13T03:53:40.712059+08:00",
   "forward_eligible": true
 }
