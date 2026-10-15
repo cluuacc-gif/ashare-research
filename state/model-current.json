@@ -1,64 +1,64 @@
 {
-  "model_id": "price-volume-production-v1-2026-10-14-94f73f8f9924e93b",
+  "model_id": "price-volume-production-v1-2026-10-15-57b7ab1c6f1eb62f",
   "model_version": "price-volume-production-v1",
-  "base_trade_date": "2026-10-14",
-  "target_trade_date": "2026-10-15",
-  "snapshot_release": "prepared-2026-10-14-38585193449-1",
-  "input_database_sha256": "a99765a541a0da1cd33b1780b86f3daf6a3358871163d99d1c6e6d02c5bf151c",
-  "prediction_count": 1279,
-  "generated_at": "2026-10-14T23:08:59.927582+08:00",
+  "base_trade_date": "2026-10-15",
+  "target_trade_date": "2026-10-16",
+  "snapshot_release": "prepared-2026-10-15-38754581705-1",
+  "input_database_sha256": "7cafee2989031c13626a6ec062f978eb8aced1c4d811da6a6b4405a5c3d62730",
+  "prediction_count": 1305,
+  "generated_at": "2026-10-15T22:58:01.732061+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "deferred_by_user",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-14-38585193449-1",
-  "github_run_id": "38585193449",
+  "release_tag": "model-2026-10-15-38754581705-1",
+  "github_run_id": "38754581705",
   "github_commit": "d012ea6bf7eea031cd3d9995258d0f58669970f0",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 184849,
-      "sha256": "94f73f8f9924e93ba053ea48231064e4eccc839f34b4f2e5d84730184648b77c"
+      "bytes": 184838,
+      "sha256": "57b7ab1c6f1eb62f64cf59dee29dee7867269b2b4e1db701f6353a6d049075d6"
     },
     "validation.json": {
       "name": "validation.json",
-      "bytes": 7090,
-      "sha256": "81beb095d9155cb1be20b18f1ff4eddd1c60425f006ee0b03d71a9123eea407e"
+      "bytes": 6622,
+      "sha256": "4d28ad4b4c190b1cf386028f12fada1b895f1a8f8668135448c0a8f826300c8f"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 261375,
-      "sha256": "d0af8200aa85d8f4c6f0c643bd3df6224b28d9c80a227e19ff550f3ab2a1c26e"
+      "bytes": 266313,
+      "sha256": "7b085b54a8796a915150a725d6382bed3e77c3192ba01861bcd3d6cdf780c0ea"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
-      "bytes": 364544,
-      "sha256": "c0894c3e3b8ba4420fdd76360df24c2fc30dd8938169f1b2d846c917d4699f8f"
+      "bytes": 372736,
+      "sha256": "2199ccdca5532949970f83b062c7ee40037f1c56f74eae43b95e60afc3002965"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "5b4857009e1fbcd22df9a2e7d99915c39faf5fb2ba62f1074446b2e8cd2c886a"
+      "sha256": "a27b613f8f934baad8edc37ca192890992fe9022d0458219d64e6ecf41d00f22"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 61757,
-      "sha256": "a78bd804cf7e7fbc1562d6b36afda02fffba8b0c1444bf2684d99d3a2da12bb3"
+      "bytes": 62856,
+      "sha256": "9a30cfc0c7c80e3ac144b22cfb954b7b17af02982fd7cc944a0c6543ad7e88d4"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
-      "bytes": 1248236,
-      "sha256": "33eb04e191bf1c103aeec90a48d75dadd27ec2440e22c198cde04a3f11d413cf"
+      "bytes": 1245245,
+      "sha256": "7b93148120dd031eefa58b5261790762f278f48b3c8d441dd962d78907c1977e"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 171556,
-      "sha256": "d97625c06a56effab5d435488ee97b8ba6210125f21afeabe08cf9bbb5fa9f23"
+      "bytes": 175985,
+      "sha256": "3baa0a9d2e738a02b00c5e7cc21a5e254888dc78c1f00fff12df835af43ee069"
     }
   },
-  "parent_pointer_blob_sha": "c3ba3bc75636a3b83e8c67acb132a4a55d9a8423",
-  "data_pointer_blob_sha": "e3518a83ed7cd79ad0c7fb4881832312584b1c89",
-  "publication_started_at": "2026-10-14T23:09:01.960111+08:00",
-  "assets_readback_verified_at": "2026-10-14T23:09:07.466658+08:00",
+  "parent_pointer_blob_sha": "6095b4031af194a937897c2056a8017dd4dcbbe1",
+  "data_pointer_blob_sha": "cb1987fe93d3a41805e9ae616bba9f80686102ff",
+  "publication_started_at": "2026-10-15T22:58:03.375837+08:00",
+  "assets_readback_verified_at": "2026-10-15T22:58:08.900180+08:00",
   "forward_eligible": true
 }
