@@ -68,6 +68,7 @@ jobs:
           path: |
             ${{ runner.temp }}/prepared/preparation.json
             ${{ runner.temp }}/prepared/import_progress.json
+            ${{ runner.temp }}/prepared/admission_imports.json
             ${{ runner.temp }}/prepared/engineering_quality.json
             ${{ runner.temp }}/prepared/published_manifest.json
             ${{ runner.temp }}/prepared/published/quality.md

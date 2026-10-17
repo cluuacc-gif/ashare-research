@@ -77,10 +77,11 @@ class StoreTest(unittest.TestCase):
             database=out/'fixture.sqlite3'
             with sqlite3.connect(database) as db:
                 db.executescript(c.SCHEMA);db.execute(f'PRAGMA application_id={c.APP_ID}')
+            db.close()
             sealed=pipeline_state.inspect_sealed(database)
             pipeline_state.write(restored/'restore.json',{'pointer_blob_sha':'old','manifest':{'handoff':{'name':'handoff.json'}}})
-            pipeline_state.write(restored/'handoff.json',{'latest_successful_dataset':None})
-            pipeline_state.write(out/'frozen/quality.json',{'base_trade_date':'2026-10-09'})
+            pipeline_state.write(restored/'handoff.json',{'latest_successful_dataset':None,'blocking_reasons':['stale_gap']})
+            pipeline_state.write(out/'frozen/quality.json',{'base_trade_date':'2026-10-09','blockers':['current_gap']})
             (out/'frozen_inputs.zip').write_bytes(b'fixture-only')
             pipeline_state.write(out/'preparation.json',{'base_trade_date':'2026-10-09','next_trade_date':'2026-10-12',
                 'generated_at':c.stamp(),'working_database':{**sealed,'path':str(database)},'daily_rows':0,'base_quotes':0,
@@ -97,6 +98,7 @@ class StoreTest(unittest.TestCase):
                     pipeline_state.publish('fixture/repo',restored,out,'fixture')
             self.assertFalse(any('--method' in args for args in calls))
             self.assertTrue((out/'published/manifest.json').is_file())
+            self.assertEqual(json.loads((out/'published/handoff.json').read_text())['blocking_reasons'],['current_gap'])
 
 
 class MailTest(unittest.TestCase):

@@ -6,6 +6,10 @@ on:
     # 10:30 UTC = 18:30 Asia/Shanghai
     - cron: '30 10 * * 1-5'
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - requests/capture-admission.json
 permissions:
   contents: write
   actions: read
@@ -23,21 +27,16 @@ jobs:
           python-version: '3.12'
       - name: Install deps
         run: python -m pip install requests
-      - name: Download current market DB from release
+      - name: Restore the verified current market snapshot
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          mkdir -p "$RUNNER_TEMP/store" "$RUNNER_TEMP/out"
-          gh release download canonical-store-v5 \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern 'market-database-*.sqlite3' \
-            --dir "$RUNNER_TEMP/store"
-          DB=$(ls "$RUNNER_TEMP"/store/market-database-*.sqlite3 | sort | tail -1)
-          echo "DB=$DB" >> "$GITHUB_ENV"
-          echo "SHA=$(sha256sum "$DB" | awk '{print $1}')" >> "$GITHUB_ENV"
-          echo "using $DB"
+          python pipeline_state.py restore --destination "$RUNNER_TEMP/store"
+      - name: Verify supplement date and persistence boundaries
+        run: python -m unittest -v test_admission_transport.py
       - name: Auto-capture status/limits/industry/notices
         run: |
+          SHA=$(sha256sum "$DB" | awk '{print $1}')
           python auto_capture_market_intel.py \
             --db "$DB" \
             --expected-db-sha256 "$SHA" \
@@ -47,12 +46,17 @@ jobs:
           python research_fills_ledger.py --db "$RUNNER_TEMP/out/$(basename "$DB")" \
             --output "$RUNNER_TEMP/out/fills_ledger.json" || true
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
           name: admission-collect-${{ github.run_id }}
-          path: ${{ runner.temp }}/out/
-          if-no-files-found: error
+          path: |
+            ${{ runner.temp }}/out/admission_rows.json
+            ${{ runner.temp }}/out/auto_intel_report.json
+            ${{ runner.temp }}/out/fills_ledger.json
+            ${{ runner.temp }}/out/raw/
+          if-no-files-found: warn
       - name: Publish admission report pointer
-        if: always()
+        if: success()
         env:
           GH_TOKEN: ${{ github.token }}
           DATA_ROOT: ${{ runner.temp }}/evening-data
@@ -64,13 +68,14 @@ jobs:
             git worktree add --detach "$DATA_ROOT" HEAD
             git -C "$DATA_ROOT" switch --orphan data/evening
           fi
+          python admission_transport.py --source-dir "$RUNNER_TEMP/out" --data-root "$DATA_ROOT"
           mkdir -p "$DATA_ROOT/validation"
           cp "$RUNNER_TEMP/out/auto_intel_report.json" "$DATA_ROOT/validation/auto-intel-latest.json" 2>/dev/null || true
           cp "$RUNNER_TEMP/out/admission_collect.json" "$DATA_ROOT/validation/admission-collect-latest.json" 2>/dev/null || true
           cp "$RUNNER_TEMP/out/fills_ledger.json" "$DATA_ROOT/validation/fills-ledger-latest.json" 2>/dev/null || true
           git -C "$DATA_ROOT" config user.name ashare-research-bot
           git -C "$DATA_ROOT" config user.email ashare-research-bot@users.noreply.github.com
-          git -C "$DATA_ROOT" add validation/ 2>/dev/null || true
+          git -C "$DATA_ROOT" add validation/ admission/
           if ! git -C "$DATA_ROOT" diff --cached --quiet; then
             git -C "$DATA_ROOT" commit -m "Record admission collection ${{ github.run_id }}"
             git -C "$DATA_ROOT" push origin HEAD:refs/heads/data/evening
