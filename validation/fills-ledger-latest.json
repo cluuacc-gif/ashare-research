@@ -1,6 +1,6 @@
 {
   "kind": "research_fills_ledger",
-  "database": "/home/runner/work/_temp/out/market-database-v9-auto-intel.sqlite3",
+  "database": "/home/runner/work/_temp/out/market.sqlite3",
   "fills": 0,
   "positions": 0,
   "labeled_positions": 0,

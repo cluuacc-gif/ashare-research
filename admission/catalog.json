@@ -1,0 +1,14 @@
+{
+  "datasets": [
+    {
+      "base_trade_date": "2026-10-16",
+      "generated_at": "2026-10-17T16:33:56.201844+08:00",
+      "github_run_id": "39017226620",
+      "archive_sha256": "79249a65d3e06a33021d7a6ead34ae2d7835cc9ba27ab2c8352b28d0ca984e42",
+      "archive_bytes": 5722594,
+      "index_path": "admission/39017226620-79249a65d3e06a33/index.json",
+      "raw_replay_verified": false,
+      "formal_data_ready": false
+    }
+  ]
+}
