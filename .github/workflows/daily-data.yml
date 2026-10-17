@@ -51,7 +51,11 @@ jobs:
         if: steps.mode.outputs.catchup != 'true'
         run: python -m pip install -r requirements.txt
       - name: Verify stage boundaries and automation controls
-        run: python -m unittest -v test_two_stage.py test_auto_pipeline.py
+        # Catch-up intentionally skips the larger market collector dependencies.
+        # The supplement boundary tests still import the requests-based collector.
+        run: |
+          python -m pip install requests
+          python -m unittest -v test_two_stage.py test_auto_pipeline.py test_admission_transport.py
       - name: Collect actual close quotes
         if: steps.mode.outputs.catchup != 'true'
         env:

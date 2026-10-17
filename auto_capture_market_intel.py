@@ -12,6 +12,8 @@ verification (verified=0 / official_verified=0) unless source is sse/szse/bse/cn
 from __future__ import annotations
 
 import argparse
+import datetime as dt
+import hashlib
 import json
 import os
 import re
@@ -33,6 +35,25 @@ RISK_KEYS = (
     "退市", "风险", "立案", "处罚", "问询", "停牌", "警示", "ST",
     "诉讼", "违规", "减持", "质押", "终止", "亏损", "关注函",
 )
+
+
+class EvidenceSession(requests.Session):
+    """Keep actual HTTP response bytes independently of the working database."""
+    def __init__(self, root):
+        super().__init__()
+        self.root = Path(root)
+        self.root.mkdir()
+        self.records = []
+
+    def get(self, *args, **kwargs):
+        response = super().get(*args, **kwargs)
+        body = response.content
+        name = f'{len(self.records):06d}.body'
+        (self.root / name).write_bytes(body)
+        self.records.append({'path': 'raw/' + name, 'url': response.url,
+                             'fetched_at': c.stamp(), 'status': response.status_code,
+                             'bytes': len(body), 'sha256': hashlib.sha256(body).hexdigest()})
+        return response
 
 
 def clear_proxy():
@@ -74,27 +95,17 @@ def parse_tx_line(line: str):
         # index heuristics from known Tencent layout
         high = float(parts[33]) if parts[33] else None
         low = float(parts[34]) if parts[34] else None
-        # later fields: limit up / limit down around 47/48
-        up = down = None
-        for idx in (47, 46, 48, 45, 44):
-            if idx < len(parts) and parts[idx]:
-                try:
-                    v = float(parts[idx])
-                except ValueError:
-                    continue
-                if prev and 0.5 * prev < v < 1.6 * prev:
-                    if up is None:
-                        up = v
-                    elif down is None and v < prev:
-                        down = v
-        # fallback compute from prev
-        if prev and up is None:
-            ratio = 0.20 if code.startswith(("300", "301", "688", "689")) else 0.30 if code.startswith(("4", "8", "92")) else 0.10
-            up = round(prev * (1 + ratio), 2)
-            down = round(prev * (1 - ratio), 2)
+        # Same explicit vendor fields used by collector.normalize_tx_spot.
+        # Missing limits stay missing, including special listing/ST cases.
+        up, down = c.number(parts[47]), c.number(parts[48])
+        if not (up is not None and down is not None and up > down > 0):
+            up = down = None
+        updated = dt.datetime.strptime(parts[30], '%Y%m%d%H%M%S').replace(tzinfo=c.TZ)
+        if updated > c.now():
+            return None
         is_st = 1 if ("ST" in name.upper()) else 0
-        traded = price is not None and price > 0
-        status = "traded" if traded else "unknown"
+        # A retained last price cannot establish trading or suspension status.
+        status = "unknown"
         return {
             "code": code,
             "name": name,
@@ -106,6 +117,9 @@ def parse_tx_line(line: str):
             "limit_down": down,
             "is_st": is_st,
             "trading_status": status,
+            "trade_date": updated.date().isoformat(),
+            "source_updated_at": updated.isoformat(),
+            "raw_line": line,
         }
     except Exception:
         return None
@@ -220,7 +234,7 @@ def fetch_sina_industry(sess):
                         "symbol": sym,
                         "classification": "sina_industry",
                         "industry": name,
-                        "effective_date": "2026-09-25",
+                        "effective_date": c.now().date().isoformat(),
                         "source_url": u,
                     }
                 )
@@ -246,6 +260,8 @@ def main() -> int:
     if sha256(src) != args.expected_db_sha256:
         raise SystemExit("db sha mismatch")
     before = inspect_sealed(src)
+    started = c.stamp()
+    run_id = 'auto-intel-' + started
     out = Path(args.output).resolve()
     out.mkdir(parents=True, exist_ok=True)
     if any(out.iterdir()):
@@ -253,7 +269,7 @@ def main() -> int:
     working = out / src.name
     shutil.copy2(src, working)
 
-    sess = requests.Session()
+    sess = EvidenceSession(out / 'raw')
     sess.headers["User-Agent"] = "Mozilla/5.0 (compatible; ashare-intel/0.2)"
 
     db = sqlite3.connect(working.as_uri() + "?mode=ro", uri=True)
@@ -302,7 +318,7 @@ def main() -> int:
     with wdb.db:
         now = c.stamp()
         for sym, q in quotes.items():
-            day = c.now().date().isoformat()
+            day = q['trade_date']
             wdb.db.execute(
                 "INSERT OR REPLACE INTO security_status_daily VALUES(?,?,?,?,?,?,?,?,?,?)",
                 (
@@ -310,12 +326,12 @@ def main() -> int:
                     day,
                     now,
                     int(q["is_st"]),
-                    0,
+                    None,
                     q["trading_status"],
                     0,
                     "https://qt.gtimg.cn/",
-                    now,
-                    json.dumps({"source": "tencent_qt", **{k: q[k] for k in ("name", "price", "prev_close", "limit_up", "limit_down", "trading_status", "is_st")}}, ensure_ascii=False),
+                    q['source_updated_at'],
+                    json.dumps({"source": "tencent_qt", **q}, ensure_ascii=False),
                 ),
             )
             imported["status"] += 1
@@ -364,7 +380,7 @@ def main() -> int:
         wdb.db.execute(
             "INSERT INTO source_log(run_id,source,operation,fetched_at,status,url,error,snapshot_ref,sha256,bytes) VALUES(?,?,?,?,?,?,?,?,?,?)",
             (
-                "auto-intel-20260925",
+                run_id,
                 "tencent+eastmoney+sina",
                 "auto_market_intel_collect",
                 c.stamp(),
@@ -392,7 +408,7 @@ def main() -> int:
         "official_status_verified": wdb.db.execute("SELECT COUNT(*) FROM security_status_daily WHERE verified=1").fetchone()[0],
         "official_limit_verified": wdb.db.execute("SELECT COUNT(*) FROM limit_records WHERE official_verified=1").fetchone()[0],
     }
-    wdb.finish("auto-intel-20260925", "success" if not imported["errors"] else "partial", imported)
+    wdb.finish(run_id, "success" if not imported["errors"] else "partial", imported)
     try:
         wdb.db.execute("PRAGMA wal_checkpoint(TRUNCATE)")
         wdb.db.execute("PRAGMA journal_mode=DELETE")
@@ -415,7 +431,13 @@ def main() -> int:
         "note": "Vendor/auto capture for research screening. Official exchange verification still requires sse/szse/bse/cninfo evidence packets.",
         "data_status": "DATA NOT READY",
         "working_database": sealed,
+        "source_database": before,
+        "source_database_unchanged": sha256(src) == args.expected_db_sha256,
     }
+    if not report['source_database_unchanged']:
+        raise ValueError('canonical source changed during collection')
+    from admission_transport import export_rows
+    export_rows(working, started, out / 'admission_rows.json', before, sess.records)
     write_json(out / "auto_intel_report.json", report)
     print(json.dumps(report, ensure_ascii=False, indent=2))
     return 0

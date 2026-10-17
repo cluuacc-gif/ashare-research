@@ -145,11 +145,14 @@ def publish(repo, restored, output, run_id):
                'canonical_database_imported': True, 'daily_rows': prep['daily_rows'],
                'base_quotes': prep['base_quotes'], 'github_run_id': str(run_id),
                'storage_backend': 'github_immutable_release', 'release_tag': tag,
+               'data_blockers': prep['complete_quality'].get('blockers', []),
+               'admission_imports': prep.get('admission_imports', []),
                'database': {**ref(asset_dir / 'market.sqlite3'), 'file_id': MARKET_ID},
                'frozen': ref(asset_dir / 'frozen.zip'), 'quality': ref(asset_dir / 'quality.json')}
     handoff.setdefault('attempt_history', []).append(attempt)
     handoff.update(latest_attempt=attempt, status='DATA NOT READY', bootstrap_complete=False,
-                   model_ready=False, latest_imported_trade_date=day)
+                   model_ready=False, latest_imported_trade_date=day,
+                   blocking_reasons=prep['complete_quality'].get('blockers', []))
     handoff['latest_prepared_dataset'] = attempt
     handoff.setdefault('latest_successful_dataset', None)
     handoff['storage_migration'] = {'market_file_id': MARKET_ID, 'handoff_file_id': HANDOFF_ID,

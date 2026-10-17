@@ -1,0 +1,33 @@
+name: Vendor supplement persistence boundaries
+on:
+  pull_request:
+    paths:
+      - admission_transport.py
+      - auto_capture_market_intel.py
+      - recover_evening_pipeline.py
+      - prepare_frozen_inputs.py
+      - pipeline_state.py
+      - test_admission_transport.py
+      - .github/workflows/collect-admission.yml
+      - .github/workflows/admission-safety.yml
+      - requests/capture-admission.json
+  push:
+    branches: [main]
+    paths:
+      - admission_transport.py
+      - auto_capture_market_intel.py
+      - test_admission_transport.py
+      - .github/workflows/admission-safety.yml
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m pip install requests
+      - run: python -m unittest -v test_admission_transport.py test_two_stage.py test_auto_pipeline.py

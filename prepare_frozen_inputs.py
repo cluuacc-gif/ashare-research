@@ -215,9 +215,7 @@ def prepare(db_path, base, next_day, expected_sha, output):
                  "mean_return": statistics.mean(observed_returns) if observed_returns else None,
                  "emotion_score": None},
              "formal_pool": None, "watchlist": [], "rankings": None, "probabilities": None,
-             "blockers": ["official_master_and_state_incomplete", str(len(missing_base))+"_vendor_base_quotes_missing" if missing_base else "official_finality_unverified",
-                          "historical_amount_batch_pending_replay_and_import", "official_limits_and_actions_unverified",
-                          "sector_fundflow_chip_news_risk_coverage_incomplete", "formal_calibrated_model_not_passed"],
+             "blockers": [],
              "sources": {"market_db_sha256": expected_sha,
                          "existing_feature_module_sha256": st.digest(Path(st.__file__)),
                          "wrapper_sha256": st.digest(Path(__file__)),
@@ -225,6 +223,20 @@ def prepare(db_path, base, next_day, expected_sha, output):
              "counterfactual_note": "No candidates, orders or tomorrow labels generated; computation date is real, not backfilled to the base session."}
         if q["database_sha256_after"] != expected_sha:
             raise ValueError("market DB changed during read-only preparation")
+        amount_imported = db.execute(
+            "SELECT COUNT(*) FROM source_log WHERE operation='verified_amount_evidence_import' AND status='success'"
+        ).fetchone()[0] > 0
+        q['historical_amount_import_receipt_present'] = amount_imported
+        q['blockers'] = ['official_master_and_state_incomplete']
+        if missing_base:
+            q['blockers'].append(f'{len(missing_base)}_vendor_base_quotes_missing')
+        if not amount_imported:
+            q['blockers'].append('historical_amount_batch_pending_replay_and_import')
+        if q['full_amount20_features'] < len(current):
+            q['blockers'].append(f"{len(current)-q['full_amount20_features']}_base_symbols_without_full_amount20")
+        q['blockers'].extend(['official_limits_and_actions_unverified',
+                              'sector_fundflow_chip_news_risk_coverage_incomplete',
+                              'formal_trade_model_and_execution_evidence_unverified'])
         st.write_json(out / "quality.json", q)
         manifest = {"run_id": out.name, "base_trade_date": base, "generated_at": c.stamp(),
                     "data_status": "DATA NOT READY", "files": [

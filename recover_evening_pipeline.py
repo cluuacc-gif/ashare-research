@@ -135,6 +135,9 @@ def prepare_current(source, expected_sha, root, output, target_day=None):
                                 check=True, capture_output=True, text=True)
         records.append(json.loads(result.stdout))
         write_json(out / 'import_progress.json', records)
+    from admission_transport import import_pending
+    admission_imports = import_pending(working, root, target_day)
+    write_json(out / 'admission_imports.json', admission_imports)
     sealed = inspect_sealed(working)
     with sqlite3.connect(working.as_uri() + '?mode=ro', uri=True) as db:
         base = db.execute('SELECT MAX(trade_date) FROM daily_quotes').fetchone()[0]
@@ -158,7 +161,7 @@ def prepare_current(source, expected_sha, root, output, target_day=None):
               'generated_at': c.stamp(), 'base_trade_date': base, 'next_trade_date': adjacent(base, 1),
               'input_database': original, 'working_database': {**sealed, 'path': str(working)},
               'source_database_unchanged': True, 'daily_rows': total, 'base_quotes': inventory[base],
-              'imports': records, 'frozen_quality': frozen,
+              'imports': records, 'admission_imports': admission_imports, 'frozen_quality': frozen,
               'engineering_quality': engineering_quality,
               'bundle': {'path': str(out / 'frozen_inputs.zip'), 'sha256': sha256(out / 'frozen_inputs.zip')},
               'canonical_database_imported': False, 'persistence_pending': True,
