@@ -81,9 +81,9 @@ class GateTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as d:
             body=Path(d)/'body.txt';body.write_text('fixture')
             status=Path(d)/'delivery.json'
-            clock=[self.at('2026-10-09',23)]
+            clock=[self.at('2026-10-09',18)]
             argv=['send_mail.py','--subject','fixture','--body-file',str(body),
-                  '--research-day','2026-10-09','--status-out',str(status),'--mail-to','fixture@example.invalid']
+                  '--research-day','2026-10-09','--stage','evening','--status-out',str(status),'--mail-to','fixture@example.invalid']
             env={'SMTP_HOST':'fixture.invalid','SMTP_PORT':'465','SMTP_USER':'fixture','SMTP_PASSWORD':'fixture'}
             with (patch('sys.argv',argv),patch.dict(os.environ,env,clear=True),
                   patch('mail_gate.c.now',side_effect=lambda:clock[0]),patch('send_mail.smtplib.SMTP_SSL') as relay):

@@ -52,8 +52,8 @@ def report(stage, day, store, model_store=None):
         attach(payload, model_store, saved)
         payload['disclaimer'] = payload['disclaimer'].replace('无正式概率，', '已附价量模型概率，')
     at = c.now()
-    deadline = dt.time(9,28) if stage == 'auction' else dt.time(9,20)
-    late = at.date().isoformat() > day or (stage != 'evening' and at.date().isoformat() == day and at.time() >= deadline)
+    from mail_timing import scheduled_at, WINDOW
+    late = at >= scheduled_at(stage,day) + WINDOW
     payload['late'] = late
     if stage == 'evening':
         payload['information_cutoff'] = saved['generated_at']
@@ -86,6 +86,11 @@ def main():
     if not gate['allowed']:
         write(out/'delivery.json', gate)
         return 0
+    from mail_timing import check as timing_check
+    timing = timing_check(a.stage,a.day,preview=a.dry_run)
+    if not timing['allowed']:
+        write(out/'delivery.json',timing)
+        return 0
     repo = os.environ.get('GITHUB_REPOSITORY','cluuacc-gif/ashare-research')
     path, previous, blob = delivery_record(repo,a.stage,a.day) if not a.dry_run else ('',None,None)
     if previous and previous.get('smtp_accepted'):
@@ -101,14 +106,16 @@ def main():
     body.write_text(rendered,encoding='utf-8')
     (out/f'{a.stage}-{a.day}.md').write_text(rendered,encoding='utf-8')
     html_body.write_text(render_html(value),encoding='utf-8')
-    command = [sys.executable,'send_mail.py','--subject',content(value)['subject'],
+    command = [sys.executable,str(Path(__file__).with_name('send_mail.py')),'--subject',content(value)['subject'],
                '--body-file',str(body),'--html-file',str(html_body),'--research-day',a.day,
+               '--stage',a.stage,
                '--draft-out',str(out/'report.eml'),'--status-out',str(out/'delivery.json')]
     if a.dry_run: command.append('--draft-only')
     subprocess.run(command,check=True)
     delivered = json.loads((out/'delivery.json').read_text())
     if not a.dry_run:
-        if delivered['state'] in ('market_closed','calendar_unverified'): return 0
+        if delivered['state'] in ('market_closed','calendar_unverified','missed_window',
+                                  'before_send_window','wrong_research_day','invalid_stage'): return 0
         if not delivered['smtp_accepted']: raise ValueError('SMTP did not accept report')
         delivered.update(target_date=a.day,stage=a.stage,release_tag=value['snapshot_release'])
         payload = {'message':f'Record {a.stage} SMTP acceptance {a.day}','branch':BRANCH,

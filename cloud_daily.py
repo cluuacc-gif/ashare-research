@@ -68,8 +68,9 @@ def collect(output, request=None, scheduled=False):
                   "calendar": cal, "actual_new_quotes": 0, "formal_prediction": False}
         write_json(root/"run_status.json", result)
         return result
-    if started.time() < dt.time(18) and target == started.date():
-        raise ValueError("evening preparation must start at/after 18:00 Asia/Shanghai")
+    earliest = dt.time(16,30) if scheduled else dt.time(18)
+    if started.time() < earliest and target == started.date():
+        raise ValueError(f"evening preparation must start at/after {earliest:%H:%M} Asia/Shanghai")
     if target != started.date():
         req = {"target_date": target.isoformat(), "bootstrap_symbols": [],
                "request_id": "delayed-scheduled-"+target.isoformat(),

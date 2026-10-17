@@ -1,4 +1,4 @@
-name: Trading-session research report
+name: Prepare early and deliver within the requested minute
 on:
   workflow_call:
     inputs:
@@ -9,30 +9,26 @@ permissions:
   contents: write
 jobs:
   report:
+    # An explicitly selected dedicated sender replaces these hosted senders.
+    if: vars.MAIL_DELIVERY_BACKEND != 'dedicated'
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 60
     env:
       TZ: Asia/Shanghai
       GH_TOKEN: ${{ github.token }}
       STAGE: ${{ inputs.stage }}
+      MAIL_MISSING_POLICY: ${{ vars.MAIL_MISSING_POLICY || 'brief' }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Check verified Shanghai exchange session before any restore or send
+      - name: Check exchange calendar before any preparation
         id: gate
         run: python mail_gate.py --output mail-out/session-gate.json
-      - name: Restore current hashed data snapshot
-        if: steps.gate.outputs.send_allowed == 'true'
-        run: python pipeline_state.py restore --destination "$RUNNER_TEMP/current"
-      - name: Restore model matching current snapshot
-        if: steps.gate.outputs.send_allowed == 'true'
-        run: python model_store.py restore --store "$RUNNER_TEMP/current" --destination "$RUNNER_TEMP/model"
-      - name: Render HTML and plain text then deliver exact-day research report
+      - name: Prepare in parallel and send the ready report or fallback at the deadline
         if: steps.gate.outputs.send_allowed == 'true'
         env:
-          DAY: ${{ steps.gate.outputs.day }}
           SMTP_HOST: ${{ secrets.SMTP_HOST }}
           SMTP_PORT: ${{ secrets.SMTP_PORT }}
           SMTP_USER: ${{ secrets.SMTP_USER }}
@@ -40,10 +36,20 @@ jobs:
           SMTP_FROM: ${{ secrets.SMTP_FROM }}
           MAIL_TO: ${{ secrets.MAIL_TO }}
         run: |
-          python snapshot_mail.py --stage "$STAGE" --day "$DAY" --store "$RUNNER_TEMP/current" --model-store "$RUNNER_TEMP/model" --output mail-out
+          python autonomous_mailer.py --stage "$STAGE" --state-dir mail-out --prepare &
+          preparation_pid=$!
+          delivery_exit=0
+          python autonomous_mailer.py --stage "$STAGE" --state-dir mail-out --deliver --wait || delivery_exit=$?
+          if kill -0 "$preparation_pid" 2>/dev/null; then
+            kill "$preparation_pid" 2>/dev/null || true
+          fi
+          wait "$preparation_pid" || true
+          exit "$delivery_exit"
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: mail-${{ inputs.stage }}-${{ github.run_id }}-${{ github.run_attempt }}
-          path: mail-out/
-          if-no-files-found: error
+          path: |
+            mail-out/session-gate.json
+            mail-out/outbox/
+          if-no-files-found: warn

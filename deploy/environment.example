@@ -1,0 +1,14 @@
+# Template only. Populate /etc/ashare-mail/environment locally; never commit it.
+# The system service manager reads a root-owned mode-0600 file.
+GITHUB_REPOSITORY=cluuacc-gif/ashare-research
+MAIL_DELIVERY_BACKEND=dedicated
+MAIL_MISSING_POLICY=brief
+# Keep receipts on this host; enable publication only with a contents-write token.
+MAIL_PUBLISH_RECEIPTS=false
+GH_TOKEN=
+SMTP_HOST=
+SMTP_PORT=465
+SMTP_USER=
+SMTP_PASSWORD=
+SMTP_FROM=
+MAIL_TO=

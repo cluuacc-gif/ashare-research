@@ -1,7 +1,8 @@
 name: Mail 09:00 morning model research
 on:
   schedule:
-    - cron: '0 1 * * 1-5'
+    # Warm at 08:33 Shanghai; only the 09:00 minute can submit SMTP.
+    - cron: '33 0 * * 1-5'
   workflow_dispatch:
 permissions:
   contents: write

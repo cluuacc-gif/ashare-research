@@ -40,22 +40,29 @@ def main() -> int:
     p.add_argument("--body-file", required=True)
     p.add_argument("--html-file", help="HTML alternative; plain text remains available")
     p.add_argument("--research-day", help="enforce target-day and execution-day exchange session gates")
+    p.add_argument("--stage", help="research schedule: morning 09:00, auction 09:25, evening 18:00 Shanghai")
     p.add_argument("--mail-to", default=os.environ.get("MAIL_TO", ""))
     p.add_argument("--draft-out", help="write .eml here when SMTP is not configured or send fails")
     p.add_argument("--status-out", help="machine-readable delivery result; never includes credentials")
     p.add_argument("--draft-only", action="store_true", help="explicit offline preview; does not claim delivery")
     args = p.parse_args()
 
-    def closed_session():
+    status_path = Path(args.status_out) if args.status_out else Path(args.body_file).with_suffix('.delivery.json')
+
+    def blocked(attempt=0):
         if not args.research_day: return False
         from mail_gate import check, save
         gate = check(args.research_day, preview=args.draft_only)
+        if gate['allowed']:
+            from mail_timing import check as timing_check
+            gate = timing_check(args.stage, args.research_day, preview=args.draft_only)
         if gate['allowed']: return False
-        save(args.status_out or Path(args.body_file).with_suffix('.delivery.json'), gate)
+        gate.update(attempts=attempt)
+        save(status_path, gate)
         print('Research mail skipped: ' + gate['reason'])
         return True
 
-    if closed_session(): return 0
+    if blocked(): return 0
     body = Path(args.body_file).read_text(encoding="utf-8")
     html_body = Path(args.html_file).read_text(encoding='utf-8') if args.html_file else None
     host = os.environ.get("SMTP_HOST", "").strip()
@@ -66,14 +73,14 @@ def main() -> int:
     msg = build_message(args.subject, body, args.mail_to, mail_from, html_body)
 
     draft = Path(args.draft_out) if args.draft_out else None
-    status_path = Path(args.status_out) if args.status_out else Path(args.body_file).with_suffix('.delivery.json')
 
-    def status(state, attempt=0, error=None):
+    def status(state, attempt=0, error=None, accepted_some=False):
         value = {'state': state, 'report_sha256': hashlib.sha256(body.encode()).hexdigest(),
                  'html_sha256': hashlib.sha256(html_body.encode()).hexdigest() if html_body else None,
                  'message_id': msg['Message-ID'], 'attempts': attempt,
                  'recorded_at': datetime.now(ZoneInfo('Asia/Shanghai')).isoformat(),
                  'smtp_accepted': state == 'smtp_accepted', 'receipt_confirmed': False,
+                 'accepted_some': accepted_some,
                  'error_class': error}
         status_path.parent.mkdir(parents=True, exist_ok=True)
         status_path.write_text(json.dumps(value, ensure_ascii=False, indent=2), encoding='utf-8')
@@ -96,18 +103,18 @@ def main() -> int:
         status('not_configured')
         return 2
 
-    import time
-
     last_err = None
     for attempt in range(1, 4):
-        if closed_session(): return 0
+        if blocked(attempt-1): return 0
+        submission_started = False
         try:
             context = ssl.create_default_context()
             if port == 465:
                 # QQ/163 style implicit SSL
                 with smtplib.SMTP_SSL(host, port, timeout=30, context=context) as smtp:
                     smtp.login(user, password)
-                    if closed_session(): return 0
+                    if blocked(attempt): return 0
+                    submission_started = True
                     refused = smtp.send_message(msg)
             else:
                 with smtplib.SMTP(host, port, timeout=30) as smtp:
@@ -115,10 +122,13 @@ def main() -> int:
                     smtp.starttls(context=context)
                     smtp.ehlo()
                     smtp.login(user, password)
-                    if closed_session(): return 0
+                    if blocked(attempt): return 0
+                    submission_started = True
                     refused = smtp.send_message(msg)
             if refused:
-                status('recipient_refused', attempt, 'SMTPRecipientsRefused')
+                # A returned refusal mapping means some other recipients may
+                # already have been accepted. Never resend the whole message.
+                status('partial_acceptance', attempt, 'SMTPRecipientsRefused', accepted_some=True)
                 return 1
             status('smtp_accepted', attempt)
             print(f"SMTP accepted report attempt={attempt}; receipt not independently confirmed")
@@ -126,10 +136,17 @@ def main() -> int:
         except Exception as e:
             last_err = e
             print(f"send attempt {attempt} failed: {type(e).__name__}")
+            if submission_started and not isinstance(e, (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused)):
+                # The relay may have accepted DATA before its acknowledgement was
+                # lost. Retrying could submit a second copy of the same report.
+                if draft:
+                    draft.parent.mkdir(parents=True, exist_ok=True)
+                    draft.write_bytes(msg.as_bytes())
+                status('delivery_unknown', attempt, type(e).__name__)
+                return 1
+            if blocked(attempt): return 0
             if isinstance(e, (smtplib.SMTPAuthenticationError, smtplib.SMTPRecipientsRefused)):
                 break
-            if attempt < 3:
-                time.sleep(2 * attempt)
     if draft:
         draft.parent.mkdir(parents=True, exist_ok=True)
         draft.write_bytes(msg.as_bytes())

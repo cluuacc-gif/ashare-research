@@ -1,0 +1,26 @@
+[Unit]
+Description=Prepare A-share %i mail before its Shanghai delivery deadline
+Documentation=file:/opt/ashare-research/AUTONOMOUS_OPERATIONS.md
+Wants=network-online.target
+After=network-online.target time-sync.target
+
+[Service]
+Type=oneshot
+User=ashare-mail
+Group=ashare-mail
+WorkingDirectory=/opt/ashare-research
+EnvironmentFile=/etc/ashare-mail/environment
+Environment=TZ=Asia/Shanghai
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/ashare-research/.venv/bin/python /opt/ashare-research/autonomous_mailer.py --stage %i --state-dir /var/lib/ashare-mail --prepare
+TimeoutStartSec=29min
+Restart=no
+UMask=0077
+StateDirectory=ashare-mail
+StateDirectoryMode=0700
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/ashare-mail
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
