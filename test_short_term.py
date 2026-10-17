@@ -1,6 +1,7 @@
 """Isolated synthetic unit fixtures ONLY; never production samples or win rates."""
 import copy
 import datetime as dt
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -255,6 +256,175 @@ class AdmissionTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             f = collector.Fetcher(Path(tmp)/"raw", retries=2, timeout=15, interval=.4)
             self.assertEqual(f.interval, .4)
+
+
+class ExecutionEvidenceRegressionTests(unittest.TestCase):
+    """Synthetic contracts, not live executions or performance evidence."""
+
+    def setUp(self):
+        self.temporary = tempfile.TemporaryDirectory(prefix="synthetic-execution-evidence-")
+        self.addCleanup(self.temporary.cleanup)
+        self.root = Path(self.temporary.name).resolve()
+        raw_source = self.root / "synthetic-fill-proof.txt"
+        raw_source.write_text("SYNTHETIC UNIT TEST ONLY; no actual account trades.\n", encoding="utf-8")
+        self.source_ref = {"path": raw_source.name, "sha256": st.digest(raw_source)}
+        self.model = {
+            "status": "time_out_of_sample_validated", "label": st.LABEL,
+            "strategy_version": st.VERSION, "model_version": "synthetic-unit-test-only-v1",
+            "rule_frozen_at": "2020-09-11T08:00:00+08:00",
+            "train_label_end": "2020-06-29", "calibration_start": "2020-06-30",
+            "calibration_end": "2020-09-10", "test_start": "2020-09-14", "test_end": "2020-09-16",
+            "purged_time_split_verified": True, "same_day_pool_baseline_verified": True,
+            "costs_slippage_and_unfilled_included": True,
+            # Deliberately untrusted summary claims: the raw fixture has one trade.
+            "validation_n": 200, "independent_entry_dates": 60, "unresolved_trade_count": 0,
+            "p_net_profit": .85, "entry_date_cluster_95_lower": .81, "expected_net_return": .01,
+        }
+        self.packet = {
+            key: True for key in ("full_universe_verified", "frozen_pool_verified", "factors_verified",
+                                  "official_status_verified", "official_limits_verified", "calendar_verified",
+                                  "corporate_actions_verified", "news_risk_verified", "bootstrap_complete")
+        }
+        self.packet.update({
+            "data_status": "DATA READY", "execution_model": self.model,
+            "base_date": "2020-09-17", "entry_date": "2020-09-18",
+            "information_cutoff": "2020-09-17T18:00:00+08:00",
+            "generated_at": "2020-09-17T18:01:00+08:00", "saved_at": "2020-09-17T18:02:00+08:00",
+        })
+        self.proof = {
+            "source_type": "broker_fill", "verified": True, "actual_fill_prices": True,
+            "fees_verified": True, "buy_fill_id": "buy1", "sell_fill_id": "sell1",
+            "fee_statement_id": "SYNTHETIC-UNIT-TEST-ONLY", "source_ref": self.source_ref,
+            "actual_fees": {"buy_commission": 5., "buy_transfer": 0.,
+                            "sell_commission": 5., "sell_transfer": 0., "sell_tax": 0.},
+        }
+        self.trade = {
+            "plan": plan(), "plan_frozen_at": "2020-09-14T09:00:00+08:00", "signal_date": "2020-09-11",
+            "fills": [fill("buy", "2020-09-14T09:40:00+08:00"),
+                      fill("sell", "2020-09-15T10:00:00+08:00", price=7.4)],
+            "execution_evidence": self.proof,
+        }
+        self.evidence = {
+            "fixture_kind": "synthetic_unit_test_only_not_real_evidence",
+            "real_data": True, "strategy_version": st.VERSION, "label": st.LABEL,
+            "model_version": self.model["model_version"], "rule_frozen_at": self.model["rule_frozen_at"],
+            "dataset_kind": "live", "trades": [self.trade],
+            "verification": {key: True for key in ("frozen_forward_verified", "execution_evidence_verified",
+                                                     "pit_verified", "universe_verified", "status_verified",
+                                                     "action_verified", "out_of_sample_verified",
+                                                     "cohort_complete_verified")},
+            "summary": {"net_win_rate": .85, "n_trades": 200, "independent_entry_dates": 60},
+        }
+
+    def validation(self):
+        return st._execution_validation(self.evidence, self.model, self.packet, self.root)
+
+    def write_gate_artifacts(self):
+        refs = {}
+        for name in ("universe", "pool", "factors", "calendar", "status", "risk", "model", "oos_trades"):
+            payload = self.model if name == "model" else self.evidence if name == "oos_trades" else {
+                "fixture_kind": "synthetic_unit_test_only"}
+            path = self.root / (name + ".json")
+            path.write_text(json.dumps(payload), encoding="utf-8")
+            refs[name] = {"path": path.name, "sha256": st.digest(path)}
+        self.packet["evidence_files"] = refs
+
+    def test_summary_claim_of_85_percent_without_raw_fills_never_unlocks_plan(self):
+        self.evidence["trades"] = [{"status": "closed", "net_profit": 100., "net_win": True,
+                                    "entry_date": "2020-09-14", "source": "untrusted-summary-only"}]
+        report = self.validation()
+        self.assertEqual(report["n_trades"], 0)
+        self.assertEqual(report["n_unresolved"], 1)
+        self.assertFalse(report["execution_verified"])
+        self.assertFalse(report["formal_gate_passed"])
+        self.write_gate_artifacts()
+        reasons = st.plan_gate(self.packet, self.root)
+        self.assertIn("recomputed_execution_validation_failed", reasons)
+        self.assertIn("execution_sample_summary_mismatch", reasons)
+        self.assertIn("execution:unresolved_trade_or_exit_evidence", reasons)
+        result = st.build_conditional_plan(self.packet, self.root)
+        self.assertIsNone(result["plan"])
+        self.assertFalse(result["automatic_trading"])
+
+    def test_rule_frozen_during_test_period_is_rejected(self):
+        self.model["rule_frozen_at"] = self.evidence["rule_frozen_at"] = "2020-09-14T08:00:00+08:00"
+        with self.assertRaisesRegex(ValueError, "not frozen before the forward holdout"):
+            self.validation()
+        self.write_gate_artifacts()
+        self.assertIn("model_or_execution_evidence_unreadable", st.plan_gate(self.packet, self.root))
+
+    def test_raw_fills_and_actual_fees_are_recomputed_instead_of_trusting_claims(self):
+        self.trade.update(net_pnl=99999., net_profit=99999., net_win=True)
+        self.trade["fills"][1]["price"] = 6.
+        report = self.validation()
+        self.assertEqual(report["n_trades"], 1)
+        self.assertEqual(report["n_unresolved"], 0)
+        self.assertEqual(report["wins"], 0)
+        self.assertEqual(report["sum_net_pnl"], -110.)
+        self.assertTrue(report["each_trade_execution_evidence_verified"])
+        self.assertFalse(report["formal_gate_passed"])
+
+    def test_complete_raw_fixture_still_requires_enough_independent_dates(self):
+        report = self.validation()
+        self.assertEqual(report["n_trades"], 1)
+        self.assertEqual(report["n_unresolved"], 0)
+        self.assertEqual(report["sum_net_pnl"], 30.)
+        self.assertEqual(report["independent_entry_dates"], 1)
+        self.assertTrue(report["each_trade_execution_evidence_verified"])
+        self.assertIn("insufficient_completed_trades", report["blockers"])
+        self.assertIn("insufficient_independent_entry_dates", report["blockers"])
+        self.assertFalse(report["formal_gate_passed"])
+
+    def test_itemized_fee_tampering_becomes_unresolved_and_stays_in_denominator(self):
+        self.trade["execution_evidence"]["actual_fees"]["sell_commission"] = 0.
+        report = self.validation()
+        self.assertEqual(report["n_trades"], 0)
+        self.assertEqual(report["n_unresolved"], 1)
+        self.assertEqual(report["n_attempted_trades"], 1)
+        self.assertEqual(report["win_rate"], 0.)
+        self.assertIn("fees disagree", report["unresolved_records"][0]["reason"])
+        self.assertFalse(report["formal_gate_passed"])
+
+    def test_source_proof_missing_changed_or_fill_ids_mismatched_is_unresolved(self):
+        cases = ("missing", "changed_hash", "mismatched_ids", "outside_root")
+        original = copy.deepcopy(self.proof)
+        for case in cases:
+            with self.subTest(case=case):
+                self.trade["execution_evidence"] = copy.deepcopy(original)
+                proof = self.trade["execution_evidence"]
+                if case == "missing":
+                    proof["source_ref"]["path"] = "nonexistent-proof.txt"
+                elif case == "changed_hash":
+                    proof["source_ref"]["sha256"] = "0" * 64
+                elif case == "mismatched_ids":
+                    proof["sell_fill_id"] = "different-sell-id"
+                else:
+                    proof["source_ref"]["path"] = "../outside-proof.txt"
+                report = self.validation()
+                self.assertEqual(report["n_trades"], 0)
+                self.assertEqual(report["n_unresolved"], 1)
+                self.assertFalse(report["each_trade_execution_evidence_verified"])
+                self.assertFalse(report["formal_gate_passed"])
+
+    def test_fill_ids_cannot_be_reused_by_a_different_frozen_plan(self):
+        second = copy.deepcopy(self.trade)
+        second["plan"]["buy_limit_cap"] = 7.19
+        self.evidence["trades"].append(second)
+        report = self.validation()
+        self.assertEqual(report["n_trades"], 1)
+        self.assertEqual(report["n_unresolved"], 1)
+        self.assertEqual(report["n_attempted_trades"], 2)
+        self.assertEqual(report["win_rate"], .5)
+        self.assertIn("fill reused by another trade", report["unresolved_records"][0]["reason"])
+        self.assertFalse(report["formal_gate_passed"])
+
+    def test_incomplete_forward_cohort_blocks_otherwise_recomputed_trade(self):
+        self.evidence["verification"]["cohort_complete_verified"] = False
+        report = self.validation()
+        self.assertEqual(report["n_trades"], 1)
+        self.assertEqual(report["n_unresolved"], 0)
+        self.assertIn("forward_cohort_or_holdout_unverified", report["blockers"])
+        self.assertFalse(report["formal_gate_passed"])
 
 
 if __name__ == "__main__": unittest.main()

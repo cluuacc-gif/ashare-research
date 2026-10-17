@@ -229,7 +229,10 @@ def train(store, output):
         'model_ready': True, 'formal_trade_ready': False, 'formal_prediction_allowed': False,
         'prediction_scope': 'next_session_raw_close_return', 'labels': LABELS,
         'prediction_count': len(rows), 'execution_win_rate': None,
-        'execution_win_rate_80_validated': False, 'win_rate_gate': 'deferred_by_user',
+        'execution_win_rate_80_validated': False, 'win_rate_gate': 'active_net_profit_forward_validation_required',
+        'win_rate_target': {'metric': 'real_trade_net_profit_after_all_costs',
+                            'strictly_greater_than': .8, 'allow_cash': True,
+                            'min_trades': 200, 'min_entry_dates': 60},
         'unavailable_endpoints': {'P3a': 'official limit history unavailable', 'P3b': 'official limit history unavailable',
                                   'E1_E2_net_profit': 'executable fills and costs unavailable'}}
     validation = {**metadata, 'status': 'TRAIN_SAVE_RELOAD_PREDICT_VERIFIED',

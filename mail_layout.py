@@ -4,7 +4,7 @@ import math
 import datetime as dt
 from urllib.parse import quote
 
-VERSION = 'research-email-v2'
+VERSION = 'research-email-v3-net-profit-target'
 STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
@@ -59,6 +59,13 @@ def content(payload):
            ('交易资格','已通过' if research.get('formal_trade_ready') else '待核验'),
            ('5～10元观察',f'{len(band):,}只')]
     sections=[]
+    net = research.get('net_profit_strategy') or {}
+    sections.append({'title':'净盈利策略验收', 'columns':['验收项目','当前状态'],
+        'rows':[['目标','真实交易扣费后胜率严格高于80%'],
+                ['实际成交胜率','尚无通过审核的真实成交样本'],
+                ['正式交易候选','空仓，等待前向成交与数据证据'],
+                ['新策略研究','已生成研究版本' if net.get('schema') == 'net-profit-research-v1' else '等待与本期行情匹配的研究结果']],
+        'note':'次日进场，最早再下一交易日退出；逐笔计算费用和双边滑点。至少200笔、60个入场日期，且日期分组置信下界高于80%、净期望为正，才进入目标验收。未平仓保留；研究模拟不能代替真实成交。'})
     if rows:
         sections.append({'title':'模型观察 Top10','columns':['排名','代码','名称','收盘','P1 上涨','P2 ≥5%','成交额'],
             'rows':rows,'note':'按P2排序。P1＝下一交易日收盘高于基础日收盘；P2＝收盘涨幅≥5%。两者均为原始未复权价格事件概率，不等于买入后的净盈利胜率。'})
@@ -73,7 +80,7 @@ def content(payload):
         sections.append({'title':'历史时间外验证','columns':['价格事件','样本数','Top10事件率','模型Brier','基准Brier'],
             'rows':[[label,number(m.get('n'),0),pct(m.get('top10_event_frequency')),number(m.get('brier'),5),
                      number(m.get('calibration_block_constant_baseline_brier'),5)] for label,m in endpoints.items()],
-            'note':f"测试覆盖 {t.get('independent_dates','—')} 个日期（{t.get('first_input_date','—')}至{t.get('last_input_date','—')}）。Brier越低越好；基准为校准期常数概率。历史价格事件率不等于实际成交胜率，胜率优化暂后置。"})
+            'note':f"测试覆盖 {t.get('independent_dates','—')} 个日期（{t.get('first_input_date','—')}至{t.get('last_input_date','—')}）。Brier越低越好；基准为校准期常数概率。历史价格事件率不等于实际成交胜率；净盈利80%目标已启用并单独验收。"})
     if stage=='evening':
         us=payload.get('us_overnight_linkage') or {}
         source='缓存行情' if us.get('source')=='cached' else '公开行情'
@@ -101,7 +108,7 @@ def content(payload):
     return {'title':'A股'+title,'subtitle':subtitle,'subject':subject,'summary':summary,'stats':stats,
             'warnings':warnings,'sections':sections,'links':links,'ready':ready,
             'generated_at':payload.get('generated_at') or '—', 'cutoff':payload.get('information_cutoff') or '—',
-            'footer':'研究观察，不自动下单。成交净盈利与涨停概率仍待补齐；当前模型仅覆盖价量价格事件。'}
+            'footer':'研究观察，不自动下单。真实交易净盈利80%目标尚未验证；价格事件概率与净盈利研究结果分别记录。'}
 
 
 def render_text(payload):

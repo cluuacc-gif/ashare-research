@@ -1,0 +1,7 @@
+{
+  "request_id": "net-profit-upgrade-20261017",
+  "enabled": true,
+  "base_trade_date": "2026-10-16",
+  "source_release": "prepared-2026-10-16-39017480832-1",
+  "purpose": "Upgrade selection toward more than 80% real execution net-profit win rate; allow no signal and keep research distinct from formal execution evidence."
+}

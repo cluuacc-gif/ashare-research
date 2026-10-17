@@ -567,7 +567,7 @@ def render_markdown(payload: dict) -> str:
             "| 排名 | 代码 | 名称 | 本日收盘 | P1 | P2 |", "| ---: | --- | --- | ---: | ---: | ---: |"]
         for row in predictions['rows'][:10]:
             lines.append(f"| {row['rank']} | `{row['symbol']}` | {row.get('name') or ''} | {row['close']:.2f} | {row['P1']:.1%} | {row['P2']:.1%} |")
-        lines += ["", "### 历史时间外测试（胜率优化暂后置）", "",
+        lines += ["", "### 历史价格事件测试（净盈利80%目标单独验收）", "",
             "| 价格事件 | 测试样本 | 日期数 | Top10事件发生率 | Brier | 常数基准Brier |",
             "| --- | ---: | ---: | ---: | ---: | ---: |"]
         for label, m in validation['endpoints'].items():
