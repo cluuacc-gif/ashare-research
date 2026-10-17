@@ -3,17 +3,17 @@
   "model_version": "price-volume-production-v1",
   "base_trade_date": "2026-10-16",
   "target_trade_date": "2026-10-19",
-  "snapshot_release": "prepared-2026-10-16-38917879294-1",
-  "input_database_sha256": "a3e330341919bca77ef6e0ffc49e0cd75391f62fb90215f1508986adffd6eebd",
+  "snapshot_release": "prepared-2026-10-16-39017480832-1",
+  "input_database_sha256": "4e79ef54caba811e84941dc1ff099020b2c3e7a248b7611f40e15827f03b58cf",
   "prediction_count": 1301,
-  "generated_at": "2026-10-16T22:51:53.469719+08:00",
+  "generated_at": "2026-10-17T16:41:02.478169+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "deferred_by_user",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-16-38917879294-1",
-  "github_run_id": "38917879294",
-  "github_commit": "d012ea6bf7eea031cd3d9995258d0f58669970f0",
+  "release_tag": "model-2026-10-16-39017480832-1",
+  "github_run_id": "39017480832",
+  "github_commit": "7687049fccd5ba8e6309f5a2b4f3e85b7b8fa5ce",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
@@ -23,27 +23,27 @@
     "validation.json": {
       "name": "validation.json",
       "bytes": 6630,
-      "sha256": "b41a3ab5f7152d85064fe8e1041ceb6170d5968b81106a09142fee5c0f547d27"
+      "sha256": "f119ab2631f6bb018d12794f66e2d1f92de312211edd1e47c16178067e21b477"
     },
     "predictions.json": {
       "name": "predictions.json",
       "bytes": 265459,
-      "sha256": "02957500ef30010a5602452b50969853e51a1f3c149967095c59ee1ffca6cb49"
+      "sha256": "7e989aeacb3232b3d2845da0888cf1052e1298cf1671aeb8fc1c2eecf6846eac"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
       "bytes": 368640,
-      "sha256": "c2d617fa9333f66c0705afebe42ce2beabe49d2f577180ae015ff6e67ba29e6b"
+      "sha256": "7c9ea153904a1ed515916eb79bec7c7c2821407d782114642beef829b2bf7ddb"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "ead96af0f7b4dbd32997e5505e10d13071d279fc65283e987c5aec8d9a61f37d"
+      "sha256": "3fda4117e597267c714f8befbe56f164a05bcc3e7486e6eaa5d4a2a137a026ab"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 63955,
-      "sha256": "0cafa5d439819a86fb939579178d50cd1194cf7c9bef1313fac9feb13e0ea968"
+      "bytes": 67187,
+      "sha256": "1f4c8fcfb7a68b62e89433498fd15c6733131124ecf3d4a64ae76699925d67ab"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
@@ -56,9 +56,9 @@
       "sha256": "81afab2001575cd432ab1d575d88bb52e41102a486ecbc698e0d1d26f944ca76"
     }
   },
-  "parent_pointer_blob_sha": "8c439ee949ae9b83ad55162546b9556120a41637",
-  "data_pointer_blob_sha": "c016ecf210febeb9ef666f07ce38c8b7876a99a8",
-  "publication_started_at": "2026-10-16T22:51:55.508662+08:00",
-  "assets_readback_verified_at": "2026-10-16T22:51:59.966166+08:00",
+  "parent_pointer_blob_sha": "b47cf73ad05ef78f0aa55292ddad2d2fd61002d9",
+  "data_pointer_blob_sha": "f9553b0880e5f48b18c7302e22cff853678b0ab6",
+  "publication_started_at": "2026-10-17T16:41:04.240054+08:00",
+  "assets_readback_verified_at": "2026-10-17T16:41:08.022176+08:00",
   "forward_eligible": true
 }
