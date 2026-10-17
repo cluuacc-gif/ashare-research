@@ -1,0 +1,12 @@
+[Unit]
+Description=Deliver A-share morning mail at 09:00 Shanghai
+
+[Timer]
+OnCalendar=Mon..Fri *-*-* 09:00:00 Asia/Shanghai
+Unit=ashare-mail-deliver@morning.service
+AccuracySec=1s
+RandomizedDelaySec=0
+Persistent=false
+
+[Install]
+WantedBy=timers.target

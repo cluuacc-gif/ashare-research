@@ -1,8 +1,9 @@
 name: A-share automatic after-close pipeline
 on:
   schedule:
-    # 10:00 UTC = 18:00 Asia/Shanghai; delayed runs retain source quote date.
-    - cron: '0 10 * * 1-5'
+    # Prepare from 16:35 Shanghai, ahead of the independent 18:00 sender.
+    # This scheduler can still be delayed; the sender never mails late results.
+    - cron: '35 8 * * 1-5'
   workflow_dispatch:
   push:
     branches: [main]
@@ -119,12 +120,14 @@ jobs:
     secrets: inherit
   evening_mail:
     needs: [prepare, formal_model]
+    # Catch-up pushes produce previews only. Delivery has its own clock.
+    if: github.event_name == 'push'
     uses: ./.github/workflows/mail-evening.yml
     with:
       target_day: ${{ needs.prepare.outputs.target_day }}
       release_tag: ${{ needs.prepare.outputs.release_tag }}
       model_tag: ${{ needs.formal_model.outputs.model_tag }}
-      dry_run: ${{ github.event_name == 'push' }}
+      dry_run: true
     secrets: inherit
   failure_notice:
     needs: [collect, prepare, formal_model, evening_mail]
@@ -135,18 +138,12 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Save and deliver an explicit pipeline failure notice
+      - name: Save an internal pipeline failure notice without late mail
         env:
           COLLECT: ${{ needs.collect.result }}
           PREPARE: ${{ needs.prepare.result }}
           MAIL: ${{ needs.evening_mail.result }}
           MODEL: ${{ needs.formal_model.result }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          SMTP_FROM: ${{ secrets.SMTP_FROM }}
-          MAIL_TO: ${{ secrets.MAIL_TO }}
           EVENT: ${{ github.event_name }}
         run: |
           python mail_gate.py --output failure-out/session-gate.json
@@ -162,10 +159,6 @@ jobs:
           text+='https://github.com/'+os.environ['GITHUB_REPOSITORY']+'/actions/runs/'+os.environ['GITHUB_RUN_ID']+'\n'
           Path('failure-out/notice.md').write_text(text,encoding='utf-8')
           PY
-          EXTRA=""
-          if [ "$EVENT" = push ]; then EXTRA="--draft-only"; fi
-          python send_mail.py --subject "A股自动流程故障 $GITHUB_RUN_ID" --body-file failure-out/notice.md \
-            --draft-out failure-out/notice.eml --status-out failure-out/delivery.json --research-day "$(TZ=Asia/Shanghai date +%F)" $EXTRA
       - uses: actions/upload-artifact@v4
         if: always()
         with:

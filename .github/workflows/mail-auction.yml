@@ -1,7 +1,8 @@
 name: Mail 09:25 model observation
 on:
   schedule:
-    - cron: '25 1 * * 1-5'
+    # Warm at 09:03 Shanghai; delivery remains at 09:25 with no catch-up.
+    - cron: '3 1 * * 1-5'
   workflow_dispatch:
 permissions:
   contents: write

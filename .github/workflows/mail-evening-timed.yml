@@ -1,0 +1,17 @@
+name: Mail 18:00 prepared evening research
+on:
+  schedule:
+    # Warm at 17:33 Shanghai, independently of data/model preparation.
+    - cron: '33 9 * * 1-5'
+  workflow_dispatch:
+permissions:
+  contents: write
+concurrency:
+  group: ashare-mail-evening
+  cancel-in-progress: false
+jobs:
+  mail:
+    uses: ./.github/workflows/session-report.yml
+    with:
+      stage: evening
+    secrets: inherit

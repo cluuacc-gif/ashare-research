@@ -1,0 +1,28 @@
+name: Verify autonomous mail deadlines without sending
+on:
+  pull_request:
+    paths: ['**mail**.py', 'cloud_daily.py', '.github/workflows/**', 'deploy/**']
+  push:
+    branches: [main]
+    paths: ['**mail**.py', 'cloud_daily.py', '.github/workflows/**', 'deploy/**']
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Test deadlines, holidays, duplicates and sealed report delivery with mocks
+        run: python -m unittest -v test_mail_timing.py test_autonomous_mailer.py test_mail_upgrade.py test_auto_pipeline.py test_two_stage.py
+      - name: Verify Linux timer and service unit syntax
+        run: |
+          bash -n deploy/install-linux.sh
+          bash deploy/install-linux.sh --help
+          sudo install -m 0644 deploy/systemd/*.service deploy/systemd/*.timer /run/systemd/system/
+          # Verify against an existing executable without starting any unit.
+          sudo sed -i 's|/opt/ashare-research/.venv/bin/python|/usr/bin/python3|g' /run/systemd/system/ashare-mail-*.service
+          sudo systemd-analyze verify /run/systemd/system/ashare-mail-*.service /run/systemd/system/ashare-mail-*.timer

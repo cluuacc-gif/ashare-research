@@ -60,6 +60,22 @@ class CalendarTest(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "18:00"):
                 cloud_daily.collect(Path(root)/"out")
 
+    def test_scheduled_preparation_rejects_before_1630_without_market_requests(self):
+        at = dt.datetime(2026,9,14,16,29,tzinfo=ZoneInfo('Asia/Shanghai'))
+        with tempfile.TemporaryDirectory() as root, patch('cloud_daily.c.now',return_value=at), patch('cloud_daily.c.ak_call') as fetch:
+            with self.assertRaisesRegex(ValueError,'16:30'):
+                cloud_daily.collect(Path(root)/'out',scheduled=True)
+            fetch.assert_not_called()
+
+    def test_scheduled_preparation_can_start_before_1800_without_implicit_backfill(self):
+        at = dt.datetime(2026,9,14,16,35,tzinfo=ZoneInfo('Asia/Shanghai'))
+        with (tempfile.TemporaryDirectory() as root, patch('cloud_daily.c.now',return_value=at),
+              patch('cloud_daily.probe.MASTER_SOURCES',[]),
+              patch('cloud_daily.c.Fetcher',side_effect=RuntimeError('offline fixture'))):
+            result=cloud_daily.collect(Path(root)/'out',scheduled=True)
+        self.assertEqual(result['date'],'2026-09-14')
+        self.assertEqual(result['actual_new_quotes'],0)
+
     def test_stale_request_rejected(self):
         at = dt.datetime(2026, 9, 14, 18, tzinfo=ZoneInfo("Asia/Shanghai"))
         with self.assertRaisesRegex(ValueError, "stale/future"):

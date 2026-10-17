@@ -1,6 +1,8 @@
-# 当前自动运行入口（2026-10-10）
+# 当前自动运行入口（2026-10-17）
 
-盘后流程现由 GitHub Actions 自动串联：采集→增量入库→工程质量检查→描述性冻结→不可变Release发布及独立读回→晚报。最新行情库与配套交接以 `data/evening:state/current.json` 为唯一指针，完整说明见 [AUTOMATIC_PIPELINE.md](AUTOMATIC_PIPELINE.md)。原Library版本保留为迁移历史，本自动流程不会冒充更新其版本；正式数据和模型准入仍独立检查。下面早期人工交接说明保留历史依据，当前自动存储及入口以上述新说明为准。
+日常运行无需AI或聊天触发。GitHub在北京时间16:35请求开始采集→增量入库→工程质量检查→描述性冻结→不可变Release发布与独立读回→模型训练与发布。09:00／09:25／18:00邮件使用独立的提前准备和目标分钟发送入口，禁止提前、跨日和迟到回顾补发，失败只保留诊断或按显式配置发送当期缺口简报。GitHub提前唤醒不能消除其队列延迟；严格主时钟需要常驻部署，详见[AUTONOMOUS_OPERATIONS.md](AUTONOMOUS_OPERATIONS.md)。
+
+最新行情库与配套交接以 `data/evening:state/current.json` 为唯一指针，完整说明见 [AUTOMATIC_PIPELINE.md](AUTOMATIC_PIPELINE.md)。原Library版本保留为迁移历史；正式数据和模型准入仍独立检查。下面早期人工交接及迟到采集说明仅保留历史依据，其中旧发信补发规则已被本段覆盖；迟到取得的数据可用于库的连续更新，不能因此发送过期研究邮件。
 
 ---
 
