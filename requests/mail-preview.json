@@ -1,4 +1,5 @@
 {
-  "request_id": "email-layout-and-session-gate-20261011-correct-background",
-  "purpose": "Verify upgraded HTML/plain-text research mail using published real predictions, never send preview messages"
+  "request_id": "autonomous-mail-deadline-20261017",
+  "requested_at": "2026-10-17T09:13:20Z",
+  "purpose": "Verify current real snapshot/model evening, morning and auction previews; exercise actual closed-session suppression; no SMTP credentials, no live email."
 }
