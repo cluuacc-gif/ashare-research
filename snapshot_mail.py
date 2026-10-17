@@ -51,6 +51,8 @@ def report(stage, day, store, model_store=None):
         from model_store import attach
         attach(payload, model_store, saved)
         payload['disclaimer'] = payload['disclaimer'].replace('无正式概率，', '已附价量模型概率，')
+    from net_profit_store import attach as attach_net_strategy
+    attach_net_strategy(payload, saved)
     at = c.now()
     from mail_timing import scheduled_at, WINDOW
     late = at >= scheduled_at(stage,day) + WINDOW

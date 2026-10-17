@@ -185,6 +185,108 @@ def daily_features(rows, as_of):
     return out
 
 
+def _execution_validation(evidence, model, packet, root):
+    """Rebuild held-out results from fills; old result-only packets fail closed.
+
+    Each evidence trade contains a frozen ``plan``, chronological ``fills``,
+    ``plan_frozen_at`` and reviewed ``execution_evidence``.  The latter uses the
+    strategy_validation fill/fee schema and a local hashed ``source_ref``.  Its
+    buy_fill_id/sell_fill_id (or *_fill_ids for partial fills) must match the raw
+    fills.  Price-only bars and summaries cannot stand in for those records.
+    """
+    from strategy_validation import calculate_trade, validate_strategy
+
+    source_flags = evidence.get("verification", {})
+    if not isinstance(source_flags, dict):
+        source_flags = {}
+    frozen = instant(evidence["rule_frozen_at"])
+    if (source_flags.get("frozen_forward_verified") is not True or
+            frozen >= dt.datetime.combine(dt.date.fromisoformat(model["test_start"]), dt.time(), TZ)):
+        raise ValueError("rule was not frozen before the forward holdout")
+    if evidence.get("rule_frozen_at") != model.get("rule_frozen_at"):
+        raise ValueError("rule freeze differs from model artifact")
+    records = []
+    seen_plans, seen_fills = set(), set()
+    for i, item in enumerate(evidence["trades"]):
+        if not isinstance(item, dict):
+            records.append({"status": "unresolved", "reason": "non-object trade record"})
+            continue
+        try:
+            trade_plan, fills = item["plan"], item["fills"]
+            if not isinstance(trade_plan, dict) or not isinstance(fills, list):
+                raise ValueError("raw frozen plan and fills required")
+            frozen_plan = instant(item["plan_frozen_at"])
+            entry = trade_plan["entry_date"]
+            if not model["test_start"] <= entry <= model["test_end"]:
+                raise ValueError("trade outside held-out period")
+            if not frozen <= frozen_plan < dt.datetime.combine(dt.date.fromisoformat(entry), dt.time(9, 30), TZ):
+                raise ValueError("plan was not frozen before entry")
+            plan_id = hashlib.sha256(json.dumps(trade_plan, sort_keys=True, ensure_ascii=False, allow_nan=False).encode()).hexdigest()
+            if plan_id in seen_plans:
+                raise ValueError("duplicate frozen plan")
+            seen_plans.add(plan_id)
+            for fill in fills:
+                fill_id = fill["fill_id"]
+                if fill_id in seen_fills:
+                    raise ValueError("fill reused by another trade")
+                seen_fills.add(fill_id)
+                if instant(fill["executed_at"]) < frozen_plan:
+                    raise ValueError("fill predates frozen plan")
+            accounted = account_trade(trade_plan, fills)
+            if accounted["status"] == "no_fill":
+                # No fill is an abstention, never a success.  The complete
+                # cohort requirement below still prevents omitted live orders.
+                records.append({"status": "abstain"})
+                continue
+            if not accounted["eligible_for_formal_score"]:
+                raise ValueError("pending, uncosted or noncompliant execution")
+            proof = dict(item["execution_evidence"])
+            ref = proof.get("source_ref", {})
+            ref_path = (root / str(ref.get("path", ""))).resolve()
+            if not ref_path.is_relative_to(root) or not ref_path.is_file() or digest(ref_path) != ref.get("sha256"):
+                raise ValueError("actual fill/fee source missing or changed")
+            buys = [f for f in fills if f["side"] == "buy"]
+            sells = [f for f in fills if f["side"] == "sell"]
+            for side, subset in (("buy", buys), ("sell", sells)):
+                ids = [f["fill_id"] for f in subset]
+                claimed_ids = proof.get(side + "_fill_ids", [proof.get(side + "_fill_id")])
+                if claimed_ids != ids:
+                    raise ValueError("fill proof does not match raw fill IDs")
+                proof[side + "_fill_id"] = "|".join(ids)
+            fees = proof["actual_fees"]
+            if (not math.isclose(sum(number(f["fees_paid"]) for f in buys),
+                                 number(fees["buy_commission"]) + number(fees["buy_transfer"]), abs_tol=1e-8)
+                    or not math.isclose(sum(number(f["fees_paid"]) for f in sells),
+                                        sum(number(fees[k]) for k in ("sell_commission", "sell_transfer", "sell_tax")), abs_tol=1e-8)):
+                raise ValueError("itemized actual fees disagree with fill fees")
+            quantity = accounted["bought_quantity"]
+            buy_price = sum(number(f["price"]) * f["quantity"] for f in buys) / quantity
+            sell_price = sum(number(f["price"]) * f["quantity"] for f in sells) / quantity
+            row = calculate_trade(buy_price, sell_price, quantity, entry,
+                                  max(instant(f["executed_at"]).date().isoformat() for f in sells), evidence=proof)
+            if not row["execution_verified"] or not math.isclose(row["net_pnl"], accounted["net_profit"], abs_tol=.011):
+                raise ValueError("net result cannot be reproduced from actual fills and fees")
+            row.update(symbol=trade_plan["symbol"], signal_date=item.get("signal_date", entry))
+            records.append(row)
+        except (KeyError, TypeError, ValueError, AttributeError, OSError) as exc:
+            records.append({"status": "unresolved", "entry_date": item.get("plan", {}).get("entry_date")
+                            if isinstance(item.get("plan"), dict) else None,
+                            "reason": f"trade {i}: {exc}"})
+    flags = {key: source_flags.get(key) is True for key in (
+        "execution_evidence_verified", "pit_verified", "universe_verified", "status_verified",
+        "action_verified", "out_of_sample_verified")}
+    flags["universe_verified"] &= packet.get("full_universe_verified") is True
+    flags["status_verified"] &= packet.get("official_status_verified") is True and packet.get("official_limits_verified") is True
+    flags["action_verified"] &= packet.get("corporate_actions_verified") is True
+    flags["out_of_sample_verified"] &= model.get("purged_time_split_verified") is True
+    validation = validate_strategy(records, dataset_kind=evidence.get("dataset_kind", "proxy"), verification=flags)
+    if (source_flags.get("cohort_complete_verified") is not True or
+            flags["out_of_sample_verified"] is not True):
+        validation["formal_gate_passed"] = False
+        validation["blockers"].append("forward_cohort_or_holdout_unverified")
+    return validation
+
+
 def plan_gate(packet, artifact_root):
     """Validate an upstream research packet, not an alternative model trainer.
 
@@ -210,6 +312,7 @@ def plan_gate(packet, artifact_root):
     if (model.get("status") != "time_out_of_sample_validated" or model.get("label") != LABEL or
             model.get("strategy_version") != VERSION or not model.get("model_version")):
         reasons.append("execution_model_not_validated")
+    validation = None
     try:
         model_path = (root / refs["model"]["path"]).resolve()
         if not model_path.is_relative_to(root) or json.loads(model_path.read_text(encoding="utf-8")) != model:
@@ -218,26 +321,39 @@ def plan_gate(packet, artifact_root):
         if not trades_path.is_relative_to(root): raise ValueError("outside evidence root")
         evidence = json.loads(trades_path.read_text(encoding="utf-8"))
         if (evidence.get("real_data") is not True or evidence.get("strategy_version") != VERSION or
-                evidence.get("label") != LABEL or not evidence.get("trades") or
-                len(evidence["trades"]) != model.get("validation_n")):
+                evidence.get("label") != LABEL or not isinstance(evidence.get("trades"), list) or
+                not evidence.get("trades")):
             reasons.append("missing_real_execution_samples")
         if evidence.get("model_version") != model.get("model_version"):
             reasons.append("sample_model_version_mismatch")
+        validation = _execution_validation(evidence, model, packet, root)
+        if not validation["formal_gate_passed"]:
+            reasons.append("recomputed_execution_validation_failed")
+            reasons.extend("execution:" + r for r in validation["blockers"])
+        if (model.get("validation_n") != validation["n_trades"] or
+                model.get("independent_entry_dates") != validation["independent_entry_dates"]):
+            reasons.append("execution_sample_summary_mismatch")
     except (OSError, KeyError, ValueError, TypeError, AttributeError):
         reasons.append("model_or_execution_evidence_unreadable")
     if model.get("costs_slippage_and_unfilled_included") is not True:
         reasons.append("execution_costs_unverified")
     if model.get("purged_time_split_verified") is not True or model.get("same_day_pool_baseline_verified") is not True:
         reasons.append("time_split_or_baseline_unverified")
-    if model.get("validation_n", 0) < 100 or model.get("independent_entry_dates", 0) < 40:
+    if (type(model.get("validation_n")) is not int or model["validation_n"] < 200 or
+            type(model.get("independent_entry_dates")) is not int or model["independent_entry_dates"] < 60):
         reasons.append("insufficient_samples")
     if model.get("unresolved_trade_count", 1) != 0:
         reasons.append("unresolved_test_trades")
     probability = model.get("p_net_profit")
     lower = model.get("entry_date_cluster_95_lower")
-    if (type(probability) not in (float, int) or not .8 <= probability <= 1 or
-            type(lower) not in (float, int) or not .8 <= lower <= probability):
+    if (type(probability) not in (float, int) or not .8 < probability <= 1 or
+            type(lower) not in (float, int) or not .8 < lower <= probability):
         reasons.append("80pct_target_not_established")
+    elif validation is not None:
+        actual_lower = validation["date_block_bootstrap"]["win_rate_ci95"]
+        if (validation["win_rate"] is None or actual_lower is None or
+                probability > validation["win_rate"] + 1e-12 or lower > actual_lower[0] + 1e-12):
+            reasons.append("execution_probability_summary_overstates_records")
     if type(model.get("expected_net_return")) not in (float, int) or not math.isfinite(model["expected_net_return"]) or not model["expected_net_return"] > 0:
         reasons.append("nonpositive_or_unknown_expectancy")
     try:

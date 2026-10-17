@@ -1,0 +1,33 @@
+# 真实净盈利目标的选股策略升级
+
+目标是每笔完整交易扣除佣金、税费和滑点后盈利的比例超过 80%；条件不足时允许空仓。模型输出概率、收盘涨跌比例、日线模拟盈利比例均不能直接当作真实成交胜率。
+
+## 独立运行
+
+`net-profit-research.yml` 会在原盘后流程或独立价格模型流程成功后，自动恢复当前已验收的行情快照，执行净盈利策略研究，再发布独立研究结果。无需由聊天助手每天启动。自动研究使用当时的 `state/current.json`，不会永久固定在本次 10 月 16 日快照。
+
+本次首次运行由 `requests/net-profit-research.json` 触发，固定恢复 `prepared-2026-10-16-39017480832-1`。手动运行工作流可选择指定的 prepared release；留空使用当前版本。将请求中的 `enabled` 设为 `false` 可停用后续研究。
+
+该工作流没有邮件步骤、邮箱密钥或交易账户，不会发信或下单。原价格模型和盘后数据库指针仍由原流程维护。
+
+## 研究规则与验收边界
+
+- 使用信息截点之前的数据冻结特征和信号，下一交易日才允许入场；A 股入场当天不卖出。
+- 净收益研究纳入按笔成本、滑点和时间退出；日线只能支持带假设的研究标签。停牌、涨跌停、排队和分钟内路径的未知部分必须保留说明。
+- 训练、校准、阈值选择和诊断按日期隔离，跨界结果进行清除。阈值不足以支持目标时停发研究信号，不强制每日选满。
+- 官方历史状态、限价、公司行动、历史成分完整性及真实成交证据尚不能由本次训练补足。2026 年 7 月 6 日起沪深主板风险警示股票涨跌幅已由 5% 调为 10%，不能用旧规则统一推定历史限价。
+- 最终真实成交验收须另收集事前冻结计划、确认成交和实际费用，完整保留亏损、未成交、未平仓及退出受阻记录。研究结果始终保持 `formal_trade_ready=false`、`execution_win_rate_80_validated=false` 和 `real_execution_win_rate=null`。
+
+策略的具体冻结参数、成本、标签、切分及诊断结果，以每个不可变版本的 `protocol.json` 和 `summary.json` 为准。旧回测的同日选股成交及同日止损结果不作为本次验收样本。
+
+## 结果保存与报告
+
+研究发布为单独的 `net-profit-research-日期-运行编号-尝试编号` GitHub Release，保存以下文件及其字节数和 SHA-256：
+
+`summary.json`、`protocol.json`、`predictions.json`、`model.joblib`、`diagnostic_trades.csv.gz`、`prediction_inputs.csv.gz`、`report.html`、`source_manifest.json`。
+
+发布器在新目录重新下载所有文件，验证完整哈希和来源关系，再保存并读回 `net_profit_manifest.json`。最后使用版本校验更新 `data/evening` 分支的独立 `state/net-profit-current.json`，不会覆盖 `state/current.json` 或 `state/model-current.json`。摘要直接保存在研究指针中且小于 100 KB，便于报告读取。
+
+定时报告只在研究版本的行情 release、数据库哈希和基础日期与报告完全一致时附加摘要；错配或读取失败显示“不可用”，不把陈旧研究绑定到新的行情。读取设有超时，不下载模型，也不阻断原报告生成。GitHub 研究调度仍可能排队；邮件按原独立发送器的截止规则处理。
+
+官方规则：[上交所 2026 年修订说明](https://www.sse.com.cn/aboutus/mediacenter/hotandd/c/c_20260424_10816474.shtml)、[深交所 2026 年交易规则](https://docs.static.szse.cn/www/lawrules/rule/trade/current/W020260424690713155663.pdf)。

@@ -104,6 +104,19 @@ class GateTests(unittest.TestCase):
 
 
 class RenderingTests(unittest.TestCase):
+    def test_price_probability_does_not_unlock_real_net_profit_target(self):
+        value=payload()
+        value['research']['model_predictions']['rows'][0]['P1']=.99
+        value['research']['model_validation']['win_rate_gate']='deferred_by_user'
+        value['research']['net_profit_strategy']={'strategy_version':'fixture-net-v2',
+            'real_execution_win_rate':None,'formal_trade_ready':False}
+        text=mail_layout.render_text(value)
+        self.assertIn('净盈利策略验收',text)
+        self.assertIn('严格高于80%',text)
+        self.assertIn('空仓，等待前向成交与数据证据',text)
+        self.assertIn('200笔、60个入场日期',text)
+        self.assertNotIn('暂后置',text)
+
     def test_latest_news_first_across_timestamp_offsets(self):
         value=payload('morning')
         value['public_news_until_0900']=[{'title':'later','published_at':'2026-10-09T02:00:00+00:00'},
