@@ -1,6 +1,6 @@
 {
   "operation": "replay_archived_quotes",
-  "requested_at": "2026-10-17T16:31:00+08:00",
+  "requested_at": "2026-10-17T08:28:13Z",
   "validation_attempt": 4,
   "purpose": "Resume the unfinished after-close preparation: merge checksum-verified vendor admission archives after the capture writer completes; publish and independently read back the current snapshot; revalidate the existing model and generate the matching report as draft only. Preserve actual observation timestamps and keep formal data acceptance false."
 }
