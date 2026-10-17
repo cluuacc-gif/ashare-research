@@ -1,6 +1,6 @@
 {
   "operation": "replay_archived_quotes",
-  "requested_at": "2026-10-11T13:19:00+08:00",
-  "validation_attempt": 3,
-  "purpose": "End-to-end archived-data acceptance: prepare publish then train validate publish model and render matching evening report, draft only."
+  "requested_at": "2026-10-17T16:31:00+08:00",
+  "validation_attempt": 4,
+  "purpose": "Resume the unfinished after-close preparation: merge checksum-verified vendor admission archives after the capture writer completes; publish and independently read back the current snapshot; revalidate the existing model and generate the matching report as draft only. Preserve actual observation timestamps and keep formal data acceptance false."
 }
