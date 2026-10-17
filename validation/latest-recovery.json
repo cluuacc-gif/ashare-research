@@ -1,15 +1,15 @@
 {
   "kind": "real_archived_data_engineering_acceptance",
-  "generated_at": "2026-10-10T14:33:51.609664+08:00",
+  "generated_at": "2026-10-17T16:24:56.428036+08:00",
   "source_runs": [
-    "37815580289",
-    "37962482218"
+    "38754581705",
+    "38917879294"
   ],
   "dates_and_counts": {
-    "2026-10-08": 5557,
-    "2026-10-09": 5559
+    "2026-10-15": 5565,
+    "2026-10-16": 5567
   },
-  "real_daily_rows": 11116,
+  "real_daily_rows": 11132,
   "raw_replay_verified": true,
   "isolated_input_unchanged": true,
   "idempotent_resume": true,
@@ -18,35 +18,35 @@
     "kind": "lossless_provenance_compaction",
     "changed": true,
     "layout": "normalized_field_sources_v1",
-    "started_at": "2026-10-10T14:33:33.494462+08:00",
-    "finished_at": "2026-10-10T14:33:38.128864+08:00",
-    "input_sha256": "0cd28610e958626fe43ad18255cfb0f618a9ffe2e1f9131753088ba75c83a576",
-    "before_bytes": 115986432,
-    "after_bytes": 52514816,
+    "started_at": "2026-10-17T16:24:38.478285+08:00",
+    "finished_at": "2026-10-17T16:24:45.224606+08:00",
+    "input_sha256": "93d664c29b60800873594b7dea92b46c48bd1e515196bae360b5b8d576939eb3",
+    "before_bytes": 115273728,
+    "after_bytes": 52441088,
     "exact_22_column_fingerprint": {
-      "rows": 5557,
-      "sha256": "fc01af9508e2c561177ac07e60e17dbea6eaf12069f4d5f4f1cc4a7af47c3ae6"
+      "rows": 5565,
+      "sha256": "f09975f3ef12e08bd9ffe7559b807d54f87a01b48f952cb850711eaf357d095e"
     },
-    "unique_source_objects": 5557,
-    "field_source_links": 77794,
+    "unique_source_objects": 5565,
+    "field_source_links": 77904,
     "unrelated_table_counts_preserved": true,
     "integrity_check": "ok",
     "data_readiness_changed": false,
     "model_readiness_changed": false,
     "prediction_database_touched": false,
-    "sha256": "4eae6b2fdccde638684ee9dee5fc7499159ec6ce19b48a25637ec66a7509be51"
+    "sha256": "bfb6a96a00027005f4ab58a1012a88db7710a6a4253cd24d6c8c3eeac6848869"
   },
   "frozen_preparation": {
     "data_status": "DATA NOT READY",
-    "base_trade_date": "2026-10-09",
-    "next_trade_date": "2026-10-12",
-    "base_quotes": 5559,
-    "historical_rows": 11116,
+    "base_trade_date": "2026-10-16",
+    "next_trade_date": "2026-10-19",
+    "base_quotes": 5567,
+    "historical_rows": 11132,
     "history_250_symbols": 0,
-    "descriptive_features_count": 5559,
-    "observed_price_interval_count": 1270,
+    "descriptive_features_count": 5567,
+    "observed_price_interval_count": 1322,
     "full_amount20_features": 0,
-    "real_formula_check_symbols": 5559
+    "real_formula_check_symbols": 5567
   },
   "result": "PASS",
   "canonical_database_imported": false,
