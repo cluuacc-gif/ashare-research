@@ -121,6 +121,8 @@ def render_report(summary: Mapping[str, Any]) -> str:
         item = _mapping(value)
         probabilities = _mapping(item.get("probabilities")) or item
         entry_notes = item.get("entry_proxy_notes") or "需在开盘时核验"
+        if isinstance(entry_notes, str) and entry_notes.startswith("T-close research observation only;"):
+            entry_notes = "仅依据收盘信息进入观察；次日须核验开盘价、买价上限、涨跌停状态和排队成交条件，当前没有已确认的买入价格。"
         if isinstance(entry_notes, (list, tuple)):
             entry_notes = "；".join(str(note) for note in entry_notes)
         watch_rows += ('<tr><td><b>' + _e(item.get("symbol") or "—") + '</b><small>'
@@ -159,6 +161,8 @@ def render_report(summary: Mapping[str, Any]) -> str:
         + _pct(metrics.get("ge3_rate")) + '</td><td class="num">' + _pct(metrics.get("ge6_rate")) + '</td></tr>'
         for title, metrics in (("第一天收盘高于买入参考价", green), ("第一天未上涨", not_green)))
     blocker_labels = {
+        "official_point_in_time_universe_status_limits_actions_unverified": "当时可知的股票池、停复牌、风险状态、涨跌停价和公司行动尚未完整核验。",
+        "actual_execution_evidence_unavailable": "尚无逐笔成交证据，日线参考价格无法证明实际买入或卖出。",
         "official_pit_universe_status_limits_actions_unverified": "当时可知的股票池、停复牌、风险状态、涨跌停价和公司行动尚未完整核验。",
         "broker_fills_and_actual_fee_evidence_unavailable": "尚无逐笔成交证据，日线参考价格无法证明实际买入或卖出。",
         "new_forward_execution_track_record_unavailable": "冻结规则之后的新成交记录尚未积累，不能验证真实胜率。",
