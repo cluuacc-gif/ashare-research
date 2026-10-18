@@ -212,6 +212,18 @@ def content(payload):
                      pct(shown.get('win_rate')),pct(shown.get('ge3_rate')),pct(shown.get('ge6_rate'))]],
             'note':'旧历史已用于开发，本表是研究诊断。全部已入场交易均计入，不按买入后的涨跌删除亏损；达到目标价仍须核验能否成交。'})
     if stage=='evening':
+        probability=research.get('probability_research') or {}
+        if probability.get('schema')=='calibrated-tplus1-probability-v1':
+            diagnostic=probability.get('diagnostic') or {}
+            selected=diagnostic.get('selected_policy') or {}
+            baseline=diagnostic.get('same_universe_price_action_baseline') or {}
+            active=bool((probability.get('policy') or {}).get('active'))
+            sections.append({'title':'校准概率与隔日策略检验','columns':['研究对象','入场尝试','毛盈利比例','赚到3%','平均已闭合收益'],
+                'rows':[['同条件5～100元排序基准',number(baseline.get('n_attempts'),0),pct(baseline.get('win_rate')),pct(baseline.get('ge3_rate')),pct(baseline.get('mean_closed_gross_return'))],
+                        ['选择期确定的概率规则' if active else '概率规则未通过选择期',number(selected.get('n_attempts'),0),pct(selected.get('win_rate')),pct(selected.get('ge3_rate')),pct(selected.get('mean_closed_gross_return'))]],
+                'note':'比较逻辑回归、梯度提升与等权组合，使用后置概率校准和模型分歧过滤；六项固定候选均保留。'
+                '训练、校准、选择与诊断按日期隔开，收益下界加入日期与连续五日块复核。'
+                '旧历史诊断不等于新样本或个人成交胜率；未通过时保持空仓。3%和6%使用不同预定卖出规则，连续三日强度另计。'})
         sections.append(_math_section(research.get('price_action_research') or {}))
     if rows:
         sections.append({'title':'模型观察 Top10','columns':['排名','代码','名称','收盘','P1 上涨','P2 ≥5%','成交额'],

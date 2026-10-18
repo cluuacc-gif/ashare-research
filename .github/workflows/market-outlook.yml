@@ -29,6 +29,17 @@ on:
       - test_price_action_snapshot.py
       - stock_strength_tracking.py
       - test_stock_strength_tracking.py
+      - probability_panel.py
+      - probabilistic_models.py
+      - probability_validation.py
+      - probability_research.py
+      - probability_report.py
+      - test_probability_panel.py
+      - test_probabilistic_models.py
+      - test_probability_validation.py
+      - test_probability_research.py
+      - test_probability_report.py
+      - test_probability_integration.py
   workflow_dispatch:
   workflow_run:
     workflows: [A-share automatic after-close pipeline]
@@ -59,6 +70,9 @@ jobs:
           test_sector_fund_flow.py test_sector_stock_selection.py
           test_price_action_research.py test_research_context.py
           test_price_action_snapshot.py test_stock_strength_tracking.py
+          test_probability_panel.py test_probabilistic_models.py
+          test_probability_validation.py test_probability_research.py
+          test_probability_report.py test_probability_integration.py
   freeze:
     needs: verify
     if: >-
@@ -123,11 +137,23 @@ jobs:
           subprocess.run([sys.executable,'sector_fund_flow.py','--base',source['base_trade_date'],
               '--output','fund-flow-out'],check=True)
           PY
+      - name: Compare fixed calibrated probability models on the wider budget universe
+        if: steps.request.outputs.enabled == 'true'
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'outlook-source'
+          source=json.loads((root/'restore.json').read_text())['manifest']
+          subprocess.run([sys.executable,'probability_research.py','--db',str(root/source['database']['name']),
+              '--base',source['base_trade_date'],'--input-sha256',source['database']['sha256'],
+              '--output','probability-out'],check=True)
+          PY
       - name: Freeze actual next-session outlook and publish verified research assets
         if: steps.request.outputs.enabled == 'true'
         run: >-
           python market_outlook.py --store "$RUNNER_TEMP/outlook-source" --output market-outlook-out
-          --fund-flow-dir fund-flow-out --price-action-dir price-action-out --publish
+          --fund-flow-dir fund-flow-out --price-action-dir price-action-out --probability-dir probability-out --publish
       - uses: actions/upload-artifact@v4
         if: always()
         with:
