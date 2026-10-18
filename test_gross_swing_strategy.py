@@ -1,5 +1,6 @@
 import copy
 import datetime as dt
+import itertools
 import unittest
 from unittest.mock import patch
 
@@ -193,6 +194,35 @@ class GrossSwingTests(unittest.TestCase):
         self.assertFalse(g.PROTOCOL['daily_touch_is_actual_execution'])
         self.assertEqual(g.PROTOCOL['selection_grid_size'], 72)
         self.assertEqual(len(g.strategy_definition_sha256()), 64)
+
+    def test_expanded_selection_grid_has_72_current_126_cumulative_variants(self):
+        protocol = g.PROTOCOL
+        def grid(thresholds):
+            return set(itertools.product(protocol['entry_rules'], protocol['profit_targets'],
+                                         protocol['stop_losses'], thresholds))
+        current = grid(protocol['selection_thresholds'])
+        prior = grid(protocol['prior_grid_thresholds'])
+        self.assertEqual(protocol['selection_thresholds'], [0.0, .35, .45, .5])
+        self.assertEqual(len(current), 72)
+        self.assertEqual(len(prior & current), 18)
+        self.assertEqual(len(prior | current), 126)
+        self.assertEqual(protocol['cumulative_distinct_development_variants'], 126)
+        self.assertEqual(protocol['development_revision_reason'], 'selection_count_max3_insufficient')
+        self.assertFalse(protocol['revision_uses_diagnostic_returns_for_selection'])
+        self.assertEqual(protocol['research_selection_min_trades'], 20)
+        self.assertEqual(protocol['research_selection_min_entry_dates'], 10)
+        self.assertEqual(protocol['formal_min_trades'], 200)
+        self.assertEqual(protocol['formal_min_entry_dates'], 60)
+        self.assertEqual(g.FALLBACK['threshold'], .5)
+
+    def test_zero_threshold_is_ranked_without_probability_floor(self):
+        candidate = row()
+        candidate.update(p_profit=.1, p_ge3=.05, p_ge6=.01)
+        low_threshold = dict(g.FALLBACK, threshold=0.0)
+        included = g.simulate(pd.DataFrame([candidate]), low_threshold)
+        excluded = g.simulate(pd.DataFrame([candidate]), g.FALLBACK)
+        self.assertEqual(included[0]['status'], 'closed')
+        self.assertEqual(excluded[0]['status'], 'abstain')
 
 
 if __name__ == '__main__':
