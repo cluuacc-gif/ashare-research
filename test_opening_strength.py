@@ -21,7 +21,7 @@ def market():
         CREATE TABLE security_master(symbol TEXT PRIMARY KEY,name TEXT);
         CREATE TABLE daily_quotes(symbol TEXT,trade_date TEXT,open REAL,high REAL,
             low REAL,close REAL,volume REAL,amount REAL,conflict INTEGER,
-            fetched_at TEXT,source_updated_at TEXT,PRIMARY KEY(symbol,trade_date));
+            fetched_at TEXT,source_updated_at TEXT,finality TEXT,PRIMARY KEY(symbol,trade_date));
         CREATE TABLE industry_members(symbol TEXT,classification TEXT,industry TEXT,
             effective_date TEXT,observed_at TEXT,source_url TEXT);
     ''')
@@ -31,10 +31,11 @@ def market():
         db.execute('INSERT INTO security_master VALUES(?,?)', (symbol, f'研究样本{number + 1}'))
         for index in range(270):
             close = 6.5 + number * .2 + index * .001
-            db.execute('INSERT INTO daily_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?)',
-                       (symbol, (start + dt.timedelta(days=index)).isoformat(), close - .02,
+            day = (start + dt.timedelta(days=index)).isoformat()
+            db.execute('INSERT INTO daily_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
+                       (symbol, day, close - .02,
                         close + .05, close - .15, close, 5e6, 30e6 + number * 1e6,
-                        0, OBSERVED, BASE + 'T15:00:00+08:00'))
+                        0, OBSERVED, day + 'T15:00:00+08:00', 'historical_provider'))
         db.execute('INSERT INTO industry_members VALUES(?,?,?,?,?,?)',
                    (symbol, 'sina_industry', '板块甲', BASE, OBSERVED, 'https://example.invalid/source'))
     return db
@@ -79,9 +80,9 @@ class OpeningPlanTests(unittest.TestCase):
 
     def test_future_session_prices_are_never_features(self):
         before = self.plan()
-        self.db.execute('INSERT INTO daily_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?)',
+        self.db.execute('INSERT INTO daily_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
             ('000001.SZ', TARGET, 100, 200, 1, 150, 1e9, 1e11, 0,
-             '2026-10-19T15:01:00+08:00', '2026-10-19T15:00:00+08:00'))
+             '2026-10-19T15:01:00+08:00', '2026-10-19T15:00:00+08:00', 'historical_provider'))
         self.assertEqual(before, self.plan())
 
     def test_unknown_timestamp_excludes_quote_even_when_price_is_plausible(self):
@@ -92,6 +93,36 @@ class OpeningPlanTests(unittest.TestCase):
         self.db.execute('UPDATE daily_quotes SET fetched_at=? WHERE symbol=?',
                         ('2026-10-19T15:01:00+08:00', '000001.SZ'))
         self.assertNotIn('000001.SZ', [row['symbol'] for row in self.plan()['watchlist']])
+
+    def test_old_missing_amounts_do_not_discard_complete_recent_liquidity(self):
+        before = self.plan()
+        recent_start = (dt.date.fromisoformat(BASE) - dt.timedelta(days=20)).isoformat()
+        self.db.execute('UPDATE daily_quotes SET amount=NULL WHERE trade_date<?', (recent_start,))
+        self.assertEqual(before, self.plan())
+
+    def test_amounts_in_every_one_of_latest_21_bars_are_required(self):
+        for days_ago in (0, 1, 20):
+            with self.subTest(days_ago=days_ago):
+                day = (dt.date.fromisoformat(BASE) - dt.timedelta(days=days_ago)).isoformat()
+                self.db.execute('UPDATE daily_quotes SET amount=NULL WHERE trade_date=?', (day,))
+                plan = self.plan()
+                self.assertEqual(plan['watchlist'], [])
+                self.assertEqual(plan['coverage']['rejections']['insufficient_or_invalid_prior_bars'], 8)
+                self.db.execute('UPDATE daily_quotes SET amount=30000000 WHERE trade_date=?', (day,))
+
+    def test_missing_unused_older_ohlc_does_not_raise_or_enter_features(self):
+        before = self.plan()
+        unused_end = (dt.date.fromisoformat(BASE) - dt.timedelta(days=250)).isoformat()
+        self.db.execute('UPDATE daily_quotes SET close=NULL,amount=NULL WHERE trade_date<=?', (unused_end,))
+        self.assertEqual(before, self.plan())
+
+    def test_unfinalized_or_unknown_source_time_quotes_are_rejected(self):
+        self.db.execute('UPDATE daily_quotes SET finality=? WHERE trade_date=?', ('intraday', BASE))
+        self.assertEqual(self.plan()['watchlist'], [])
+        self.db.execute('UPDATE daily_quotes SET finality=? WHERE trade_date=?', ('post_close_provider', BASE))
+        self.db.execute('UPDATE daily_quotes SET source_updated_at=? WHERE trade_date=?',
+                        ('2026-10-19T15:00:00+08:00', BASE))
+        self.assertEqual(self.plan()['watchlist'], [])
 
     def test_minimum_history_counts_valid_bars_and_locked_days_excluded(self):
         self.db.execute('DELETE FROM daily_quotes WHERE symbol=? AND trade_date<?', ('000001.SZ', '2026-03-01'))

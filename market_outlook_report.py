@@ -2,6 +2,7 @@
 from __future__ import annotations
 import html
 import math
+from datetime import datetime, timedelta, timezone
 
 
 def e(value):
@@ -14,6 +15,13 @@ def num(value, digits=1):
 
 def pct(value):
     return num(value*100,2)+'%' if isinstance(value,(int,float)) and math.isfinite(value) else '—'
+
+
+def local_time(value):
+    try:
+        return datetime.fromisoformat(value).astimezone(timezone(timedelta(hours=8))).strftime('%Y-%m-%d %H:%M 北京时间')
+    except (TypeError,ValueError):
+        return '—'
 
 
 def items(values):
@@ -50,7 +58,7 @@ def render(value):
         if conditions: description+='<br><span class="muted">确认：'+items(conditions[1:3])+'</span>'
         if cancels: description+='<br><span class="muted">撤销：'+items(cancels[:1])+'</span>'
         watch_rows.append([str(i),'<strong>'+label+'</strong><br><span class="muted">'+e(row.get('symbol',''))+'</span>',
-                           e(row.get('industry') or row.get('sector') or '—'),num(row.get('close') or row.get('base_close'),2),
+                           '<span style="white-space:nowrap">'+e(row.get('industry') or row.get('sector') or '未匹配')+'</span>',num(row.get('close') or row.get('base_close'),2),
                            num(row.get('research_score',row.get('score')),1),description])
     if not watch_rows:
         watch_rows=[['—','本期保留空名单','—','—','—',e(plan.get('reason') or plan.get('status') or '等待满足条件')]]
@@ -68,20 +76,23 @@ def render(value):
         +'相对走强命中率'+pct(tracking.get('relative_strength_hit_rate'))
         +'，绝对上涨比例'+pct(tracking.get('absolute_up_rate'))+'。')
     evidence=' / '.join(source_urls[:3]) or '来源记录保存在本期冻结的行情与行业资料中。'
+    plan_note=items(plan.get('entry_rules') or plan.get('conditions') or plan.get('notes') or [])
+    if plan_note=='—':
+        plan_note='最多3个独立预算名额；第4—5名只观察，不自动补位。板块缺少匹配时，个股排序仅采用价量特征。'
     return '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>次日板块展望与开盘观察</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f4f5f2;color:#172722;font:16px/1.7 "Microsoft YaHei","Noto Sans CJK SC",sans-serif}main{max-width:1180px;margin:auto;padding:42px 34px 70px}.eyebrow{font-size:13px;letter-spacing:2px;color:#537367}h1{font-size:36px;line-height:1.3;margin:12px 0}h2{font-size:23px;margin:0 0 12px}p{margin:8px 0 16px}.lead{max-width:910px;font-size:18px}.muted,small{color:#66766e}.ribbon{display:flex;gap:18px;margin:26px 0}.tile{background:#fff;border:1px solid #dce3dc;border-radius:12px;padding:18px 22px;flex:1}.tile b{display:block;font-size:27px}.tile span{font-size:13px;color:#66766e}section{background:white;border:1px solid #dde4dc;border-radius:14px;margin-top:22px;padding:25px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;background:#edf2ee;color:#486150;font-size:13px}th,td{padding:13px 12px;vertical-align:top;border-bottom:1px solid #e7ece6}th:first-child{width:46px}td:nth-child(2){min-width:125px}a{color:#216f55}.callout{border-left:4px solid #a07636;background:#fbf6ec;padding:15px 19px;margin-top:20px}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.step{background:#f5f7f2;padding:17px;border-radius:9px}.step b{display:block;color:#28664b}.note{font-size:13px;color:#65736b;margin-top:15px}.pill{font-size:12px;background:#e9eee7;padding:4px 9px;border-radius:20px}.provenance{font-size:12px;overflow-wrap:anywhere}details{margin-top:15px}summary{cursor:pointer;font-weight:bold}@media(max-width:650px){main{padding:25px 15px}h1{font-size:27px}.ribbon{gap:9px}.tile{padding:13px 10px}.tile b{font-size:21px}section{padding:18px 13px}.steps{grid-template-columns:1fr}table{min-width:720px}.lead{font-size:16px}}
-</style></head><body><main><div class="eyebrow">A股研究 · 下一交易日观察</div><h1>先看板块，再等开盘确认</h1>
+</style><style>th{white-space:nowrap}</style></head><body><main><div class="eyebrow">A股研究 · 下一交易日观察</div><h1>先看板块，再等开盘确认</h1>
 <p class="lead">优先观察有相对强度、上涨家数和成交参与支持的板块，再从可成交的普通走势股票中寻找转强机会。以下是待验证的研究排序，当前没有已确认的买入信号。</p>
-<p class="muted">目标交易日 <b>'''+e(value.get('target_trade_date','—'))+'''</b>　｜　行情截至 '''+e(value.get('base_trade_date','—'))+'''收盘　｜　研究冻结于 '''+e(value.get('information_cutoff','—'))+'''</p>
+<p class="muted">目标交易日 <b>'''+e(value.get('target_trade_date','—'))+'''</b>　｜　行情截至 '''+e(value.get('base_trade_date','—'))+'''收盘　｜　研究冻结于 '''+e(local_time(value.get('information_cutoff')))+'''</p>
 <div class="ribbon"><div class="tile"><span>本期可排序板块</span><b>'''+str(len(rankings))+'''</b></div><div class="tile"><span>开盘条件观察股票</span><b>'''+str(len(watch))+'''</b></div><div class="tile"><span>真实成交胜率</span><b>未验证</b></div></div>
 <section><h2>次日板块强弱展望</h2><p>目标是找出下一交易日更可能相对走强的板块；相对走强时仍可能下跌。分数反映本期研究排序，不是上涨概率。</p>'''+table(['排名','板块','研究分','支持因素','失效与风险'],sector_rows)+'''
 <p class="note">每天下午的报告新增本节，保留数据不足时的空缺。'''+e(sectors.get('methodology_note') or sectors.get('score_definition') or '')+'''</p></section>
 <section><h2>开盘转强观察名单</h2><p>不要求买入当天收涨，也不以已经封死涨停的股票作为可买入机会。名单在开盘前冻结，当日需再核对价格、交易状态和及时行情。</p>'''+table(['序号','股票','行业','前收盘','研究分','入选原因'],watch_rows)+'''
 <div class="callout"><strong>开盘前是观察计划。</strong> 09:25报告提供条件清单；实际开盘后，只有及时行情、交易状态和限价等核验齐全，才可研究是否满足转强条件。触发条件不等于实际成交。</div>
-<p class="note">'''+items(plan.get('entry_rules') or plan.get('conditions') or plan.get('notes'))+'''</p></section>
+<p class="note">'''+plan_note+'''</p></section>
 <section><h2>买入与次日退出的研究顺序</h2><div class="steps"><div class="step"><b>① 前收盘准备</b>冻结板块和个股观察池，价格上限提前确定；高开超过上限即放弃。</div><div class="step"><b>② 开盘核验</b>核对当天行情和可交易状态。无及时数据、封板或条件不足时不确认信号。</div><div class="step"><b>③ 次日检验</b>按预定退出规则记录毛盈利、达到3%和6%的比例；亏损和未解决退出全部保留。</div></div>
 <p class="note">目标仍是提高第1天买入、第2天卖出的毛盈利胜率，争取3%～6%，不扣交易费用。现有策略尚未验证80%以上胜率；本次新增信息不会自动改变这一结论。</p></section>
 <section><h2>证据范围与自动运行</h2><p>板块预测与开盘计划已纳入报告准备流程。每天盘后冻结研究输出，结果按交易日留档；下一交易日结果出现前不计算命中率。</p><p>'''+e(tracking_text)+''' 缺失行情的预测保留为未解决，不计作命中；每天只以最早冻结的一版统计。</p><p>邮件时点继续沿用北京时间09:00、09:25、18:00。独立云主机尚未部署；GitHub调度仍可能排队，严格准点发送依赖此前准备的独立运行方案。</p>
-<details><summary>数据与来源</summary><p class="note">'''+coverage_text+'''</p><p class="note">'''+evidence+'''</p><p class="provenance">行情版本：'''+e(value.get('snapshot_release','—'))+'''<br>行情校验值：'''+e(value.get('input_database_sha256','—'))+'''</p><p class="note">行业分类仅用于其已知时间之后的研究，不回填历史成分来制造回测命中率。当前排序不包含已验证的消息催化或资金流预测。</p><p class="note">交易时段与规则参考：<a href="https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml">上交所2026年交易规则</a>。本次研究不发送邮件或交易指令。</p></details></section>
+<details><summary>数据与来源</summary><p class="note">'''+coverage_text+'''</p><p class="note">'''+evidence+'''</p><p class="provenance">行情版本：<a href="https://github.com/cluuacc-gif/ashare-research/releases/tag/'''+e(value.get('snapshot_release',''))+'''">'''+e(value.get('snapshot_release','—'))+'''</a><br>行情校验值：'''+e(value.get('input_database_sha256','—'))+'''</p><p class="note">行业分类仅用于其已知时间之后的研究，不回填历史成分来制造回测命中率。当前排序不包含已验证的消息催化或资金流预测。</p><p class="note">交易时段与规则参考：<a href="https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml">上交所2026年交易规则</a>。本次研究不发送邮件或交易指令。</p></details></section>
 <p class="note">本页为选股研究与观察计划。冻结时间与行情日期分别列示，周末生成的预览不计作上一交易日下午的事前预测。</p></main></body></html>'''
