@@ -1,0 +1,175 @@
+name: Research next-day gross swing strategy and publish isolated evidence
+on:
+  push:
+    branches: [main]
+    paths: [requests/gross-swing-research.json]
+  pull_request:
+    paths:
+      - gross_swing_strategy.py
+      - gross_swing_store.py
+      - gross_swing_report.py
+      - test_gross_swing_strategy.py
+      - test_gross_swing_store.py
+      - GROSS_SWING_STRATEGY.md
+      - requests/gross-swing-research.json
+      - .github/workflows/gross-swing-research.yml
+      - mail_layout.py
+      - snapshot_mail.py
+      - formal_price_model.py
+  workflow_dispatch:
+    inputs:
+      source_release:
+        description: Exact prepared release (empty uses current)
+        type: string
+        required: false
+  workflow_run:
+    workflows:
+      - Train publish and verify production price model
+      - A-share automatic after-close pipeline
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ashare-gross-swing-research-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'publisher' }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-model.txt
+      - run: python -m pip install -r requirements-model.txt
+      - name: Verify causal gross labels and separated formal admission
+        run: >-
+          python -m unittest -v test_gross_swing_strategy.py test_gross_swing_store.py
+          test_strategy_validation.py test_net_profit_store.py test_net_profit_strategy.py
+          test_short_term.py test_mail_upgrade.py test_formal_model.py
+  research:
+    needs: verify
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    permissions:
+      contents: write
+    env:
+      TZ: Asia/Shanghai
+      GH_TOKEN: ${{ github.token }}
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
+      DISPATCH_RELEASE: ${{ inputs.source_release }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-model.txt
+      - run: python -m pip install -r requirements-model.txt
+      - name: Resolve first request without pinning automatic runs
+        id: request
+        run: |
+          python - <<'PY'
+          import datetime as dt, json, os, re
+          from pathlib import Path
+          config=json.loads(Path('requests/gross-swing-research.json').read_text())
+          enabled=config.get('enabled') is True
+          event=os.environ['GITHUB_EVENT_NAME']
+          release=os.environ.get('DISPATCH_RELEASE','').strip() if event=='workflow_dispatch' else ''
+          base=''
+          if event=='push':
+              release=config.get('source_release','')
+              base=config.get('base_trade_date','')
+          if base: dt.date.fromisoformat(base)
+          if release and not re.fullmatch(r'prepared-\d{4}-\d{2}-\d{2}-[A-Za-z0-9-]+',release):
+              raise ValueError('invalid prepared release request')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as stream:
+              stream.write('enabled='+str(enabled).lower()+'\n')
+          with open(os.environ['GITHUB_ENV'],'a') as stream:
+              stream.write('SOURCE_RELEASE='+release+'\nREQUEST_BASE='+base+'\n')
+          PY
+      - name: Restore and independently verify canonical database
+        if: steps.request.outputs.enabled == 'true'
+        run: |
+          EXTRA=()
+          if [ -n "$SOURCE_RELEASE" ]; then EXTRA=(--release-tag "$SOURCE_RELEASE"); fi
+          python pipeline_state.py restore --destination "$RUNNER_TEMP/gross-swing-source" "${EXTRA[@]}"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'gross-swing-source'
+          restored=json.loads((root/'restore.json').read_text())
+          source=restored['manifest']
+          assert restored['verified'] and source['preparation_ready']
+          assert not os.environ.get('REQUEST_BASE') or os.environ['REQUEST_BASE']==source['base_trade_date']
+          with open(os.environ['GITHUB_ENV'],'a') as stream:
+              stream.write('RESEARCH_DB='+str(root/source['database']['name'])+'\n')
+              stream.write('RESEARCH_BASE='+source['base_trade_date']+'\n')
+              stream.write('RESEARCH_INPUT_SHA256='+source['database']['sha256']+'\n')
+          PY
+      - name: Train gross-return models and evaluate causal next-day exits
+        if: steps.request.outputs.enabled == 'true'
+        run: |
+          python gross_swing_strategy.py --db "$RESEARCH_DB" --base "$RESEARCH_BASE" \
+            --output gross-swing-out --input-sha256 "$RESEARCH_INPUT_SHA256"
+      - name: Publish isolated gross research after complete asset hash readback
+        id: publish
+        if: steps.request.outputs.enabled == 'true'
+        run: |
+          python gross_swing_store.py publish --output gross-swing-out --store "$RUNNER_TEMP/gross-swing-source"
+      - name: Independently restore release and reproduce frozen predictions
+        if: steps.request.outputs.enabled == 'true'
+        env:
+          RESEARCH_TAG: ${{ steps.publish.outputs.research_tag }}
+        run: |
+          python gross_swing_store.py restore --release-tag "$RESEARCH_TAG" \
+            --destination "$RUNNER_TEMP/gross-swing-readback"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          import joblib, numpy as np, pandas as pd
+          from gross_swing_strategy import predict
+          root=Path(os.environ['RUNNER_TEMP'])/'gross-swing-readback'
+          verified=json.loads((root/'gross_swing_restore.json').read_text())
+          assert verified['verified']
+          manifest=verified['manifest']
+          summary=manifest['summary']
+          assert manifest['formal_trade_ready'] is False
+          assert manifest['execution_win_rate_80_validated'] is False
+          assert manifest['real_execution_win_rate'] is None
+          assert manifest['actual_win_rate'] is None
+          assert manifest['costs_included'] is False
+          bundle=joblib.load(root/'model.joblib')
+          inputs=pd.read_csv(root/'prediction_inputs.csv.gz',float_precision='round_trip')
+          saved=json.loads((root/'predictions.json').read_text())
+          expected={r['symbol']:r for r in saved['rows']}
+          assert bundle['protocol']==summary['protocol']
+          assert bundle['protocol_sha256']==summary['protocol_sha256']
+          actual=predict(bundle,inputs)
+          for key in ('p_profit','p_ge3','p_ge6','p_day1_green'):
+              assert np.allclose(actual[key],[expected[s][key] for s in inputs.symbol],rtol=0,atol=1e-12)
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a') as stream:
+              stream.write('Gross swing research independently restored and reproduced.\n\n')
+              stream.write('Gross profitability and 3%/6% attainment are separate endpoints; no actual fills, orders or email.\n\n')
+              stream.write('```json\n'+json.dumps(summary,ensure_ascii=False,indent=2)+'\n```\n')
+          PY
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: gross-swing-research-${{ github.run_id }}-${{ github.run_attempt }}
+          path: gross-swing-out/
+          if-no-files-found: warn

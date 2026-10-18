@@ -229,9 +229,11 @@ def train(store, output):
         'model_ready': True, 'formal_trade_ready': False, 'formal_prediction_allowed': False,
         'prediction_scope': 'next_session_raw_close_return', 'labels': LABELS,
         'prediction_count': len(rows), 'execution_win_rate': None,
-        'execution_win_rate_80_validated': False, 'win_rate_gate': 'active_net_profit_forward_validation_required',
-        'win_rate_target': {'metric': 'real_trade_net_profit_after_all_costs',
+        'execution_win_rate_80_validated': False, 'win_rate_gate': 'active_gross_swing_forward_validation_required',
+        'win_rate_target': {'metric': 'real_trade_gross_profit_before_costs',
                             'strictly_greater_than': .8, 'allow_cash': True,
+                            'costs_deducted': False, 'profit_target_range': [.03, .06],
+                            'report_separately': ['gross_positive', 'gross_ge_3pct', 'gross_ge_6pct'],
                             'min_trades': 200, 'min_entry_dates': 60},
         'unavailable_endpoints': {'P3a': 'official limit history unavailable', 'P3b': 'official limit history unavailable',
                                   'E1_E2_net_profit': 'executable fills and costs unavailable'}}

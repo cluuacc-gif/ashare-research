@@ -104,14 +104,20 @@ class GateTests(unittest.TestCase):
 
 
 class RenderingTests(unittest.TestCase):
-    def test_price_probability_does_not_unlock_real_net_profit_target(self):
+    def test_price_probability_does_not_unlock_gross_swing_target(self):
         value=payload()
         value['research']['model_predictions']['rows'][0]['P1']=.99
         value['research']['model_validation']['win_rate_gate']='deferred_by_user'
-        value['research']['net_profit_strategy']={'strategy_version':'fixture-net-v2',
-            'real_execution_win_rate':None,'formal_trade_ready':False}
+        value['research']['gross_swing_strategy']={'schema':'gross-swing-research-v2',
+            'actual_win_rate':None,'formal_trade_ready':False,
+            'policy':{'active':False}, 'diagnostic':{'fixed_reference':{
+                'n_attempts':10,'n_closed':9,'n_unresolved':1,'win_rate':.5,'ge3_rate':.2,'ge6_rate':.1}}}
         text=mail_layout.render_text(value)
-        self.assertIn('净盈利策略验收',text)
+        self.assertIn('隔日毛收益策略',text)
+        self.assertIn('不扣交易费用',text)
+        self.assertIn('20.0%',text)
+        self.assertIn('10.0%',text)
+        self.assertNotIn('扣费后胜率',text)
         self.assertIn('严格高于80%',text)
         self.assertIn('空仓，等待前向成交与数据证据',text)
         self.assertIn('200笔、60个入场日期',text)
@@ -153,7 +159,7 @@ class RenderingTests(unittest.TestCase):
         value=payload(); html=mail_layout.render_html(value); text=mail_layout.render_text(value)
         self.assertIn('&lt;script&gt;',html);self.assertNotIn('<script>',html)
         for body in [html,text]:
-            self.assertIn('43.2%',body);self.assertIn('12.3%',body);self.assertIn('净盈利胜率',body)
+            self.assertIn('43.2%',body);self.assertIn('12.3%',body);self.assertIn('毛盈利胜率',body)
             self.assertIn('2026-10-12',body);self.assertIn('Brier',body)
         self.assertNotIn('挂单纪律',html)
 

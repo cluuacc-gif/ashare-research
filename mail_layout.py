@@ -4,7 +4,7 @@ import math
 import datetime as dt
 from urllib.parse import quote
 
-VERSION = 'research-email-v3-net-profit-target'
+VERSION = 'research-email-v4-gross-swing-target'
 STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
@@ -59,16 +59,25 @@ def content(payload):
            ('交易资格','已通过' if research.get('formal_trade_ready') else '待核验'),
            ('5～10元观察',f'{len(band):,}只')]
     sections=[]
-    net = research.get('net_profit_strategy') or {}
-    sections.append({'title':'净盈利策略验收', 'columns':['验收项目','当前状态'],
-        'rows':[['目标','真实交易扣费后胜率严格高于80%'],
+    gross = research.get('gross_swing_strategy') or {}
+    sections.append({'title':'隔日毛收益策略', 'columns':['验收项目','当前状态'],
+        'rows':[['目标','毛盈利胜率严格高于80%，争取每笔3%～6%'],
+                ['统计口径','不扣交易费用；盈利比例、赚到3%和6%的比例分别统计'],
+                ['买入思路','优先普通走势和可买入机会；高开超限取消，不追封死涨停'],
                 ['实际成交胜率','尚无通过审核的真实成交样本'],
                 ['正式交易候选','空仓，等待前向成交与数据证据'],
-                ['新策略研究','已生成研究版本' if net.get('schema') == 'net-profit-research-v1' else '等待与本期行情匹配的研究结果']],
-        'note':'次日进场，最早再下一交易日退出；逐笔计算费用和双边滑点。至少200笔、60个入场日期，且日期分组置信下界高于80%、净期望为正，才进入目标验收。未平仓保留；研究模拟不能代替真实成交。'})
+                ['新策略研究','已生成研究版本' if gross.get('schema') == 'gross-swing-research-v2' else '等待与本期行情匹配的研究结果']],
+        'note':'第1天买入、第2天按预定目标或退出规则研究卖出，不要求买入当天上涨。至少200笔、60个入场日期，且日期分组置信下界高于80%、毛期望为正，才进入目标验收。全部入场交易与未解决退出保留；日线触价不代表实际成交。'})
+    diagnostic = gross.get('diagnostic') or {}
+    shown = diagnostic.get('selected_policy' if (gross.get('policy') or {}).get('active') else 'fixed_reference') or {}
+    if shown:
+        sections.append({'title':'本期隔日策略历史诊断', 'columns':['入场尝试','已闭合','未解决','毛盈利比例','赚到3%','赚到6%'],
+            'rows':[[number(shown.get('n_attempts'),0),number(shown.get('n_closed'),0),number(shown.get('n_unresolved'),0),
+                     pct(shown.get('win_rate')),pct(shown.get('ge3_rate')),pct(shown.get('ge6_rate'))]],
+            'note':'旧历史已用于开发，本表是研究诊断。全部已入场交易均计入，不按买入后的涨跌删除亏损；达到目标价仍须核验能否成交。'})
     if rows:
         sections.append({'title':'模型观察 Top10','columns':['排名','代码','名称','收盘','P1 上涨','P2 ≥5%','成交额'],
-            'rows':rows,'note':'按P2排序。P1＝下一交易日收盘高于基础日收盘；P2＝收盘涨幅≥5%。两者均为原始未复权价格事件概率，不等于买入后的净盈利胜率。'})
+            'rows':rows,'note':'按P2排序。P1＝下一交易日收盘高于基础日收盘；P2＝收盘涨幅≥5%。两者均为原始未复权价格事件概率，不等于买入后的毛盈利胜率或赚到3%的比例。'})
     elif band:
         sections.append({'title':'成交额前排观察','columns':['代码','名称','收盘','成交额','ST核验'],
             'rows':[[r['symbol'],r.get('name') or '—',number(r.get('close')),money(r.get('amount')),
@@ -80,7 +89,7 @@ def content(payload):
         sections.append({'title':'历史时间外验证','columns':['价格事件','样本数','Top10事件率','模型Brier','基准Brier'],
             'rows':[[label,number(m.get('n'),0),pct(m.get('top10_event_frequency')),number(m.get('brier'),5),
                      number(m.get('calibration_block_constant_baseline_brier'),5)] for label,m in endpoints.items()],
-            'note':f"测试覆盖 {t.get('independent_dates','—')} 个日期（{t.get('first_input_date','—')}至{t.get('last_input_date','—')}）。Brier越低越好；基准为校准期常数概率。历史价格事件率不等于实际成交胜率；净盈利80%目标已启用并单独验收。"})
+            'note':f"测试覆盖 {t.get('independent_dates','—')} 个日期（{t.get('first_input_date','—')}至{t.get('last_input_date','—')}）。Brier越低越好；基准为校准期常数概率。价格事件率不能代替成交胜率；当前按不扣费毛收益口径单独研究。"})
     if stage=='evening':
         us=payload.get('us_overnight_linkage') or {}
         source='缓存行情' if us.get('source')=='cached' else '公开行情'
@@ -108,7 +117,7 @@ def content(payload):
     return {'title':'A股'+title,'subtitle':subtitle,'subject':subject,'summary':summary,'stats':stats,
             'warnings':warnings,'sections':sections,'links':links,'ready':ready,
             'generated_at':payload.get('generated_at') or '—', 'cutoff':payload.get('information_cutoff') or '—',
-            'footer':'研究观察，不自动下单。真实交易净盈利80%目标尚未验证；价格事件概率与净盈利研究结果分别记录。'}
+            'footer':'研究观察，不自动下单。当前研究按不扣费毛收益统计，80%目标与3%～6%收益目标尚未验证；触价和模型概率不能当作成交保证。'}
 
 
 def render_text(payload):
