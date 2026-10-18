@@ -78,19 +78,40 @@ def mathematical_section(value):
     for name,label in labels.items():
         metric=diagnostic.get(name) or {}
         if not metric.get('n_attempts'):continue
-        rows.append([label,num(metric.get('n_attempts'),0)+'／'+num(metric.get('n_unresolved'),0),
+        rows.append([label,num(metric.get('n_attempts'),0)+'／'+num(metric.get('n_unresolved'),0),num(metric.get('independent_entry_dates'),0),
                      pct(metric.get('win_rate')),pct(metric.get('ge3_rate')),
                      pct(metric.get('mean_closed_gross_return')),pct(metric.get('strength3_rate'))])
     result='<section><h2>数学与价格行为检验</h2><p>把突破、回踩和高低点抬升写成可复算规则：ATR衡量波动，趋势效率衡量单向移动占比，收盘位置与上影线区分承接和回落。它们用于建立假设，历史检验负责判断是否值得继续。</p>'
     if rows:
-        result+=table(['研究规则','入场／未解决','毛盈利比例','赚到3%','平均已闭合收益','连续3日收高'],rows)
+        result+=table(['研究规则','入场／未解决','日期数','毛盈利比例','赚到3%','平均已闭合收益','连续3日收高'],rows)
     else:
         result+='<p class="muted">本期尚无与行情版本匹配的价格行为诊断，保留空缺。</p>'
     policy=study.get('policy') or {}
     status='存在通过选择期条件的研究规则，正式交易仍未准入。' if policy.get('active') else '本期没有启用通过验证的价格行为交易规则。'
-    result+='<p class="note">'+e(status)+' 旧历史已用于开发，本表不是新增样本外验证；日线开盘和触价是参考成交情景，无法证明个人订单成交。历史诊断没有资金流或当时行业成分证据，不能当作整套板块资金策略的胜率。</p>'
+    result+='<p class="note">'+e(status)+' 本表是原5～10元池的历史对照；新版5～100元预算研究池及资金共振需另作前向检验。旧历史已用于开发，本表不是新增样本外验证；日线开盘和触价是参考成交情景，无法证明个人订单成交。历史诊断没有资金流或当时行业成分证据，不能当作整套板块资金策略的胜率。</p>'
+    risks=[]
+    for name,label in labels.items():
+        metric=diagnostic.get(name) or {}
+        if not metric.get('n_attempts'):continue
+        ci=(metric.get('date_block_bootstrap') or {}).get('win_rate_ci95') or []
+        risks.append([label,pct(metric.get('mean_win_return')),pct(metric.get('mean_loss_return')),num(metric.get('profit_factor'),2),(pct(ci[0])+'～'+pct(ci[1])) if len(ci)==2 else '—',pct(metric.get('realized_closed_trade_max_drawdown'))])
+    if risks:
+        result+='<details><summary>各规则的盈亏、区间与已闭合风险</summary>'+table(['规则','平均盈利','平均亏损','盈利因子','盈利比例95%区间','已闭合回撤'],risks)+'<p class="note">按入场日期分组抽样；区间反映旧诊断样本的不确定性，不能证明未来有效。回撤未包含未知头寸盯市，不等于完整实盘最大回撤。</p></details>'
     result+='<p><b>T+1主目标：</b>D1买入、D2退出，默认研究3%目标与2%风险参考；D1不止损卖出，D2跳空可能越过风险价。6%单列观察，不能为了等第3天上涨而自动延长持仓。</p><p><b>持续走强辅助目标：</b>分别跟踪D1、D2、D3逐日收高；缺少D3行情不删除已知的D2结果，也不把3日上涨率当成T+1盈利胜率。</p>'
     result+='<p class="note">期望收益＝盈利比例×平均盈利＋亏损比例×平均亏损。80%胜率仍可能因少数大亏而亏钱，因此同时检查盈亏比、正期望和按日期分组的不确定区间。海外资料仅提供可量化的研究思路：<a href="https://www.nber.org/papers/w7613">Lo、Mamaysky、Wang（2000）</a>，<a href="https://www.cmegroup.com/education/courses/trading-and-analysis/support-and-resistance">CME支撑与阻力课程</a>；不据此推定A股短线有效。</p></section>'
+    return result
+
+
+def selection_funnel(value):
+    selection=value.get('sector_stock_selection') or {}
+    coverage=selection.get('coverage') or {}
+    result='<p class="note">预算研究池为5～100元，每个名额最多1万元、100股整数手；价格上限与数量提前冻结。筛选过程：'+num(coverage.get('opening_candidate_pool'),0)+'只价量候选 → '+num(coverage.get('within_sector_candidates'),0)+'只匹配增强板块 → '+num(coverage.get('primary_count'),0)+'只主要观察、'+num(coverage.get('reserve_count'),0)+'只储备观察。原5～10元池保留作历史对照；扩大价格范围不放宽资金和价格行为要求。</p>'
+    names={'price_action_quality_below_threshold':'价格行为评分不足','no_predefined_price_action_structure':'未出现预定价格行为结构','candidate_history_or_features_unverified':'历史或输入未核验'}
+    rows=[]
+    for row in selection.get('rejected_candidates',[])[:10]:
+        reason=row.get('reason') or '尚未同时满足条件'
+        rows.append([e(row.get('symbol','—')),e(row.get('name','—')),e(row.get('sector','—')),e(names.get(reason,'尚未同时满足预定条件'))])
+    if rows:result+='<details><summary>查看已排除的板块内候选</summary>'+table(['代码','名称','板块','首个排除原因'],rows)+'</details>'
     return result
 
 
@@ -119,7 +140,7 @@ def render(value):
                            '<span style="white-space:nowrap">'+e(row.get('industry') or row.get('sector') or '未匹配')+'</span>',num(row.get('close') or row.get('base_close'),2),
                            num(row.get('research_score',row.get('score')),1),description])
     if not watch_rows:
-        watch_rows=[['—','本期保留空名单','—','—','—',e(plan.get('reason') or plan.get('status') or '等待满足条件')]]
+        watch_rows=[['—','本期保留空名单','—','—','—','尚未同时满足增强板块、资金和价格行为条件']]
     coverage=sectors.get('coverage') or {}
     coverage_text=' · '.join(e(str(k))+': '+e(str(v)) for k,v in coverage.items() if not isinstance(v,(list,dict)))
     source_urls=[]
@@ -143,10 +164,10 @@ def render(value):
 </style><style>th{white-space:nowrap}</style></head><body><main><div class="eyebrow">A股研究 · 下一交易日观察</div><h1>先看板块，再等开盘确认</h1>
 <p class="lead">优先观察有相对强度、上涨家数和成交参与支持的板块，再从可成交的普通走势股票中寻找转强机会。以下是待验证的研究排序，当前没有已确认的买入信号。</p>
 <p class="muted">目标交易日 <b>'''+e(value.get('target_trade_date','—'))+'''</b>　｜　行情截至 '''+e(value.get('base_trade_date','—'))+'''收盘　｜　研究冻结于 '''+e(local_time(value.get('information_cutoff')))+'''</p>
-<div class="ribbon"><div class="tile"><span>本期可排序板块</span><b>'''+str(len(rankings))+'''</b></div><div class="tile"><span>开盘条件观察股票</span><b>'''+str(len(watch))+'''</b></div><div class="tile"><span>真实成交胜率</span><b>未验证</b></div></div>
+<div class="ribbon"><div class="tile"><span>真实资金流行业</span><b>'''+str(len((value.get('fund_flow') or {}).get('sectors',[])))+'''</b></div><div class="tile"><span>技术板块覆盖</span><b>'''+str(len(rankings))+'''</b></div><div class="tile"><span>开盘条件观察股票</span><b>'''+str(len(watch))+'''</b></div><div class="tile"><span>真实成交胜率</span><b>未验证</b></div></div>
 '''+flow_section(value)+'''<section><h2>次日板块强弱展望</h2><p>目标是找出下一交易日更可能相对走强的板块；相对走强时仍可能下跌。分数反映本期研究排序，不是上涨概率。</p>'''+table(['排名','板块','研究分','支持因素','失效与风险'],sector_rows)+'''
 <p class="note">每天下午的报告新增本节，保留数据不足时的空缺。'''+e(sectors.get('methodology_note') or sectors.get('score_definition') or '')+'''</p></section>
-<section><h2>开盘转强观察名单</h2><p>不要求买入当天收涨，也不以已经封死涨停的股票作为可买入机会。名单在开盘前冻结，当日需再核对价格、交易状态和及时行情。</p>'''+table(['序号','股票','行业','前收盘','研究分','入选原因'],watch_rows)+'''
+<section><h2>开盘转强观察名单</h2><p>不要求买入当天收涨，也不以已经封死涨停的股票作为可买入机会。名单在开盘前冻结，当日需再核对价格、交易状态和及时行情。</p>'''+selection_funnel(value)+table(['序号','股票','行业','前收盘','研究分','依据与开盘条件'],watch_rows)+'''
 <div class="callout"><strong>开盘前是观察计划。</strong> 09:25报告提供条件清单；实际开盘后，只有及时行情、交易状态和限价等核验齐全，才可研究是否满足转强条件。触发条件不等于实际成交。</div>
 <p class="note">'''+plan_note+'''</p></section>
 '''+mathematical_section(value)+'''<section><h2>买入与次日退出的研究顺序</h2><div class="steps"><div class="step"><b>① 前收盘准备</b>冻结板块和个股观察池，价格上限提前确定；高开超过上限即放弃。</div><div class="step"><b>② 开盘核验</b>核对当天行情和可交易状态。无及时数据、封板或条件不足时不确认信号。</div><div class="step"><b>③ 次日检验</b>按预定退出规则记录毛盈利、达到3%和6%的比例；亏损和未解决退出全部保留。</div></div>

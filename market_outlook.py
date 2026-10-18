@@ -55,8 +55,13 @@ def compact_pointer(manifest):
     selection=value['outlook'].get('sector_stock_selection') or {}
     for key in ('primary','reserves','watchlist','actual_fund_flow'):
         selection.pop(key,None)
+    if isinstance(selection.get('rejected_candidates'),list):
+        selection['rejected_candidates']=selection['rejected_candidates'][:10]
     (value['outlook'].get('opening_strength_plan') or {}).pop('independent_technical_watchlist',None)
-    for metric in ((value['outlook'].get('price_action_research') or {}).get('diagnostic') or {}).values():
+    study=value['outlook'].get('price_action_research') or {}
+    for key in ('protocol','selection_rules','current_watchlist'):
+        study.pop(key,None)
+    for metric in (study.get('diagnostic') or {}).values():
         metric.pop('realized_equity_curve',None)
     raw = json.dumps(value,ensure_ascii=False,indent=2).encode('utf-8')
     if len(raw) > 800_000:
@@ -134,7 +139,8 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None):
             raise ValueError('database identity mismatch')
         outlook = sectors(db, source['base_trade_date'], source['next_trade_date'], cutoff)
     plan = build_plan(database, source['base_trade_date'], source['next_trade_date'], cutoff,
-                      sector_forecast=outlook, input_sha256=source['database']['sha256'],include_pool=True)
+                      sector_forecast=outlook, input_sha256=source['database']['sha256'],include_pool=True,
+                      price_min=5,price_max=100)
     selection=select_sector_stocks(database,source['base_trade_date'],source['next_trade_date'],cutoff,
                                    outlook,plan,fund_flow=flow)
     plan.pop('candidate_pool',None)

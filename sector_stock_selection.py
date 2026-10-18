@@ -412,7 +412,7 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
                   'strength_tracking': ['D1', 'D2', 'D3'],
                   'holding_extended_by_three_day_prediction': False},
               'definition': '先验证板块相对强度与资金证据，再在相同成分中挑选未过度伸展的价格行为；分数是研究排序。',
-              'coverage': {}, 'limitations': [
+              'coverage': {}, 'rejected_candidates': [], 'limitations': [
                   '主力净流入是供应商按成交方向和订单规模估算的净额，并非交易所公布的真实资金账户流向。',
                   '早期转强是已发生的结构变化观察，尚未验证未来2—3日连续上涨或隔日盈利概率。',
                   '研究观察须由D1新鲜盘口、官方状态和涨跌停继续确认；可见卖盘不证明实际成交。',
@@ -423,6 +423,13 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
             or not _known(opening_plan.get('information_cutoff'), known_at)):
         result['reason'] = 'opening_plan_missing_or_date_cutoff_mismatch'
         return result
+    price_range = opening_plan.get('protocol', {}).get('entry_reference_price_range', [5, 10])
+    if not isinstance(price_range, (list, tuple)) or len(price_range) != 2:
+        result['reason'] = 'invalid_frozen_price_range'; return result
+    price_min, price_max = [_number(value) for value in price_range]
+    if price_min is None or price_max is None or not 0 < price_min <= price_max:
+        result['reason'] = 'invalid_frozen_price_range'; return result
+    result['entry_reference_price_range'] = [price_min, price_max]
     technical, technical_reason = _technical_boards(sector_outlook, base, target, known_at)
     # Invalid/future sector forecasts cannot donate a market regime through a
     # side channel after their constituent join has been rejected.
@@ -452,29 +459,38 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
                    and row.get('symbol') in board_members]
         histories = _history(connection, [row['symbol'] for row in aligned], base, known_at, minimum=61)
         ranked, rejected = [], defaultdict(int)
+        def reject(candidate, reason, action=None):
+            rejected[reason] += 1
+            if len(result['rejected_candidates']) < 20:
+                board = max(board_members[candidate['symbol']], key=lambda item: (item['flow_integrated'], item['score']))
+                result['rejected_candidates'].append({'symbol': candidate['symbol'],
+                    'name': candidate.get('name'), 'sector': board['sector'],
+                    'sector_classification': board['classification'], 'reason': reason,
+                    'price_action_score': action.get('price_action_score') if action else None,
+                    'eligible_patterns': action.get('eligible_patterns', []) if action else []})
         for candidate in aligned:
             symbol = candidate['symbol']
             close = _number(candidate.get('close'))
             features = candidate.get('features', {})
             required = ('close_location', 'ma20_gap', 'ret5', 'amount_ratio20', 'median_amount20')
-            if (candidate.get('feature_last_session') != base or close is None or not 5 <= close <= 10
+            if (candidate.get('feature_last_session') != base or close is None or not price_min <= close <= price_max
                     or any(_number(features.get(key)) is None for key in required)
                     or symbol not in histories):
-                rejected['candidate_history_or_features_unverified'] += 1
+                reject(candidate, 'candidate_history_or_features_unverified')
                 continue
             if abs(histories[symbol][-1]['close'] - close) > .000001:
-                rejected['candidate_base_close_mismatch'] += 1
+                reject(candidate, 'candidate_base_close_mismatch')
                 continue
             action = _stock_action(histories[symbol], features, benchmark)
             if action is None:
-                rejected['price_action_features_unavailable'] += 1
+                reject(candidate, 'price_action_features_unavailable')
                 continue
             action_score = _number(action.get('price_action_score'))
             if action_score is None or action_score < 55:
-                rejected['price_action_quality_below_threshold'] += 1
+                reject(candidate, 'price_action_quality_below_threshold', action)
                 continue
             if action.get('available') is True and not action.get('eligible_patterns'):
-                rejected['no_predefined_price_action_structure'] += 1
+                reject(candidate, 'no_predefined_price_action_structure', action)
                 continue
             # A verified direct vendor-flow constituent outranks the same stock's
             # unrelated technical taxonomy, without transferring flow to it.
@@ -482,9 +498,18 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
             stock_flow = board.get('member_flow_by_symbol', {}).get(symbol)
             primary_eligible = (not board['flow_integrated']
                                 or stock_flow is not None and stock_flow['status'] == 'positive')
-            cap = _cent_floor(min(close * 1.025, 10))
-            if cap < 5 or cap < close * 1.002 - 1e-10:
-                rejected['frozen_cap_cannot_allow_required_opening_strength'] += 1
+            cap = _cent_floor(min(close * 1.025, price_max))
+            if cap < price_min or cap < close * 1.002 - 1e-10:
+                reject(candidate, 'frozen_cap_cannot_allow_required_opening_strength', action)
+                continue
+            supplied_cap = _number(candidate.get('frozen_buy_cap'))
+            # Legacy narrow fixtures did not floor their input cap. Published
+            # plans declare the numeric range and must preserve the exact cap.
+            if 'protocol' in opening_plan and (supplied_cap is None or abs(supplied_cap - cap) > 1e-8):
+                reject(candidate, 'candidate_frozen_cap_differs_from_declared_protocol', action)
+                continue
+            if int(10000 / cap / 100) * 100 < 100:
+                reject(candidate, 'one_lot_exceeds_frozen_position_budget', action)
                 continue
             liquidity = 100 * _clip(math.log10(max(1, features['median_amount20'] / 20_000_000)) / 1.5)
             score = round(.50 * board['score'] + .40 * action_score + .10 * liquidity, 2)
@@ -564,6 +589,7 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
         'primary_count': len(selected), 'reserve_count': len(reserves),
         'rejections': dict(rejected)}
     result['ranking_protocol'] = {'sector_stock_weights': {'sector': .50, 'price_action': .40, 'liquidity': .10},
+        'entry_reference_price_range': [price_min, price_max],
         'flow_sector_weights': {'technical': .70, 'verified_money_flow': .30},
         'minimum_price_action_score': 55, 'predefined_price_action_structure_required_when_engine_available': True,
         'maximum_same_sector_primary_positions': MAX_SECTOR_POSITIONS,

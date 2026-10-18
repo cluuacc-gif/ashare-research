@@ -153,7 +153,7 @@ class SnapshotIntegration(unittest.TestCase):
                 calls.append(('sector',base,target,cutoff))
                 result=sector(); result['information_cutoff']=cutoff
                 return result
-            def generate_opening(db,base,target,cutoff,sector_outlook,auction_snapshot,include_pool):
+            def generate_opening(db,base,target,cutoff,sector_outlook,auction_snapshot,include_pool,price_min,price_max):
                 self.assertEqual(sector_outlook['rankings'][0]['score'],82.4)
                 self.assertIsNone(auction_snapshot)
                 calls.append(('opening',base,target,cutoff))

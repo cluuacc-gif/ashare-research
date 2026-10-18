@@ -227,12 +227,22 @@ def _research_score(features, sector_score):
 
 
 def build_plan(db_path, base_date, target_session, information_cutoff,
-               sector_forecast=None, input_sha256=None, *, include_pool=False):
+               sector_forecast=None, input_sha256=None, *, include_pool=False,
+               price_min=5, price_max=10):
     """Build a frozen conditional watchlist from T-close information only.
 
     db_path may also be a caller-owned read-only sqlite3.Connection. This module
     performs no writes and no network requests.
     """
+    if isinstance(price_min, bool) or isinstance(price_max, bool):
+        raise ValueError('price range must contain finite positive numbers')
+    price_min, price_max = _number(price_min), _number(price_max)
+    if price_min is None or price_max is None or not 0 < price_min <= price_max:
+        raise ValueError('price range must contain finite positive ordered numbers')
+    protocol = copy.deepcopy(PROTOCOL)
+    protocol.update(entry_reference_price_range=[price_min, price_max],
+                    minimum_reference_price=price_min, maximum_reference_price=price_max,
+                    frozen_cap=f'floor_to_cent(min(base_close*1.025,{price_max:g}))')
     cutoff = _instant(information_cutoff)
     if cutoff is None:
         raise ValueError('information_cutoff must be an explicit timezone-aware timestamp')
@@ -253,8 +263,8 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
             raise ValueError('not the original market database')
         candidates = _rows(connection, '''SELECT q.symbol,q.close,m.name,q.fetched_at,q.source_updated_at
             FROM daily_quotes q LEFT JOIN security_master m ON q.symbol=m.symbol
-            WHERE q.trade_date=? AND q.close BETWEEN 5 AND 10 AND q.conflict=0
-            ORDER BY q.symbol''', (base_date,))
+            WHERE q.trade_date=? AND q.close BETWEEN ? AND ? AND q.conflict=0
+            ORDER BY q.symbol''', (base_date, price_min, price_max))
         scores, sector_reason = _sector_scores(sector_forecast, base_date, target_session, cutoff)
         classification = sector_forecast.get('classification') if scores else None
         members, membership_reason = _sector_membership(connection, cutoff, classification)
@@ -299,8 +309,10 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
                               'source': 'sector_forecast_frozen_members',
                               'observed_at': sector_forecast['information_cutoff']}
             sector_score = scores.get(sector)
-            cap = _cent_floor(min(float(row['close']) * (1 + MAXIMUM_OPEN_GAP), 10))
+            cap = _cent_floor(min(float(row['close']) * (1 + MAXIMUM_OPEN_GAP), price_max))
             quantity = int(10000 / cap / 100) * 100
+            if quantity < 100:
+                reject('one_lot_exceeds_frozen_position_budget'); continue
             pool.append({
                 'symbol': row['symbol'], 'name': name, 'sector': sector, 'close': float(row['close']),
                 'pattern': pattern, 'research_score': _research_score(features, sector_score),
@@ -311,7 +323,7 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
                 'frozen_reserved_cash_cny': round(quantity * cap, 2),
                 'entry_conditions': ['下一交易日09:30—09:35取得带交易所时间的最新盘口',
                     '开盘较前收涨0%—2.5%，实时价格较开盘至少上涨0.2%',
-                    f'参考买价5元至{cap:.2f}元，且距官方涨停价至少0.02元',
+                    f'参考买价{price_min:g}元至{cap:.2f}元，且距官方涨停价至少0.02元',
                     '当日官方正常交易状态、涨跌停价与可见卖盘均核验通过'],
                 'cancel_conditions': ['高开超过2.5%或价格超过冻结上限',
                     '涨停封死、停牌、风险状态或盘口过时', '条件不足即放弃，当日不补选、不追加预算'],
@@ -340,7 +352,7 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
         'score_is_probability': False, 'costs_included': False,
         'holding_plan': 'D1买入、D2按预设3%—6%目标或风险条件观察退出；D1不可卖出',
         'research_policy_independent_of_ineligible_gross_model': True,
-        'protocol': PROTOCOL, 'watchlist': watchlist,
+        'protocol': protocol, 'watchlist': watchlist,
         'sector_overlay': {'available': bool(scores), 'reason': sector_reason or membership_reason,
             'classification': classification or 'sina_industry_preferred',
             'covered_candidates': sum(row['sector_score'] is not None for row in pool),
@@ -374,6 +386,12 @@ def confirm_plan(plan, snapshot, information_cutoff):
               'formal_trade_eligible': False, 'live_signal': False}
     if cutoff is None or plan.get('schema') != VERSION:
         result['reason'] = 'invalid_plan_or_cutoff'; return result
+    price_range = plan.get('protocol', {}).get('entry_reference_price_range', [5, 10])
+    if not isinstance(price_range, (list, tuple)) or len(price_range) != 2:
+        result['reason'] = 'invalid_frozen_price_range'; return result
+    price_min, price_max = [_number(value) for value in price_range]
+    if price_min is None or price_max is None or not 0 < price_min <= price_max:
+        result['reason'] = 'invalid_frozen_price_range'; return result
     if cutoff > _now():
         result['reason'] = 'opening_confirmation_cutoff_is_future'; return result
     frozen_at = _instant(plan.get('information_cutoff'))
@@ -431,7 +449,7 @@ def confirm_plan(plan, snapshot, information_cutoff):
                     reason = 'previous_close_differs_from_frozen_reference'
                 elif not -1e-10 <= numbers['open'] / close - 1 <= MAXIMUM_OPEN_GAP + 1e-10:
                     reason = 'opening_gap_outside_frozen_range'
-                elif not 5 <= numbers['last'] <= candidate['frozen_buy_cap'] or numbers['ask1'] > candidate['frozen_buy_cap']:
+                elif not price_min <= numbers['last'] <= min(candidate['frozen_buy_cap'], price_max) or numbers['ask1'] > min(candidate['frozen_buy_cap'], price_max):
                     reason = 'price_outside_frozen_cap'
                 elif numbers['last'] < numbers['open'] * 1.002:
                     reason = 'opening_strength_not_observed'
@@ -451,8 +469,10 @@ def confirm_plan(plan, snapshot, information_cutoff):
     return result
 
 
-def generate(db, base, target, cutoff, sector_outlook=None, auction_snapshot=None, include_pool=False):
-    plan = build_plan(db, base, target, cutoff, sector_outlook,include_pool=include_pool)
+def generate(db, base, target, cutoff, sector_outlook=None, auction_snapshot=None, include_pool=False,
+             *, price_min=5, price_max=10):
+    plan = build_plan(db, base, target, cutoff, sector_outlook,include_pool=include_pool,
+                      price_min=price_min, price_max=price_max)
     if auction_snapshot is not None:
         plan['opening_confirmation'] = confirm_plan(plan, auction_snapshot, cutoff)
     return plan
