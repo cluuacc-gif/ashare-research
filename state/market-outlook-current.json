@@ -1,9 +1,9 @@
 {
   "schema": "market-outlook-pointer-v1",
-  "release_tag": "market-outlook-2026-10-16-39103271070-1",
-  "github_commit": "1c7c4c0d7e396246e3471f4431aae7c1da951292",
-  "github_run_id": "39103271070",
-  "github_run_url": "https://github.com/cluuacc-gif/ashare-research/actions/runs/39103271070",
+  "release_tag": "market-outlook-2026-10-16-39106120254-1",
+  "github_commit": "3221bc452e4314ca308d53450fd8b4c25adf5e7a",
+  "github_run_id": "39106120254",
+  "github_run_url": "https://github.com/cluuacc-gif/ashare-research/actions/runs/39106120254",
   "snapshot_release": "prepared-2026-10-16-39017480832-1",
   "base_trade_date": "2026-10-16",
   "target_trade_date": "2026-10-19",
@@ -13,8 +13,8 @@
   "actual_win_rate": null,
   "outlook": {
     "schema": "market-outlook-v1",
-    "generated_at": "2026-10-18T14:14:19.927463+08:00",
-    "information_cutoff": "2026-10-18T14:14:19.927463+08:00",
+    "generated_at": "2026-10-18T15:01:51.332625+08:00",
+    "information_cutoff": "2026-10-18T15:01:51.332625+08:00",
     "snapshot_release": "prepared-2026-10-16-39017480832-1",
     "input_database_sha256": "4e79ef54caba811e84941dc1ff099020b2c3e7a248b7611f40e15827f03b58cf",
     "base_trade_date": "2026-10-16",
@@ -27,8 +27,8 @@
       "target_date": "2026-10-19",
       "base_trade_date": "2026-10-16",
       "target_trade_date": "2026-10-19",
-      "information_cutoff": "2026-10-18T14:14:19.927463+08:00",
-      "generated_at": "2026-10-18T14:14:19.949816+08:00",
+      "information_cutoff": "2026-10-18T15:01:51.332625+08:00",
+      "generated_at": "2026-10-18T15:01:51.373754+08:00",
       "status": "ready",
       "classification": "sina_industry",
       "forecast_definition": "次日板块等权收益相对已覆盖股票等权基准的强弱排序；绝对上涨单独记录",
@@ -1515,7 +1515,7 @@
         "base_return_5d": -0.047912599615886585,
         "base_breadth": 0.6076048608388868
       },
-      "forecast_id": "7490d9d3453a5a642714bba4ba5ac13aba9e7a50dc7c4a09294a20e0d3c75a28",
+      "forecast_id": "2c6b63788c862b6aa2ef4ef1fcd4761d0f2e0553a99c8c88331d4d219c331366",
       "frozen_members_archived": true
     },
     "opening_strength_plan": {
@@ -1524,7 +1524,7 @@
       "target_date": "2026-10-19",
       "base_trade_date": "2026-10-16",
       "target_trade_date": "2026-10-19",
-      "information_cutoff": "2026-10-18T14:14:19.927463+08:00",
+      "information_cutoff": "2026-10-18T15:01:51.332625+08:00",
       "input_sha256": "4e79ef54caba811e84941dc1ff099020b2c3e7a248b7611f40e15827f03b58cf",
       "status": "conditional_research_only",
       "live_signal": false,
@@ -1549,6 +1549,14 @@
           10
         ],
         "minimum_prior_bars": 250,
+        "minimum_prior_bars_fields": [
+          "open",
+          "high",
+          "low",
+          "close",
+          "volume"
+        ],
+        "amount_feature_window_bars": 21,
         "minimum_median_amount20_cny": 20000000,
         "opening_gap_range": [
           0,
@@ -1642,7 +1650,7 @@
             "classification": "sina_industry",
             "industry": "金融行业",
             "source": "sector_forecast_frozen_members",
-            "observed_at": "2026-10-18T14:14:19.927463+08:00"
+            "observed_at": "2026-10-18T15:01:51.332625+08:00"
           },
           "features": {
             "ret1": 0.0093361,
@@ -1747,7 +1755,7 @@
             "classification": "sina_industry",
             "industry": "电力行业",
             "source": "sector_forecast_frozen_members",
-            "observed_at": "2026-10-18T14:14:19.927463+08:00"
+            "observed_at": "2026-10-18T15:01:51.332625+08:00"
           },
           "features": {
             "ret1": 0.0077821,
@@ -1802,7 +1810,7 @@
             "classification": "sina_industry",
             "industry": "交通运输",
             "source": "sector_forecast_frozen_members",
-            "observed_at": "2026-10-18T14:14:19.927463+08:00"
+            "observed_at": "2026-10-18T15:01:51.332625+08:00"
           },
           "features": {
             "ret1": 0.01002004,
@@ -1885,7 +1893,18 @@
       "schema": "sector-forward-ledger-v1",
       "earliest_forecast_per_target_session": true,
       "resolved": [],
-      "pending": [],
+      "pending": [
+        {
+          "target_date": "2026-10-19",
+          "forecast_id": "7490d9d3453a5a642714bba4ba5ac13aba9e7a50dc7c4a09294a20e0d3c75a28",
+          "release_tag": "market-outlook-2026-10-16-39103271070-1",
+          "asset": {
+            "name": "outlook.json",
+            "bytes": 611133,
+            "sha256": "e0aa1042070fbc137befbf4b5f517fa2c15e0926e9aa00a324f422ca2df405bc"
+          }
+        }
+      ],
       "resolved_dates": 0,
       "resolved_sector_predictions": 0,
       "relative_strength_hit_rate": null,
@@ -1893,18 +1912,18 @@
       "top_quartile_hit_rate": null,
       "gross_trade_win_rate": null
     },
-    "tracking_parent_release": null
+    "tracking_parent_release": "market-outlook-2026-10-16-39103271070-1"
   },
   "files": {
     "outlook.json": {
       "name": "outlook.json",
-      "bytes": 611133,
-      "sha256": "e0aa1042070fbc137befbf4b5f517fa2c15e0926e9aa00a324f422ca2df405bc"
+      "bytes": 611729,
+      "sha256": "109d94059689498b8491ae3979145e01316d097894e65d9278a2e1f1a88e0503"
     },
     "report.html": {
       "name": "report.html",
-      "bytes": 11952,
-      "sha256": "6ede738bba53bf1be392dba8a6aee6c50cfd0f5fb251efbbad20cbc6b3c1ef57"
+      "bytes": 12435,
+      "sha256": "1306be3ef2699ad3ce4e50019d0e937d468c669c53201b53431d6bc7f2130c3d"
     },
     "source_manifest.json": {
       "name": "source_manifest.json",
@@ -1912,6 +1931,6 @@
       "sha256": "3fda4117e597267c714f8befbe56f164a05bcc3e7486e6eaa5d4a2a137a026ab"
     }
   },
-  "parent_pointer_blob_sha": null,
-  "assets_readback_verified_at": "2026-10-18T14:14:30.561141+08:00"
+  "parent_pointer_blob_sha": "f70c490e85767aa409fe7d911902374cf4d639c3",
+  "assets_readback_verified_at": "2026-10-18T15:02:02.634184+08:00"
 }
