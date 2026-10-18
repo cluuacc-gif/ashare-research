@@ -17,6 +17,18 @@ on:
       - mail_layout.py
       - .github/workflows/market-outlook.yml
       - requests/market-outlook.json
+      - sector_fund_flow.py
+      - sector_stock_selection.py
+      - price_action_research.py
+      - research_context.py
+      - test_sector_fund_flow.py
+      - test_sector_stock_selection.py
+      - test_price_action_research.py
+      - test_research_context.py
+      - price_action_snapshot.py
+      - test_price_action_snapshot.py
+      - stock_strength_tracking.py
+      - test_stock_strength_tracking.py
   workflow_dispatch:
   workflow_run:
     workflows: [A-share automatic after-close pipeline]
@@ -36,11 +48,17 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-model.txt
+      - run: python -m pip install -r requirements-model.txt
       - name: Check information cutoffs, opening confirmation and mail content
         run: >-
           python -m unittest -v test_sector_forecast.py test_opening_strength.py
           test_sector_opening_mail.py test_market_outlook.py test_mail_upgrade.py
           test_autonomous_mailer.py test_mail_timing.py
+          test_sector_fund_flow.py test_sector_stock_selection.py
+          test_price_action_research.py test_research_context.py
+          test_price_action_snapshot.py test_stock_strength_tracking.py
   freeze:
     needs: verify
     if: >-
@@ -50,12 +68,14 @@ jobs:
         github.event.workflow_run.head_repository.full_name == github.repository &&
         github.event.workflow_run.head_branch == 'main'))
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60
     permissions:
       contents: write
     env:
       TZ: Asia/Shanghai
       GH_TOKEN: ${{ github.token }}
+      OMP_NUM_THREADS: '2'
+      OPENBLAS_NUM_THREADS: '2'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -63,6 +83,9 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements-model.txt
+      - run: python -m pip install -r requirements-model.txt
       - name: Record the source commit actually checked out
         run: echo "OUTLOOK_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
       - name: Read enabled research request
@@ -78,9 +101,33 @@ jobs:
       - name: Restore current immutable market data with independent hash verification
         if: steps.request.outputs.enabled == 'true'
         run: python pipeline_state.py restore --destination "$RUNNER_TEMP/outlook-source"
+      - name: Research mathematical price action with separate T+1 and three-day outcomes
+        if: steps.request.outputs.enabled == 'true'
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          root=Path(os.environ['RUNNER_TEMP'])/'outlook-source'
+          source=json.loads((root/'restore.json').read_text())['manifest']
+          subprocess.run([sys.executable,'price_action_research.py','--db',str(root/source['database']['name']),
+              '--base',source['base_trade_date'],'--input-sha256',source['database']['sha256'],
+              '--output','price-action-out'],check=True)
+          PY
+      - name: Capture actual vendor industry money flow and same-vendor constituents
+        if: steps.request.outputs.enabled == 'true'
+        run: |
+          python - <<'PY'
+          import json, os, subprocess, sys
+          from pathlib import Path
+          source=json.loads((Path(os.environ['RUNNER_TEMP'])/'outlook-source/restore.json').read_text())['manifest']
+          subprocess.run([sys.executable,'sector_fund_flow.py','--base',source['base_trade_date'],
+              '--output','fund-flow-out'],check=True)
+          PY
       - name: Freeze actual next-session outlook and publish verified research assets
         if: steps.request.outputs.enabled == 'true'
-        run: python market_outlook.py --store "$RUNNER_TEMP/outlook-source" --output market-outlook-out --publish
+        run: >-
+          python market_outlook.py --store "$RUNNER_TEMP/outlook-source" --output market-outlook-out
+          --fund-flow-dir fund-flow-out --price-action-dir price-action-out --publish
       - uses: actions/upload-artifact@v4
         if: always()
         with:

@@ -4,7 +4,7 @@ import math
 import datetime as dt
 from urllib.parse import quote
 
-VERSION = 'research-email-v5-sector-opening-outlook'
+VERSION = 'research-email-v6-fund-flow-price-action'
 STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
@@ -108,6 +108,52 @@ def _opening_section(payload, value, base, target):
             'rows':rendered, 'note':note}
 
 
+def _flow_section(payload, value, selection, base):
+    from research_context import verified_flow
+    flow=verified_flow(value,base,payload.get('information_cutoff'))
+    phases={row.get('sector_code'):row.get('phase_label') for row in selection.get('sector_board',[])}
+    rows=[]
+    for row in sorted(flow.get('sectors',[]),key=lambda x:x.get('main_net_inflow_yuan') or 0,reverse=True)[:5]:
+        rows.append([str(row.get('name') or '—'),money(row.get('main_net_inflow_yuan')),
+                     number(row.get('main_net_ratio_pct'))+'%',money(row.get('main_net_3d_yuan')),
+                     money(row.get('main_net_5d_yuan')),str(phases.get(row.get('code')) or '待核对走势')])
+    note=('数据日期 '+str(base)+'；今日回流和持续流入分别判断，资金改善不等于未来上涨。'
+          '东财主力净额为供应商成交分类统计，行业可能含B股，不等于机构账户实际增持；观察股票只筛A股。'
+          '只有同源成分代码匹配才能进入板块内选股，不按行业名称硬拼；缺少真实资金流不以量价估算替代。')
+    if not rows:note+=' 本期缺少日期和已知时间一致的资金流，保留空缺。'
+    return {'title':'板块资金流与潜在转强','columns':['板块','今日净额','净占比','3日净额','5日净额','阶段'],
+            'rows':rows,'note':note}
+
+
+def _math_section(study):
+    labels={'unfiltered_price_action_ranking_baseline':'价量排序基准','selected_policy':'选择期研究规则',
+            'fixed_compression_breakout':'收缩后突破','fixed_trend_pullback':'缩量回踩','fixed_higher_lows':'高低点抬升'}
+    rows=[]
+    for key,label in labels.items():
+        metric=(study.get('diagnostic') or {}).get(key) or {}
+        if metric.get('n_attempts'):
+            rows.append([label,number(metric.get('n_attempts'),0)+'／'+number(metric.get('n_unresolved'),0),
+                         pct(metric.get('win_rate')),pct(metric.get('ge3_rate')),
+                         pct(metric.get('mean_closed_gross_return')),pct(metric.get('strength3_rate'))])
+    return {'title':'价格行为与T+1历史诊断','columns':['规则','入场／未解决','毛盈利','达到3%','平均已闭合收益','连续3日收高'],
+        'rows':rows,'note':'ATR波动、区间收缩、突破回踩和高低点结构均按预定数学规则计算，分数不是概率。'
+        '旧历史已用于开发；日线参考成交不证明可执行成交，且该诊断未使用真实历史资金流或时点行业成分，不能代表整套资金板块策略胜率。'
+        'D1买、D2退出；连续2～3日强度单独核对，不据此延长持仓。当前不扣费、默认3%目标和2%风险参考，跳空可超出风险价，6%只作独立增强目标。'}
+
+
+def _confluence_section(selection):
+    rows=[]
+    for board in selection.get('sector_board',[]):
+        if board.get('eligible_for_stock_selection') is not True:continue
+        rows.append([str(board.get('sector') or '—'),str(board.get('phase_label') or '—'),number(board.get('score'),1),
+                     '资金＋价格共振' if board.get('flow_integrated') else '仅技术证据',number(board.get('member_count'),0)+'只'])
+        if len(rows)==5:break
+    return {'title':'增强板块内的选股范围','columns':['板块','结构阶段','共振分','依据','成分数'],
+        'rows':rows,'note':'结合相对强度、扩散、均线和同源净流入，区分已增强和早期转强。'
+        '早期转强仅表示当前出现改善，未证明未来上涨；主要股票名单需匹配本板块成分和价格行为。'
+        '资金板块中个股同日净额负值或未知仅作储备观察；无满足条件板块时保留空名单。'}
+
+
 def content(payload):
     research = payload.get('research') or {}
     predictions = research.get('model_predictions') or {}
@@ -144,6 +190,8 @@ def content(payload):
     sections=[]
     if stage == 'evening':
         sector_target=(payload.get('calendar') or {}).get('next_session') or target
+        sections.append(_flow_section(payload,research.get('fund_flow') or {},research.get('sector_stock_selection') or {},base))
+        sections.append(_confluence_section(research.get('sector_stock_selection') or {}))
         sections.append(_sector_section(payload, research.get('sector_outlook') or {}, base, sector_target))
     else:
         sections.append(_opening_section(payload, research.get('opening_strength') or {}, base, payload.get('target_date')))
@@ -163,6 +211,8 @@ def content(payload):
             'rows':[[number(shown.get('n_attempts'),0),number(shown.get('n_closed'),0),number(shown.get('n_unresolved'),0),
                      pct(shown.get('win_rate')),pct(shown.get('ge3_rate')),pct(shown.get('ge6_rate'))]],
             'note':'旧历史已用于开发，本表是研究诊断。全部已入场交易均计入，不按买入后的涨跌删除亏损；达到目标价仍须核验能否成交。'})
+    if stage=='evening':
+        sections.append(_math_section(research.get('price_action_research') or {}))
     if rows:
         sections.append({'title':'模型观察 Top10','columns':['排名','代码','名称','收盘','P1 上涨','P2 ≥5%','成交额'],
             'rows':rows,'note':'按P2排序。P1＝下一交易日收盘高于基础日收盘；P2＝收盘涨幅≥5%。两者均为原始未复权价格事件概率，不等于买入后的毛盈利胜率或赚到3%的比例。'})
