@@ -450,24 +450,22 @@ def auction_report(db, day: str, handoff: dict, news_path: Path | None = None) -
             "rule": "open_gap 2-4% AND o2c>=+5% AND close<=8 AND not Friday AND non-ST AND no high/medium risk news",
             "sim_fill": "1-tick slippage; low<=fill<=high and close>=trigger",
             "preferred_exit": "E+1 close or +2% TP-close; do NOT hold to E+2 (worse)",
-            "win_rate_tp_touch": 0.85,
-            "win_rate_tp_close_pessimistic": 0.80,
-            "win_rate_e1_close": 0.80,
-            "mean_net_e1_close": 0.048,
-            "regime_note": "up-regime e_close ~88% (n=136); flat/down too few samples",
-            "oos_n_tp_touch": 27,
+            "win_rate_tp_touch": None,
+            "win_rate_tp_close_pessimistic": None,
+            "win_rate_e1_close": None,
+            "mean_net_e1_close": None,
+            "regime_note": "旧研究未满足因果成交验证，不能作为当前策略成绩。",
+            "oos_n_tp_touch": 0,
             "sizing": "1-2% risk per trade, max 1-3 names, skip if empty",
             "claim_80_allowed": False,
             "caveat": (
-                "加1 tick滑点后保守样本n≈160：E+1收盘/悲观止盈约80%，均净约0.5%～4.8%；"
-                "持有到E+2胜率很差。样本外仍稀疏，不作实盘80%承诺。"
+                "旧回测存在同日选股成交及买入当天退出等错误，原80%附近的静态胜率已经撤回。"
+                "当前隔日毛收益研究须从冻结信号和完整交易重新统计。"
             ),
         },
         "capital_limited_rule": (
-            "实证优选：「开盘高开2%～4% + 当日开→收≥+5% + 收盘≤8元 + 非周五 + 非ST + 无高/中风险公告」；"
-            "组内按成交额取1～2只。仓位：单笔风险1%～2%，最多1～3只，无信号则空仓。"
-            "退出：优先E+1收盘或+2%止盈（收盘确认），不要扛到E+2。"
-            "市场状态偏多时更稳。加滑点后保守胜率约80%（样本~160），仍非实盘承诺。"
+            "旧竞价规则停止作为实证策略引用。当前目标为第1天可买入、第2天争取3%～6%毛收益，"
+            "以新研究版本的因果入场、目标退出和完整样本为准；没有通过验证时保持观察或空仓。"
         ),
         "public_news_until_0925": news,
         "research": research,
@@ -567,7 +565,7 @@ def render_markdown(payload: dict) -> str:
             "| 排名 | 代码 | 名称 | 本日收盘 | P1 | P2 |", "| ---: | --- | --- | ---: | ---: | ---: |"]
         for row in predictions['rows'][:10]:
             lines.append(f"| {row['rank']} | `{row['symbol']}` | {row.get('name') or ''} | {row['close']:.2f} | {row['P1']:.1%} | {row['P2']:.1%} |")
-        lines += ["", "### 历史价格事件测试（净盈利80%目标单独验收）", "",
+        lines += ["", "### 历史价格事件测试（隔日毛收益目标单独验收）", "",
             "| 价格事件 | 测试样本 | 日期数 | Top10事件发生率 | Brier | 常数基准Brier |",
             "| --- | ---: | ---: | ---: | ---: | ---: |"]
         for label, m in validation['endpoints'].items():
@@ -657,7 +655,9 @@ def render_markdown(payload: dict) -> str:
                     f"{'ST不碰' if row.get('is_st') else '可观察'} |"
                 )
             edge = payload.get("measured_edge") or {}
-            if edge:
+            if edge and all(type(edge.get(key)) in (int, float) for key in
+                            ('win_rate_tp_touch', 'win_rate_tp_close_pessimistic',
+                             'win_rate_e1_close', 'mean_net_e1_close')):
                 lines += [
                     "",
                     f"> **实测（含1 tick滑点）**：{edge.get('preferred_exit') or ''}  ",

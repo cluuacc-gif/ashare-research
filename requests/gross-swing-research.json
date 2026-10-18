@@ -1,0 +1,10 @@
+{
+  "request_id": "gross-swing-20261018",
+  "requested_date_beijing": "2026-10-18",
+  "enabled": true,
+  "base_trade_date": "2026-10-16",
+  "source_release": "prepared-2026-10-16-39017480832-1",
+  "objective": "gross_profit_3_to_6_percent",
+  "costs_included": false,
+  "purpose": "Improve next-day gross profitability and separately report 3% and 6% attainment; buying-day green is optional research, not a primary entry prerequisite. Allow no signal; never turn OHLC simulation into actual-execution proof."
+}

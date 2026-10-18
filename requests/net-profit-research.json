@@ -1,6 +1,8 @@
 {
   "request_id": "net-profit-upgrade-20261017",
-  "enabled": true,
+  "enabled": false,
+  "superseded_by": "requests/gross-swing-research.json",
+  "user_preference_updated_at": "2026-10-18",
   "base_trade_date": "2026-10-16",
   "source_release": "prepared-2026-10-16-39017480832-1",
   "purpose": "Upgrade selection toward more than 80% real execution net-profit win rate; allow no signal and keep research distinct from formal execution evidence."
