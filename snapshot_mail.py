@@ -38,6 +38,19 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
     research['fund_flow']=context_data.get('fund_flow') or unavailable_flow(base,'本期尚无匹配的已发布资金流')
     research['price_action_research']=context_data.get('price_action_research') or {'status':'unavailable'}
     research['probability_research']=context_data.get('probability_research') or {'status':'unavailable'}
+    research['pa_trade_research']=context_data.get('pa_trade_research') or {'status':'unavailable'}
+    research['pa_opening_confirmation']={'status':'fresh_minute_evidence_not_connected','confirmed':[]}
+    evidence=payload.get('pa_opening_evidence')
+    if isinstance(evidence,dict):
+        from pa_entry_confirmation import review
+        results=[]
+        for candidate in research['pa_trade_research'].get('current_watchlist',[])[:3]:
+            symbol=candidate['symbol'];item=(evidence.get('symbols') or {}).get(symbol) or {}
+            results.append(review(candidate,item.get('bars'),item.get('quote'),cutoff,
+                                  mode=evidence.get('mode','breakout_retest')))
+        research['pa_opening_confirmation']={'status':'conditional_research_review',
+            'confirmed':[row for row in results if row['conditions_met_for_research']],'reviews':results,
+            'actual_fill_verified':False,'formal_trade_ready':False}
     # Both modules use only the standard library. Optional research must not
     # prevent an already sealed, on-time report from being prepared.
     try:

@@ -21,7 +21,7 @@ from trade_calendar import context
 
 POINTER = 'state/market-outlook-current.json'
 ASSETS = ('outlook.json', 'report.html', 'source_manifest.json')
-EXTRA_ASSETS = ('fund_flow_evidence.zip','price_action_evidence.zip','probability_evidence.zip')
+EXTRA_ASSETS = ('fund_flow_evidence.zip','price_action_evidence.zip','probability_evidence.zip','pa_trade_evidence.zip')
 
 
 def read_pointer(repo):
@@ -66,6 +66,9 @@ def compact_pointer(manifest):
     if value['outlook'].get('probability_research'):
         from probability_report import compact
         value['outlook']['probability_research']=compact(value['outlook']['probability_research'])
+    if value['outlook'].get('pa_trade_research'):
+        from pa_trade_report import compact
+        value['outlook']['pa_trade_research']=compact(value['outlook']['pa_trade_research'])
     raw = json.dumps(value,ensure_ascii=False,indent=2).encode('utf-8')
     if len(raw) > 800_000:
         raise ValueError('compact outlook pointer exceeds readback size limit')
@@ -95,6 +98,17 @@ def validate(value, source):
         raise ValueError('research output cannot claim actual trade qualification')
     if value.get('execution_win_rate_80_validated') is not False:
         raise ValueError('unvalidated execution win rate')
+    if value.get('pa_trade_research'):
+        study=value['pa_trade_research'];known=dt.datetime.fromisoformat(study['generated_at'])
+        if (study.get('schema')!='pa-context-trade-research-v1'
+                or study.get('base_trade_date')!=source['base_trade_date']
+                or study.get('target_trade_date')!=source['next_trade_date']
+                or study.get('input_database_sha256')!=source['database']['sha256']
+                or study.get('formal_trade_ready') is not False
+                or study.get('execution_win_rate_80_validated') is not False
+                or study.get('actual_win_rate') is not None
+                or known.tzinfo is None or known>cutoff):
+            raise ValueError('PA trade research identity, cutoff or trade claims invalid')
     if value.get('probability_research'):
         study=value['probability_research']
         known=dt.datetime.fromisoformat(study['generated_at'])
@@ -118,7 +132,7 @@ def validate(value, source):
     return value
 
 
-def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, probability_dir=None):
+def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, probability_dir=None,pa_trade_dir=None):
     root = Path(store).resolve()
     restored = json.loads((root/'restore.json').read_text(encoding='utf-8'))
     source = restored['manifest']
@@ -188,6 +202,8 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
                 known>dt.datetime.fromisoformat(cutoff)):
             raise ValueError('probability research identity, cutoff or trade claims invalid')
         value['probability_research']=study
+    if pa_trade_dir:
+        value['pa_trade_research']=json.loads((Path(pa_trade_dir)/'summary.json').read_text(encoding='utf-8'))
     validate(value, source)
     return value, source
 
@@ -390,14 +406,15 @@ def main():
     parser.add_argument('--fund-flow-dir')
     parser.add_argument('--price-action-dir')
     parser.add_argument('--probability-dir')
+    parser.add_argument('--pa-trade-dir')
     parser.add_argument('--repo', default=os.environ.get('GITHUB_REPOSITORY','cluuacc-gif/ashare-research'))
     args = parser.parse_args()
     out = Path(args.output).resolve()
     out.mkdir(parents=True, exist_ok=False)
-    value, source = generate(args.store,args.cutoff,args.fund_flow_dir,args.price_action_dir,args.probability_dir)
+    value, source = generate(args.store,args.cutoff,args.fund_flow_dir,args.price_action_dir,args.probability_dir,args.pa_trade_dir)
     value['evidence_assets']=[]
     for directory,name in [(args.fund_flow_dir,EXTRA_ASSETS[0]),(args.price_action_dir,EXTRA_ASSETS[1]),
-                           (args.probability_dir,EXTRA_ASSETS[2])]:
+                           (args.probability_dir,EXTRA_ASSETS[2]),(args.pa_trade_dir,EXTRA_ASSETS[3])]:
         if directory:
             archive_evidence(directory,out/name)
             value['evidence_assets'].append(name)

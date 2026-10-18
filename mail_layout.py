@@ -188,6 +188,22 @@ def content(payload):
            ('交易资格','已通过' if research.get('formal_trade_ready') else '待核验'),
            ('5～10元观察',f'{len(band):,}只')]
     sections=[]
+    pa_trade=research.get('pa_trade_research') or {}
+    if pa_trade.get('schema')=='pa-context-trade-research-v1':
+        active=bool((pa_trade.get('policy') or {}).get('active'))
+        sections.append({'title':'价格行为交易逻辑升级','columns':['环节','研究规则'],
+            'rows':[['先看背景','上涨趋势做跟随和回踩；区间只观察下沿假跌破收回；不清楚时放弃'],
+                    ['再看位置','用事前前高、区间边界和结构低点计算上方空间、失效价和允许买入上限'],
+                    ['仓位与数学','研究账户每名额最多1万元，并按150元参考风险和额外2%跳空压力限制整数手'],
+                    ['T+1退出','D1不能卖；D1收盘结构失败则D2开盘退出，否则按预定结构价、3%或6%目标及D2收盘研究退出'],
+                    ['本期状态','有选择期通过的研究形态，正式交易仍关闭' if active else '没有通过选择期的交易形态，不启用新规则']],
+            'note':'参考方方土PriceAction公开视频主题与Brooks一手理论；完整视频字幕尚未取得，量化阈值属于本项目适配。盈亏平衡所需胜率不是预测胜率；日线开盘参考不能代替突破或回测后的分钟成交验证。'})
+        if active:
+            watch=pa_trade.get('current_watchlist') or []
+            sections.append({'title':'价格行为研究观察','columns':['股票','买入上限','结构失效参考','目标','盈亏比'],
+                'rows':[[row.get('name') or row['symbol'],number(row.get('entry_cap')),number(row.get('structural_stop')),
+                         pct(row.get('target_pct')),number(row.get('reward_risk'))] for row in watch[:3]],
+                'note':'须另外复核板块资金、官方状态及及时盘口；未连接分钟行情时，开盘突破和回测确认保持未就绪。参考失效价无法保证实际止损。'})
     if stage == 'evening':
         sector_target=(payload.get('calendar') or {}).get('next_session') or target
         sections.append(_flow_section(payload,research.get('fund_flow') or {},research.get('sector_stock_selection') or {},base))

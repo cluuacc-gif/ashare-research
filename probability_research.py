@@ -204,10 +204,10 @@ def describe(frame):
             'known_profit_labels':int(frame.label_profit3.notna().sum())}
 
 
-def run(db,base,output,input_sha256):
+def run(db,base,output,input_sha256,*,panel_data=None):
     if dt.date.fromisoformat(base).isoformat()!=base or base>c.now().date().isoformat():raise ValueError('future or invalid base')
     if len(input_sha256)!=64 or gross._hash(db)!=input_sha256:raise ValueError('input database hash mismatch')
-    history,live,names,scanned=panel(db,base)
+    history,live,names,scanned=panel(db,base) if panel_data is None else panel_data
     columns=list(dict.fromkeys(FEATURES+EVIDENCE_COLUMNS))
     history=history[columns].copy();live=live[columns].copy()
     # All supervised endpoints share the declared entry/execution conditioning.
