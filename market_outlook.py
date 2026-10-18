@@ -12,6 +12,7 @@ from pathlib import Path
 import sqlite3
 import subprocess
 import tempfile
+import zipfile
 from contextlib import closing
 
 import collector as c
@@ -20,6 +21,7 @@ from trade_calendar import context
 
 POINTER = 'state/market-outlook-current.json'
 ASSETS = ('outlook.json', 'report.html', 'source_manifest.json')
+EXTRA_ASSETS = ('fund_flow_evidence.zip','price_action_evidence.zip')
 
 
 def read_pointer(repo):
@@ -38,6 +40,24 @@ def compact_pointer(manifest):
     value['schema'] = 'market-outlook-pointer-v1'
     value['outlook']['sector_outlook'].pop('frozen_members', None)
     value['outlook']['sector_outlook']['frozen_members_archived'] = True
+    for row in (value['outlook'].get('fund_flow') or {}).get('sectors',[]):
+        row.pop('field_evidence',None)
+        for member in row.get('members',[]):
+            for key in ('source_url','raw_sha256','flow_date_source_url','flow_date_raw_sha256'):
+                member.pop(key,None)
+        if row.get('history'):
+            row['history_archived']=True
+            row.pop('history',None)
+    for key,details in [('sector_forward_tracking','resolved'),('stock_strength_forward_tracking','results')]:
+        if key in value['outlook']:
+            value['outlook'][key].pop(details,None)
+            value['outlook']['forward_ledgers_archived']=True
+    selection=value['outlook'].get('sector_stock_selection') or {}
+    for key in ('primary','reserves','watchlist','actual_fund_flow'):
+        selection.pop(key,None)
+    (value['outlook'].get('opening_strength_plan') or {}).pop('independent_technical_watchlist',None)
+    for metric in ((value['outlook'].get('price_action_research') or {}).get('diagnostic') or {}).values():
+        metric.pop('realized_equity_curve',None)
     raw = json.dumps(value,ensure_ascii=False,indent=2).encode('utf-8')
     if len(raw) > 800_000:
         raise ValueError('compact outlook pointer exceeds readback size limit')
@@ -79,7 +99,7 @@ def validate(value, source):
     return value
 
 
-def generate(store, cutoff=None):
+def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None):
     root = Path(store).resolve()
     restored = json.loads((root/'restore.json').read_text(encoding='utf-8'))
     source = restored['manifest']
@@ -89,6 +109,10 @@ def generate(store, cutoff=None):
     if Path(source['database']['name']).name != source['database']['name']:
         raise ValueError('invalid database asset name')
     state.verify_file(database, source['database'])
+    flow = None
+    if fund_flow_dir:
+        from sector_fund_flow import load_verified
+        flow=load_verified(fund_flow_dir)
     generated = c.stamp()
     if cutoff:
         explicit = dt.datetime.fromisoformat(cutoff.replace('Z','+00:00'))
@@ -101,19 +125,37 @@ def generate(store, cutoff=None):
     # fabricated Friday 18:00 cutoff. Mail retains its own scheduled cutoff.
     from sector_forecast import generate as sectors
     from opening_strength import build_plan
+    from research_context import verified_flow
+    from sector_stock_selection import generate as select_sector_stocks
+    flow=verified_flow(flow,source['base_trade_date'],cutoff)
     with closing(sqlite3.connect(database.as_uri()+'?mode=ro', uri=True)) as db:
         db.row_factory = sqlite3.Row
         if db.execute('PRAGMA application_id').fetchone()[0] != c.APP_ID:
             raise ValueError('database identity mismatch')
         outlook = sectors(db, source['base_trade_date'], source['next_trade_date'], cutoff)
     plan = build_plan(database, source['base_trade_date'], source['next_trade_date'], cutoff,
-                      sector_forecast=outlook, input_sha256=source['database']['sha256'])
+                      sector_forecast=outlook, input_sha256=source['database']['sha256'],include_pool=True)
+    selection=select_sector_stocks(database,source['base_trade_date'],source['next_trade_date'],cutoff,
+                                   outlook,plan,fund_flow=flow)
+    plan.pop('candidate_pool',None)
+    # The new primary list requires known sector membership and confluence.
+    plan['independent_technical_watchlist']=plan['watchlist']
+    plan['watchlist']=selection.get('watchlist',[])
+    plan['selection_method']='sector_first_confluence_v1'
+    plan['status']='sector_aligned_conditional_research' if plan['watchlist'] else 'no_sector_confluence'
     value = dict(schema='market-outlook-v1', generated_at=generated, information_cutoff=cutoff,
                  snapshot_release=source['release_tag'], input_database_sha256=source['database']['sha256'],
                  base_trade_date=source['base_trade_date'], target_trade_date=source['next_trade_date'],
-                 sector_outlook=outlook, opening_strength_plan=plan, formal_trade_ready=False,
+                 sector_outlook=outlook, opening_strength_plan=plan, fund_flow=flow,
+                 sector_stock_selection=selection, formal_trade_ready=False,
                  actual_win_rate=None, execution_win_rate_80_validated=False, costs_included=False,
                  smtp_sent=False, orders_submitted=False)
+    if price_action_dir:
+        study=json.loads((Path(price_action_dir)/'summary.json').read_text(encoding='utf-8'))
+        if (study.get('input_database_sha256')!=source['database']['sha256'] or
+                study.get('base_trade_date')!=source['base_trade_date'] or study.get('formal_trade_ready') is not False):
+            raise ValueError('price-action study differs from verified input or claims trading admission')
+        value['price_action_research']=study
     validate(value, source)
     return value, source
 
@@ -121,7 +163,10 @@ def generate(store, cutoff=None):
 def forward_tracking(value, source, store, repo):
     """Score the earliest frozen forecast per target date after its actual close."""
     prior, _ = read_pointer(repo)
-    previous = ((prior or {}).get('outlook') or {}).get('sector_forward_tracking') or {}
+    prior_value=(prior or {}).get('outlook') or {}
+    if prior_value.get('forward_ledgers_archived'):
+        prior_value=archived_outlook(repo,prior['release_tag'],prior['files']['outlook.json'])
+    previous = prior_value.get('sector_forward_tracking') or {}
     resolved = list(previous.get('resolved', []))
     pending = list(previous.get('pending', []))
     known_targets = {row['target_date'] for row in resolved + pending}
@@ -166,14 +211,64 @@ def forward_tracking(value, source, store, repo):
         'gross_trade_win_rate':None,
     }
     value['tracking_parent_release'] = prior['release_tag'] if prior else None
+    stock_forward_tracking(value,source,store,repo,prior,prior_value)
     return value
+
+
+def archived_outlook(repo,tag,asset):
+    with tempfile.TemporaryDirectory(prefix='outlook-ledger-') as temporary:
+        state.run('gh','release','download',tag,'--repo',repo,'--pattern','outlook.json','--dir',temporary)
+        path=Path(temporary)/'outlook.json'
+        state.verify_file(path,asset)
+        return json.loads(path.read_text(encoding='utf-8'))
+
+
+def stock_forward_tracking(value,source,store,repo,prior,prior_value):
+    """Track frozen primary names as price events; never infer real fills."""
+    from stock_strength_tracking import evaluate
+    old=prior_value.get('stock_strength_forward_tracking') or {}
+    pending=list(old.get('pending',[]))
+    results={row['target_trade_date']:row for row in old.get('results',[])}
+    selection=prior_value.get('sector_stock_selection') or {}
+    known={row['target_date'] for row in pending}|set(results)
+    if prior and prior.get('forward_eligible') and selection.get('primary') and prior['target_trade_date'] not in known:
+        pending.append({'target_date':prior['target_trade_date'],'release_tag':prior['release_tag'],
+                        'asset':prior['files']['outlook.json']})
+    remaining=[]
+    for item in pending:
+        if item['target_date']>value['base_trade_date']:
+            remaining.append(item);continue
+        frozen=archived_outlook(repo,item['release_tag'],item['asset'])
+        if frozen['target_trade_date']!=item['target_date']:
+            raise ValueError('stock forward archive target differs')
+        measured=evaluate(Path(store).resolve()/source['database']['name'],frozen,value['information_cutoff'])
+        compact={key:part for key,part in measured.items() if key!='rows'}
+        results[item['target_date']]=compact
+        if measured.get('status')!='resolved':remaining.append(item)
+    rows=list(results.values())
+    n2=sum(row.get('n_D2_resolved',0) for row in rows)
+    n3=sum(row.get('n_strength3_resolved',0) for row in rows)
+    value['stock_strength_forward_tracking']={
+        'schema':'stock-strength-forward-ledger-v1','measurement':'OPEN_REFERENCE_PRICE_EVENT',
+        'earliest_forecast_per_target_session':True,'results':rows,'pending':remaining,
+        'n_D2_resolved':n2,'n_strength3_resolved':n3,
+        'n_D2_unknown':sum(row.get('n_D2_pending',0)+row.get('n_D2_unresolved',0) for row in rows),
+        'n_strength3_unknown':sum(row.get('n_strength3_pending',0)+row.get('n_strength3_unresolved',0) for row in rows),
+        'D2_open_reference_profitable_rate':sum(row.get('n_D2_open_reference_profitable',0) for row in rows)/n2 if n2 else None,
+        'strength3_rate':sum(row.get('n_strength3',0) for row in rows)/n3 if n3 else None,
+        'actual_win_rate':None,'real_execution_win_rate':None}
 
 
 def verify_bundle(out, manifest):
     out = Path(out)
-    if sorted(manifest['files']) != sorted(ASSETS):
+    extras=manifest['outlook'].get('evidence_assets',[])
+    if (not isinstance(extras,list) or len(extras)!=len(set(extras))
+            or any(name not in EXTRA_ASSETS for name in extras)):
+        raise ValueError('invalid evidence asset set')
+    assets=ASSETS+tuple(extras)
+    if sorted(manifest['files']) != sorted(assets):
         raise ValueError('outlook asset set mismatch')
-    for name in ASSETS:
+    for name in assets:
         if manifest['files'][name]['name'] != name:
             raise ValueError('outlook asset name mismatch')
         state.verify_file(out/name, manifest['files'][name])
@@ -209,14 +304,14 @@ def publish(repo, output, run_id):
                     target_trade_date=value['target_trade_date'], input_database_sha256=value['input_database_sha256'],
                     forward_eligible=dt.datetime.fromisoformat(value['generated_at']) < deadline and c.now() < deadline,
                     formal_trade_ready=False, actual_win_rate=None, outlook=value,
-                    files={name: state.ref(out/name) for name in ASSETS}, parent_pointer_blob_sha=blob)
+                    files={name: state.ref(out/name) for name in ASSETS+tuple(value.get('evidence_assets',[]))}, parent_pointer_blob_sha=blob)
     verify_bundle(out, manifest)
     # Fail before creating a release if its current pointer cannot be read back.
     compact_pointer(manifest)
     state.run('gh','release','create',tag,'--repo',repo,'--target',source_commit,
               '--latest=false','--title',f"Next-session sector outlook {value['target_trade_date']}",
               '--notes','Frozen research ranking and conditional opening watchlist. No orders or mail; scores are not probabilities.')
-    state.run('gh','release','upload',tag,*[str(out/name) for name in ASSETS],'--repo',repo)
+    state.run('gh','release','upload',tag,*[str(out/name) for name in manifest['files']],'--repo',repo)
     with tempfile.TemporaryDirectory(prefix='outlook-readback-') as temporary:
         state.run('gh','release','download',tag,'--repo',repo,'--dir',temporary)
         verify_bundle(temporary,manifest)
@@ -244,17 +339,34 @@ def publish(repo, output, run_id):
     return manifest
 
 
+def archive_evidence(directory,destination):
+    root=Path(directory).resolve()
+    with zipfile.ZipFile(destination,'w',zipfile.ZIP_DEFLATED) as archive:
+        for path in sorted(root.rglob('*')):
+            if path.is_symlink():
+                raise ValueError('evidence archive refuses symbolic links')
+            if path.is_file():
+                archive.write(path,path.relative_to(root).as_posix())
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--store', required=True)
     parser.add_argument('--output', required=True)
     parser.add_argument('--cutoff')
     parser.add_argument('--publish', action='store_true')
+    parser.add_argument('--fund-flow-dir')
+    parser.add_argument('--price-action-dir')
     parser.add_argument('--repo', default=os.environ.get('GITHUB_REPOSITORY','cluuacc-gif/ashare-research'))
     args = parser.parse_args()
     out = Path(args.output).resolve()
     out.mkdir(parents=True, exist_ok=False)
-    value, source = generate(args.store, args.cutoff)
+    value, source = generate(args.store,args.cutoff,args.fund_flow_dir,args.price_action_dir)
+    value['evidence_assets']=[]
+    for directory,name in [(args.fund_flow_dir,EXTRA_ASSETS[0]),(args.price_action_dir,EXTRA_ASSETS[1])]:
+        if directory:
+            archive_evidence(directory,out/name)
+            value['evidence_assets'].append(name)
     if args.publish:
         forward_tracking(value,source,args.store,args.repo)
     from market_outlook_report import render

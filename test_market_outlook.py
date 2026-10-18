@@ -45,6 +45,39 @@ class PublicationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             m.compact_pointer({'outlook':value})
 
+    def test_compaction_preserves_stock_flow_facts_and_archives_growing_ledgers(self):
+        value,_=fixture()
+        value['fund_flow']={'sectors':[{'history':[1], 'field_evidence':'large evidence',
+            'members':[{'symbol':'000001.SZ','source_url':'https://example.invalid',
+                        'raw_sha256':'a'*64,'flow_status':'verified_current_date',
+                        'flow_trade_date':'2026-10-16','main_net_inflow_yuan':100}]}]}
+        value['sector_forward_tracking']={'resolved':[{'large':'audit'}],'resolved_dates':1}
+        pointer=m.compact_pointer({'outlook':value})
+        part=pointer['outlook']['fund_flow']['sectors'][0]
+        self.assertNotIn('field_evidence',part)
+        self.assertNotIn('source_url',part['members'][0])
+        self.assertEqual(part['members'][0]['main_net_inflow_yuan'],100)
+        self.assertNotIn('resolved',pointer['outlook']['sector_forward_tracking'])
+        self.assertEqual(render(pointer['outlook']),render(value))
+
+    def test_stock_tracking_keeps_D2_price_event_when_D3_is_still_pending(self):
+        value,source=fixture()
+        old={'sector_stock_selection':{'primary':[{'symbol':'000001.SZ','close':6}]}}
+        prior={'forward_eligible':True,'target_trade_date':'2026-10-16','release_tag':'first',
+               'files':{'outlook.json':{'name':'outlook.json'}}}
+        measured={'status':'pending','target_trade_date':'2026-10-16','n_D2_resolved':1,
+                  'n_D2_open_reference_profitable':1,'n_strength3_resolved':0,'n_strength3_pending':1,
+                  'actual_win_rate':None,'rows':[]}
+        with patch.object(m,'archived_outlook',return_value={'target_trade_date':'2026-10-16'}),\
+             patch('stock_strength_tracking.evaluate',return_value=measured):
+            m.stock_forward_tracking(value,source,'fixture-store','fixture/repo',prior,old)
+        ledger=value['stock_strength_forward_tracking']
+        self.assertEqual(ledger['n_D2_resolved'],1)
+        self.assertEqual(ledger['D2_open_reference_profitable_rate'],1)
+        self.assertIsNone(ledger['strength3_rate'])
+        self.assertIsNone(ledger['actual_win_rate'])
+        self.assertEqual(len(ledger['pending']),1)
+
     def test_identity_cutoff_and_trade_claims_rejected(self):
         value,source=fixture()
         changes=[('input_database_sha256','b'*64),('target_trade_date','2026-10-20'),

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import argparse
 import contextlib
+import copy
 import datetime as dt
 import decimal
 import json
@@ -226,7 +227,7 @@ def _research_score(features, sector_score):
 
 
 def build_plan(db_path, base_date, target_session, information_cutoff,
-               sector_forecast=None, input_sha256=None):
+               sector_forecast=None, input_sha256=None, *, include_pool=False):
     """Build a frozen conditional watchlist from T-close information only.
 
     db_path may also be a caller-owned read-only sqlite3.Connection. This module
@@ -320,7 +321,7 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
                 'formal_trade_eligible': False, 'actual_fill_verified': False,
             })
     pool.sort(key=lambda item: (-item['research_score'], -item['features']['median_amount20'], item['symbol']))
-    watchlist = pool[:MAXIMUM_WATCHLIST]
+    watchlist = copy.deepcopy(pool[:MAXIMUM_WATCHLIST])
     for index, item in enumerate(watchlist, 1):
         item['rank'] = index
         # Only the first three candidates receive separately reserved research budgets.
@@ -329,7 +330,7 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
         if index > 3:
             item['frozen_quantity_shares'] = 0
             item['frozen_reserved_cash_cny'] = 0
-    return {
+    result = {
         'schema': VERSION, 'base_date': base_date, 'target_date': target_session,
         'base_trade_date': base_date, 'target_trade_date': target_session,
         'information_cutoff': cutoff.isoformat(), 'input_sha256': input_sha256,
@@ -354,6 +355,9 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
             '次日可见卖盘不能证明个人订单已成交，成交与退出需另外记录',
             '最多3个独立预算名额，第4—5名仅供观察，不自动补位'],
     }
+    if include_pool:
+        result['candidate_pool'] = copy.deepcopy(pool)
+    return result
 
 
 def confirm_plan(plan, snapshot, information_cutoff):
@@ -447,8 +451,8 @@ def confirm_plan(plan, snapshot, information_cutoff):
     return result
 
 
-def generate(db, base, target, cutoff, sector_outlook=None, auction_snapshot=None):
-    plan = build_plan(db, base, target, cutoff, sector_outlook)
+def generate(db, base, target, cutoff, sector_outlook=None, auction_snapshot=None, include_pool=False):
+    plan = build_plan(db, base, target, cutoff, sector_outlook,include_pool=include_pool)
     if auction_snapshot is not None:
         plan['opening_confirmation'] = confirm_plan(plan, auction_snapshot, cutoff)
     return plan

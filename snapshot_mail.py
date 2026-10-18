@@ -27,12 +27,16 @@ def delivery_record(repo, stage, day):
         raise
 
 
-def attach_market_outlook(payload, db_path, base, target, input_sha256=None):
+def attach_market_outlook(payload, db_path, base, target, input_sha256=None, context_data=None):
     """Build optional research from the restored DB at this report's own cutoff."""
     research = payload.setdefault('research', {})
     cutoff = payload['information_cutoff']
     common = {'base_date':base, 'target_date':target, 'information_cutoff':cutoff,
               'snapshot_release':payload.get('snapshot_release'), 'input_sha256':input_sha256}
+    from research_context import unavailable_flow
+    context_data=context_data or {}
+    research['fund_flow']=context_data.get('fund_flow') or unavailable_flow(base,'本期尚无匹配的已发布资金流')
+    research['price_action_research']=context_data.get('price_action_research') or {'status':'unavailable'}
     # Both modules use only the standard library. Optional research must not
     # prevent an already sealed, on-time report from being prepared.
     try:
@@ -48,7 +52,17 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None):
                 from opening_strength import generate as opening_generate
                 research['opening_strength'] = {**common, **opening_generate(
                     db, base, target, cutoff, sector_outlook=research['sector_outlook'],
-                    auction_snapshot=payload.get('opening_snapshot'))}
+                    auction_snapshot=payload.get('opening_snapshot'),include_pool=True)}
+                from sector_stock_selection import generate as select_sector_stocks
+                plan=research['opening_strength']
+                selected=select_sector_stocks(db,base,target,cutoff,research['sector_outlook'],plan,
+                                              fund_flow=research['fund_flow'])
+                plan.pop('candidate_pool',None)
+                plan['independent_technical_watchlist']=plan.get('watchlist',[])
+                plan['watchlist']=selected.get('watchlist',[])
+                plan['input_sha256']=input_sha256
+                plan['selection_method']='sector_first_confluence_v1'
+                research['sector_stock_selection']=selected
             except (ImportError, OSError, ValueError, sqlite3.DatabaseError) as exc:
                 research['opening_strength'] = {**common, 'schema':'opening-strength-research-v1',
                     'status':'unavailable', 'reason':type(exc).__name__, 'watchlist':[],
@@ -97,7 +111,10 @@ def report(stage, day, store, model_store=None):
     late = at >= scheduled_at(stage,day) + WINDOW
     payload['late'] = late
     if stage == 'evening':
-        payload['information_cutoff'] = saved['generated_at']
+        # Closing prices remain fixed, while timely published flow evidence may
+        # arrive after price preparation and before the 18:00 report deadline.
+        payload['price_snapshot_prepared_at']=saved['generated_at']
+        payload['information_cutoff'] = min(at,scheduled_at(stage,day)).isoformat()
     else:
         # Never retrieve a future-cutoff headline just because a preview is for tomorrow.
         cutoff = min(at,dt.datetime.fromisoformat(payload['information_cutoff']))
@@ -107,8 +124,10 @@ def report(stage, day, store, model_store=None):
             news = news_before(db,cutoff.isoformat())
         payload['public_news_until_0925' if stage == 'auction' else 'public_news_until_0900'] = news
     outlook_target = context(day)['next_session'] if stage == 'evening' else day
+    from research_context import published_context
+    market_context=published_context(saved,payload['information_cutoff'])
     attach_market_outlook(payload, store/saved['database']['name'], expected, outlook_target,
-                          input_sha256=saved['database'].get('sha256'))
+                          input_sha256=saved['database'].get('sha256'),context_data=market_context)
     if late:
         payload['disclaimer'] = '迟到补发／回顾；不计入事前预测。' + payload['disclaimer']
     return payload

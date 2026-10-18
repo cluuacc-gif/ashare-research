@@ -131,10 +131,11 @@ class SnapshotIntegration(unittest.TestCase):
             value['information_cutoff']='2026-10-18T14:00:00+08:00'
             snapshot_mail.attach_market_outlook(value,path,'2026-10-16','2026-10-19','fixture-hash')
             self.assertEqual(value['research']['sector_outlook']['status'],'ready')
-            self.assertEqual(len(value['research']['opening_strength']['watchlist']),5)
+            self.assertLessEqual(len(value['research']['opening_strength']['watchlist']),5)
             self.assertTrue(value['research']['opening_strength']['sector_overlay']['available'])
             self.assertEqual(value['research']['opening_strength']['input_sha256'],'fixture-hash')
-            self.assertIn('（仅观察）',mail_layout.render_text(value))
+            self.assertIn('开盘转强条件观察',mail_layout.render_text(value))
+            self.assertFalse(value['research']['sector_stock_selection']['formal_trade_eligible'])
             self.assertFalse(value['research']['formal_trade_ready'])
 
     def test_generators_share_readonly_database_and_exact_report_cutoff(self):
@@ -152,7 +153,7 @@ class SnapshotIntegration(unittest.TestCase):
                 calls.append(('sector',base,target,cutoff))
                 result=sector(); result['information_cutoff']=cutoff
                 return result
-            def generate_opening(db,base,target,cutoff,sector_outlook,auction_snapshot):
+            def generate_opening(db,base,target,cutoff,sector_outlook,auction_snapshot,include_pool):
                 self.assertEqual(sector_outlook['rankings'][0]['score'],82.4)
                 self.assertIsNone(auction_snapshot)
                 calls.append(('opening',base,target,cutoff))
@@ -183,8 +184,8 @@ class SnapshotIntegration(unittest.TestCase):
             self.assertFalse(value['research']['opening_strength']['formal_trade_eligible'])
             self.assertIn('暂不列出次日强势排名',mail_layout.render_text(value))
 
-    def test_evening_uses_snapshot_cutoff_while_morning_never_uses_future_time(self):
-        cases=[('evening','2026-10-16','2026-10-16T17:00:00+08:00','2026-10-16T16:45:00+08:00'),
+    def test_evening_allows_timely_context_while_prices_stay_frozen_and_morning_never_uses_future_time(self):
+        cases=[('evening','2026-10-16','2026-10-16T17:00:00+08:00','2026-10-16T17:00:00+08:00'),
                ('morning','2026-10-19','2026-10-19T08:55:00+08:00','2026-10-19T08:55:00+08:00'),
                ('auction','2026-10-19','2026-10-19T09:35:00+08:00','2026-10-19T09:25:00+08:00')]
         for stage,day,now,expected in cases:
@@ -205,6 +206,7 @@ class SnapshotIntegration(unittest.TestCase):
                       patch('snapshot_mail.frozen_observations',return_value=([],{})),
                       patch('snapshot_mail.news_before',return_value=[]),
                       patch('snapshot_mail.c.now',return_value=dt.datetime.fromisoformat(now)),
+                      patch('research_context.published_context',return_value={}),
                       patch('snapshot_mail.attach_market_outlook') as attach):
                     result=snapshot_mail.report(stage,day,store)
                 self.assertEqual(result['information_cutoff'],expected)
