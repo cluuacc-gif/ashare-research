@@ -57,8 +57,10 @@ def _ci(metrics: Mapping[str, Any]) -> str:
 def _parameters(parameters: Mapping[str, Any]) -> str:
     rule = {"ordinary": "普通走势", "bullish": "偏强走势", "pullback": "回调后企稳"}.get(
         str(parameters.get("entry_rule")), str(parameters.get("entry_rule") or "未提供"))
+    threshold = parameters.get("threshold")
+    threshold_note = "只按模型排序" if threshold == 0 and not isinstance(threshold, bool) else "分数门槛 " + _pct(threshold, 0)
     return (_e(rule) + " · 止盈 " + _pct(parameters.get("target")) + " · 止损 "
-            + _pct(parameters.get("stop")) + " · 分数门槛 " + _pct(parameters.get("threshold"), 0))
+            + _pct(parameters.get("stop")) + " · " + threshold_note)
 
 
 def _comparison_row(title: str, note: str, metrics: Mapping[str, Any], focus: bool = False) -> str:
@@ -101,6 +103,16 @@ def render_report(summary: Mapping[str, Any]) -> str:
         ("selected_policy", "选择段入选规则", "只在选择段挑选；未达研究门槛时保留为空。", active),
     ))
     grid = summary.get("selection_grid") or []
+    development_note = ""
+    if definition.get("development_revision_reason") == "selection_count_max3_insufficient":
+        development_note = (
+            '<p class="note">本次为扩展排序研究轮次：首轮选择段每组最多只有 3 笔，未选出规则；因此本轮只在同一历史开发数据上扩大分数范围，'
+            '加入“只按模型排序”以及 35%、45% 门槛，保留 50% 门槛。固定影子对照仍为原 50% 门槛。'
+            '本轮比较 ' + _number(len(grid)) + ' 组，累计已考察 '
+            + _number(definition.get("cumulative_distinct_development_variants"))
+            + ' 组不同开发参数。扩大范围旨在增加可观察样本，不能据此声称胜率已提高；多轮开发还会增加挑选偏差。'
+            '真实 80% 胜率的 200 笔、60 个日期及区间下界标准保持不变，仍需新的成交证据。</p>'
+        )
     selection_rows = ""
     for item in grid:
         item = _mapping(item)
@@ -226,7 +238,8 @@ def render_report(summary: Mapping[str, Any]) -> str:
             + _number(definition.get("formal_min_entry_dates")) + ' 个日期，且日期分组 95% 区间下界严格高于 '
             + _pct(definition.get("formal_date_block_95pct_lower_strictly_above"), 0)
             + '。提高胜率同时检查每笔收益与样本分散度；多组挑选本身会产生偏差，结果只作研究。</p>'
-            '<div class="filters" aria-label="按止盈目标筛选"><span>查看止盈目标</span><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="0.03" aria-pressed="false">3%</button><button type="button" data-filter="0.045" aria-pressed="false">4.5%</button><button type="button" data-filter="0.06" aria-pressed="false">6%</button></div>'
+            + development_note
+            + '<div class="filters" aria-label="按止盈目标筛选"><span>查看止盈目标</span><button type="button" data-filter="all" aria-pressed="true">全部</button><button type="button" data-filter="0.03" aria-pressed="false">3%</button><button type="button" data-filter="0.045" aria-pressed="false">4.5%</button><button type="button" data-filter="0.06" aria-pressed="false">6%</button></div>'
             '<div class="table-wrap"><table><thead><tr><th>冻结参数</th><th class="num">已入场</th><th class="num">未解决</th><th class="num">毛盈利率</th><th class="num">收益 ≥3%</th><th class="num">95% 区间</th><th>研究判定</th></tr></thead><tbody id="selection-body">'
             + selection_rows + '</tbody></table></div><p class="note">分数门槛是模型的预测分数，不是已实现胜率。正式验收需在新记录中同时满足足够的交易笔数、不同日期、区间下界及可交易证据。</p></section>'
             '<section id="conditional"><div class="section-head"><h2>04 / 第一天下跌也留在总成绩里</h2><span class="kicker">辅助条件概率 · 不用于事后删除失败交易</span></div><p class="intro">第一天是否上涨，直到买入后才知道。下表只是观察第二天的分组表现，主策略仍以全部已入场记录计分；不能只保留第一天涨的交易来声称整体胜率提高。</p>'

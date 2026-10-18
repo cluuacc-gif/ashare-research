@@ -23,6 +23,7 @@ import formal_price_model as price_model
 from net_profit_strategy import _valid_bar, _one_price, prediction_timing, split
 
 VERSION = 'gross-swing-research-v2'
+RESEARCH_REVISION = 'expanded-ranking-v2.1'
 BUDGET = 10000.0
 INITIAL_CAPITAL = 30000.0
 FEATURES = price_model.FEATURES + [
@@ -35,7 +36,8 @@ MODEL_PARAMETERS = {'max_iter': 80, 'max_leaf_nodes': 15, 'min_samples_leaf': 10
                     'random_state': 20261018, 'early_stopping': False}
 FALLBACK = {'entry_rule': 'ordinary', 'target': .03, 'stop': .02, 'threshold': .5}
 PROTOCOL = {
-    'schema': VERSION, 'objective': 'gross_profit_3_to_6_percent',
+    'schema': VERSION, 'research_revision': RESEARCH_REVISION,
+    'objective': 'gross_profit_3_to_6_percent',
     'decision': 'after_T_close', 'entry': 'D1_next_observed_session_open_reference',
     'exit': 'D2_following_observed_session_predeclared_target_stop_else_close',
     'first_day_green_required': False,
@@ -71,7 +73,12 @@ PROTOCOL = {
                        'range_max': .09, 'close_location': [.55, .95]},
     'pullback_filter': {'ret1': [-.04, .01], 'ma20_gap': [-.05, .08],
                         'ret20_min': 0, 'close_location': [.35, .9]},
-    'selection_thresholds': [.5, .6, .7, .8], 'threshold_endpoint': 'p_profit',
+    'selection_thresholds': [0.0, .35, .45, .5], 'threshold_endpoint': 'p_profit',
+    'zero_threshold_means_no_probability_floor': True,
+    'prior_grid_thresholds': [.5, .6, .7, .8],
+    'cumulative_distinct_development_variants': 126,
+    'development_revision_reason': 'selection_count_max3_insufficient',
+    'revision_uses_diagnostic_returns_for_selection': False,
     'ranking_score': '0.6*p_profit+0.4*p_ge3',
     'selection_grid_size': 72, 'research_selection_min_trades': 20,
     'research_selection_min_entry_dates': 10,
@@ -572,6 +579,7 @@ def run(db_path, base, output, input_sha256):
                 'frozen_at': generated, 'historical_development_cutoff': base}
     protocol_sha = hashlib.sha256(_json_bytes(protocol)).hexdigest()
     metadata = {'schema': VERSION, 'strategy_version': VERSION,
+                'research_revision': RESEARCH_REVISION,
                 'objective': 'gross_profit_3_to_6_percent', 'gross_target': PROTOCOL['gross_target'],
                 'costs_included': False, 'base_trade_date': base, 'generated_at': generated,
                 **prediction_timing(base, generated), 'input_database_sha256': input_sha256,
@@ -598,7 +606,10 @@ def run(db_path, base, output, input_sha256):
                    'One-price, missing and conflicting bars remain unresolved and reserve capacity.',
                    'D1 rising is reported conditionally; D1 losing trades stay in the main denominator.',
                    'Probability endpoints concern D2 close, not policy target/stop execution.',
-                   'Seventy-two variants were searched on selection history; selection results are optimistic.',
+                   'Seventy-two current variants and 126 cumulative distinct development variants were searched; '
+                   'selection results are optimistic and exposed development data.',
+                   'Thresholds were expanded because the prior selection grid had at most three attempts, '
+                   'below the unchanged 20-trade and 10-date research eligibility minimums.',
                    'Historical data were previously exposed; final diagnostics are not fresh holdout proof.',
                    'Current vendor census and raw corporate action handling retain survivorship and adjustment risks.',
                    'An 80 percent real win rate has not been established.']}
