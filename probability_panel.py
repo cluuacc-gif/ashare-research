@@ -88,7 +88,7 @@ def policy_labels(signal_date, symbol, entry_date, exit_date, entry, exit_, sign
     return result
 
 
-def symbol_features(rows, symbol, sessions):
+def symbol_features(rows, symbol, sessions, *, feature_enricher=None):
     """Trailing inputs at T; preserve unresolved/cancelled rows for honest replay."""
     data = pd.DataFrame(rows).sort_values('trade_date').reset_index(drop=True)
     if data.empty:
@@ -121,6 +121,12 @@ def symbol_features(rows, symbol, sessions):
     extras = action.price_action_features(ordered)
     for key in extras:
         frame[key] = extras[key]
+    if feature_enricher is not None:
+        extra=feature_enricher(ordered)
+        if len(extra)!=len(data) or set(extra.columns)&set(frame.columns):
+            raise ValueError('context enrichment must add aligned new columns only')
+        for key in extra:
+            frame[key]=extra[key].reindex(data.index)
     raw_jumps = frame.ret1.abs().gt(.30).astype(int)
     window_ok = ((positions-positions.shift(60)==60)
         & valid.rolling(61, min_periods=61).sum().eq(61)
@@ -147,7 +153,7 @@ def symbol_features(rows, symbol, sessions):
     return pd.concat([frame, pd.DataFrame(labels, index=frame.index)], axis=1)
 
 
-def panel(db_path, base):
+def panel(db_path, base, *, feature_enricher=None):
     """Return history, live, names, scanned; source is opened SQLite read-only."""
     frames, market, scanned = [], [], 0
     with closing(sqlite3.connect(Path(db_path).resolve().as_uri()+'?mode=ro', uri=True)) as db:
@@ -171,7 +177,7 @@ def panel(db_path, base):
                       & np.isfinite(returns) & returns.abs().le(.30))
             market.append(pd.DataFrame({'date': data.loc[paired, 'trade_date'], 'ret': returns[paired]}))
             if len(rows)>=250:
-                frame = symbol_features(rows, symbol, sessions)
+                frame = symbol_features(rows, symbol, sessions,feature_enricher=feature_enricher)
                 if not frame.empty:
                     frames.append(frame)
             if number%1000==0:
