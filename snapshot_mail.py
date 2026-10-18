@@ -37,6 +37,7 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
     context_data=context_data or {}
     research['fund_flow']=context_data.get('fund_flow') or unavailable_flow(base,'本期尚无匹配的已发布资金流')
     research['price_action_research']=context_data.get('price_action_research') or {'status':'unavailable'}
+    research['probability_research']=context_data.get('probability_research') or {'status':'unavailable'}
     # Both modules use only the standard library. Optional research must not
     # prevent an already sealed, on-time report from being prepared.
     try:

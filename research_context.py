@@ -68,7 +68,8 @@ def published_context(snapshot, cutoff, repo=None):
     """A single compact-pointer read; SMTP preparation cannot wait indefinitely."""
     base=snapshot['base_trade_date']
     safe={'fund_flow':unavailable_flow(base,'本期未取得匹配的已发布资金流'),
-          'price_action_research':{'status':'unavailable','formal_trade_ready':False}}
+          'price_action_research':{'status':'unavailable','formal_trade_ready':False},
+          'probability_research':{'status':'unavailable','formal_trade_ready':False}}
     try:
         import base64
         from pipeline_state import BRANCH
@@ -89,6 +90,15 @@ def published_context(snapshot, cutoff, repo=None):
                 and study.get('base_trade_date')==base and generated is not None
                 and generated<=instant(cutoff) and study.get('formal_trade_ready') is False):
             safe['price_action_research']=study
+        study=outlook.get('probability_research') or {}
+        generated=instant(study.get('generated_at'))
+        if (study.get('schema')=='calibrated-tplus1-probability-v1'
+                and study.get('input_database_sha256')==snapshot['database']['sha256']
+                and study.get('base_trade_date')==base and generated is not None
+                and generated<=instant(cutoff) and study.get('formal_trade_ready') is False
+                and study.get('execution_win_rate_80_validated') is False
+                and study.get('actual_win_rate') is None):
+            safe['probability_research']=study
         safe['context_release']=value['release_tag']
     except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError):
         pass
