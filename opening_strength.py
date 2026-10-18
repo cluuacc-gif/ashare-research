@@ -32,6 +32,8 @@ PROTOCOL = {
     'opening_snapshot_maximum_age_seconds': MAXIMUM_QUOTE_AGE_SECONDS,
     'entry_reference_price_range': [5, 10],
     'minimum_prior_bars': MINIMUM_BARS,
+    'minimum_prior_bars_fields': ['open', 'high', 'low', 'close', 'volume'],
+    'amount_feature_window_bars': 21,
     'minimum_median_amount20_cny': MINIMUM_MEDIAN_AMOUNT20,
     'opening_gap_range': [0, MAXIMUM_OPEN_GAP],
     'frozen_cap': 'floor_to_cent(min(base_close*1.025,10))',
@@ -100,11 +102,23 @@ def _rows(connection, sql, values=()):
 
 
 def _valid_bar(row):
-    values = [_number(row.get(key)) for key in ('open', 'high', 'low', 'close', 'volume', 'amount')]
+    values = [_number(row.get(key)) for key in ('open', 'high', 'low', 'close', 'volume')]
     if any(value is None or value <= 0 for value in values) or row.get('conflict'):
         return False
-    open_, high, low, close, _, _ = values
+    open_, high, low, close, _ = values
     return low <= min(open_, close) <= max(open_, close) <= high
+
+
+def _final_source_time_valid(row, cutoff):
+    if row.get('finality') not in ('historical_provider', 'post_close_provider'):
+        return False
+    if not row.get('source_updated_at'):
+        return True
+    source_at = _instant(row['source_updated_at'])
+    fetched_at = _instant(row.get('fetched_at'))
+    return (source_at is not None and fetched_at is not None
+            and source_at.date().isoformat() == row['trade_date']
+            and source_at <= fetched_at <= cutoff)
 
 
 def _sector_membership(connection, cutoff, classification=None):
@@ -156,8 +170,14 @@ def _technical_features(rows):
     current = rows[-1]
     if float(current['high']) <= float(current['low']):
         return None
-    closes = [float(row['close']) for row in rows]
-    amounts = [float(row['amount']) for row in rows]
+    recent = rows[-21:]
+    amounts = [_number(row.get('amount')) for row in recent]
+    if any(value is None or value <= 0 for value in amounts):
+        return None
+    # The 250-bar history requirement concerns valid OHLC and volume. The
+    # liquidity features use exactly 21 amounts; older missing amounts are not
+    # imputed, converted or included in a calculation.
+    closes = [float(row['close']) for row in recent]
     close = closes[-1]
     span = float(current['high']) - float(current['low'])
     daily_returns = [closes[index] / closes[index - 1] - 1 for index in range(len(closes) - 20, len(closes))]
@@ -171,7 +191,7 @@ def _technical_features(rows):
         'volatility20': statistics.pstdev(daily_returns),
         'close_location': (close - float(current['low'])) / span,
         'range_fraction': span / closes[-2],
-        'distance_below_prior_high20': max(float(row['high']) for row in rows[-21:-1]) / close - 1,
+        'distance_below_prior_high20': max(float(row['high']) for row in recent[:-1]) / close - 1,
     }
 
 
@@ -255,11 +275,14 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
             if not _known_by(row.get('fetched_at'), cutoff):
                 reject('base_quote_not_observed_before_cutoff'); continue
             history = _rows(connection, '''SELECT trade_date,open,high,low,close,volume,amount,
-                conflict,fetched_at FROM daily_quotes WHERE symbol=? AND trade_date<=?
+                conflict,fetched_at,source_updated_at,finality FROM daily_quotes WHERE symbol=? AND trade_date<=?
                 ORDER BY trade_date DESC LIMIT 270''', (row['symbol'], base_date))
             history.reverse()
+            history = history[-MINIMUM_BARS:]
             if any(not _known_by(item.get('fetched_at'), cutoff) for item in history):
                 reject('history_not_observed_before_cutoff'); continue
+            if any(not _final_source_time_valid(item, cutoff) for item in history):
+                reject('history_not_final_or_invalid_source_time'); continue
             features = _technical_features(history)
             if features is None:
                 reject('insufficient_or_invalid_prior_bars'); continue
