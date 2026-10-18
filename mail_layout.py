@@ -4,7 +4,7 @@ import math
 import datetime as dt
 from urllib.parse import quote
 
-VERSION = 'research-email-v4-gross-swing-target'
+VERSION = 'research-email-v5-sector-opening-outlook'
 STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
@@ -23,6 +23,89 @@ def money(value):
     if not isinstance(value,(int,float)) or not math.isfinite(value): return '—'
     if abs(value)>=100000000: return f'{value/100000000:.2f}亿'
     return f'{value/10000:,.0f}万'
+
+
+def _phrases(value, limit=3):
+    if isinstance(value, str): return value
+    if not isinstance(value, (list, tuple)): return ''
+    return '；'.join(str(item) for item in value[:limit] if isinstance(item, (str, int, float)))
+
+
+def _outlook_current(payload, value, schema, base, target):
+    """A report must not present a different session or future input as its own."""
+    if not isinstance(value, dict) or value.get('schema') != schema: return False
+    if value.get('base_date') != base or value.get('target_date') != target: return False
+    try:
+        own = dt.datetime.fromisoformat(value['information_cutoff'])
+        report = dt.datetime.fromisoformat(payload['information_cutoff'])
+        return own.utcoffset() is not None and report.utcoffset() is not None and own <= report
+    except (KeyError, TypeError, ValueError):
+        return False
+
+
+def _sector_section(payload, value, base, target):
+    current = _outlook_current(payload, value, 'sector-outlook-v1', base, target)
+    rows = value.get('rankings') if current and value.get('status') == 'ready' else []
+    rows = rows if isinstance(rows, list) else []
+    rendered = []
+    risks = []
+    for row in rows[:5]:
+        if not isinstance(row, dict): continue
+        rendered.append([str(row.get('rank', len(rendered)+1)), str(row.get('sector') or '—'),
+                         number(row.get('score'), 1),
+                         number(row.get('member_count'), 0)+'只／'+pct(row.get('coverage')),
+                         _phrases(row.get('drivers'), 2) or '等待充分依据'])
+        risk = _phrases(row.get('risks'), 1)
+        if risk: risks.append(str(row.get('sector') or '板块')+'：'+risk)
+    if rendered:
+        sources=value.get('sources') if isinstance(value.get('sources'), dict) else {}
+        coverage=value.get('coverage') if isinstance(value.get('coverage'), dict) else {}
+        classification={'sina_industry':'新浪行业分类', 'exchange_industry':'证券资料行业字段'}.get(value.get('classification'), '供应商行业分类')
+        note = (f"预测 {target} 相对本次覆盖市场的强弱排序；基础行情 {base}，已知信息截至 {value.get('information_cutoff')}。"
+                f"分类采用{classification}；覆盖{number(coverage.get('covered_sectors'), 0)}个板块、{number(coverage.get('covered_stocks'), 0)}只股票，"
+                f"行业成分最新入库时间{sources.get('membership_latest_observed_at') or '未记录'}。"
+                '分数是启发式相对排序，不是上涨概率或交易胜率；同一板块也可能跟随大盘下跌。'
+                '历史时点成分证据不足，当前从冻结后的下一交易日开始跟踪检验。')
+        if sources.get('membership_effective_after_price_base'):
+            note += ' 本次采用基础行情日之后补充的行业成分，只代表当前截止时间可知的信息。'
+        if risks: note += ' 风险：'+'；'.join(risks[:3])+'。'
+    else:
+        note = (f'目标交易日 {target or "—"}。本期没有与行情日期和信息截止匹配的充分板块证据，暂不列出次日强势排名；'
+                '不会把当天涨幅榜直接称作次日预测。')
+    return {'title':'次日板块强弱展望', 'columns':['排序','板块','强弱分','样本／覆盖','主要依据'],
+            'rows':rendered, 'note':note}
+
+
+def _opening_section(payload, value, base, target):
+    current = _outlook_current(payload, value, 'opening-strength-research-v1', base, target)
+    rows = value.get('watchlist') if current else []
+    rows = rows if isinstance(rows, list) else []
+    rendered = []
+    cancellations = []
+    for row in rows[:5]:
+        if not isinstance(row, dict): continue
+        name=str(row.get('name') or '—')+('（仅观察）' if row.get('is_reserve_only') else '')
+        rendered.append([str(row.get('symbol') or '—'), name,
+                         str(row.get('sector') or '未匹配'), number(row.get('close')),
+                         _phrases(row.get('entry_conditions'), 3) or '等待开盘行情确认'])
+        cancel = row.get('cancel_conditions')
+        for condition in cancel if isinstance(cancel, list) else []:
+            if isinstance(condition, str) and condition not in cancellations: cancellations.append(condition)
+    confirmed = current and bool(value.get('live_signal'))
+    if rendered:
+        note = (f'观察 {target} 开盘可能转强的股票；基础行情 {base}，已知信息截至 {value.get("information_cutoff")}。'
+                '此表为条件观察池，前收盘分数不等于开盘买入信号。')
+        note += ('已取得满足时效要求的开盘确认输入，仍需逐只核验成交条件。' if confirmed else
+                 '当前没有通过核验的即时开盘确认，不生成可执行买入指令。')
+        if cancellations: note += ' 取消条件：'+'；'.join(cancellations[:3])+'。'
+        if any(isinstance(row,dict) and row.get('is_reserve_only') for row in rows[:5]):
+            note += '最多3个固定资金名额，第4—5名仅观察，不自动补位。'
+        note += '第1天买入后，第2天按预定退出规则研究卖出；3%～6%是目标，尚未证实胜率高于80%。'
+    else:
+        note = (f'目标交易日 {target or "—"}。本期没有与行情日期和截止时间匹配的开盘观察池；'
+                '缺少新鲜、可核验的开盘报价时不生成买入指令。')
+    return {'title':'开盘转强条件观察', 'columns':['代码','名称','板块','前收盘','需要确认的条件'],
+            'rows':rendered, 'note':note}
 
 
 def content(payload):
@@ -59,6 +142,11 @@ def content(payload):
            ('交易资格','已通过' if research.get('formal_trade_ready') else '待核验'),
            ('5～10元观察',f'{len(band):,}只')]
     sections=[]
+    if stage == 'evening':
+        sector_target=(payload.get('calendar') or {}).get('next_session') or target
+        sections.append(_sector_section(payload, research.get('sector_outlook') or {}, base, sector_target))
+    else:
+        sections.append(_opening_section(payload, research.get('opening_strength') or {}, base, payload.get('target_date')))
     gross = research.get('gross_swing_strategy') or {}
     sections.append({'title':'隔日毛收益策略', 'columns':['验收项目','当前状态'],
         'rows':[['目标','毛盈利胜率严格高于80%，争取每笔3%～6%'],
