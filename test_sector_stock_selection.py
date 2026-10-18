@@ -99,6 +99,30 @@ class SectorStockSelectionTests(unittest.TestCase):
         self.assertFalse(result['formal_trade_eligible'])
         json.dumps(result, ensure_ascii=False, allow_nan=False)
 
+    def test_expanded_plan_range_selects_budget_sized_shares_without_relaxing_math(self):
+        self.db.execute('UPDATE daily_quotes SET open=open*4,high=high*4,low=low*4,close=close*4')
+        for row in self.plan['candidate_pool']:
+            row['close'] *= 4
+            row['frozen_buy_cap'] = screen._cent_floor(min(row['close'] * 1.025, 100))
+        self.plan['protocol'] = {'entry_reference_price_range': [5, 100]}
+        for members in self.outlook['frozen_members'].values():
+            for row in members:
+                row['base_close'] *= 4
+        self.outlook['constituents_sha256'] = screen._digest(self.outlook['frozen_members'])
+        result = self.generate()
+        self.assertEqual(len(result['primary']), 3)
+        self.assertEqual(result['entry_reference_price_range'], [5, 100])
+        for row in result['primary']:
+            self.assertGreater(row['close'], 10)
+            self.assertGreaterEqual(row['frozen_quantity_shares'], 100)
+            self.assertEqual(row['frozen_quantity_shares'] % 100, 0)
+            self.assertLessEqual(row['frozen_reserved_cash_cny'], 10000)
+        self.plan['candidate_pool'][0]['frozen_buy_cap'] = 99
+        result = self.generate()
+        self.assertNotIn('000001.SZ', [row['symbol'] for row in result['watchlist']])
+        self.assertTrue(any(row['reason'] == 'candidate_frozen_cap_differs_from_declared_protocol'
+                            for row in result['rejected_candidates']))
+
     def test_same_name_different_taxonomy_does_not_transfer_fund_flow(self):
         result = self.generate(self.flow)
         flow_primary = [row for row in result['primary'] if row['flow_integrated']]
@@ -270,6 +294,11 @@ class SectorStockSelectionTests(unittest.TestCase):
             result = self.generate(self.flow)
         self.assertEqual(result['primary'], [])
         self.assertEqual(result['coverage']['rejections']['no_predefined_price_action_structure'], 10)
+        self.assertEqual(len(result['rejected_candidates']), 10)
+        self.assertEqual(result['rejected_candidates'][0]['price_action_score'], 99)
+        self.assertEqual(result['rejected_candidates'][0]['eligible_patterns'], [])
+        self.assertTrue(result['rejected_candidates'][0]['name'])
+        self.assertTrue(result['rejected_candidates'][0]['sector'])
 
     def test_early_turn_requires_participation_not_merely_lagging_sector(self):
         row = self.outlook['rankings'][2]

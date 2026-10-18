@@ -78,6 +78,32 @@ class OpeningPlanTests(unittest.TestCase):
         self.assertEqual(plan['opening_confirmation']['status'], 'not_observed')
         json.dumps(plan, allow_nan=False)
 
+    def test_expanded_price_range_keeps_budget_lots_and_does_not_mutate_default_protocol(self):
+        original_protocol = copy.deepcopy(opening.PROTOCOL)
+        self.db.execute('UPDATE daily_quotes SET open=open*4,high=high*4,low=low*4,close=close*4')
+        self.assertEqual(self.plan()['watchlist'], [])
+        wide = self.plan(price_min=5, price_max=100, include_pool=True)
+        self.assertEqual(len(wide['candidate_pool']), 8)
+        self.assertEqual(wide['protocol']['entry_reference_price_range'], [5, 100])
+        self.assertEqual(opening.PROTOCOL, original_protocol)
+        for row in wide['candidate_pool']:
+            self.assertGreater(row['close'], 10)
+            self.assertEqual(row['frozen_buy_cap'], opening._cent_floor(min(row['close'] * 1.025, 100)))
+            self.assertGreaterEqual(row['frozen_quantity_shares'], 100)
+            self.assertEqual(row['frozen_quantity_shares'] % 100, 0)
+            self.assertLessEqual(row['frozen_reserved_cash_cny'], 10000)
+
+    def test_unaffordable_one_lot_is_not_a_candidate(self):
+        self.db.execute('UPDATE daily_quotes SET open=open*20,high=high*20,low=low*20,close=close*20')
+        wide = self.plan(price_max=200)
+        self.assertEqual(wide['watchlist'], [])
+        self.assertEqual(wide['coverage']['rejections']['one_lot_exceeds_frozen_position_budget'], 8)
+
+    def test_invalid_price_ranges_are_rejected(self):
+        for low, high in ((0, 100), (10, 5), (5, float('nan')), (True, 100)):
+            with self.subTest(range=(low, high)), self.assertRaises(ValueError):
+                self.plan(price_min=low, price_max=high)
+
     def test_future_session_prices_are_never_features(self):
         before = self.plan()
         self.db.execute('INSERT INTO daily_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
@@ -213,6 +239,14 @@ class OpeningConfirmationTests(unittest.TestCase):
         self.assertFalse(result['actual_fill_verified'])
         self.assertFalse(result['formal_trade_eligible'])
         self.assertFalse(result['live_signal'])
+
+    def test_expanded_range_confirmation_obeys_its_frozen_protocol(self):
+        self.db.execute('UPDATE daily_quotes SET open=open*4,high=high*4,low=low*4,close=close*4')
+        self.plan = opening.build_plan(self.db, BASE, TARGET, CUTOFF, price_max=100)
+        self.snapshot = snapshot(self.plan)
+        self.assertEqual(len(self.confirm()['confirmed']), 3)
+        self.plan['protocol']['entry_reference_price_range'] = [5, 10]
+        self.assertEqual(self.confirm()['confirmed'], [])
 
     def test_0925_is_only_conditional_watch_even_with_good_prices(self):
         self.cutoff = '2026-10-19T09:25:00+08:00'

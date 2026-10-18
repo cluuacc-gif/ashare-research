@@ -52,7 +52,8 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
                 from opening_strength import generate as opening_generate
                 research['opening_strength'] = {**common, **opening_generate(
                     db, base, target, cutoff, sector_outlook=research['sector_outlook'],
-                    auction_snapshot=payload.get('opening_snapshot'),include_pool=True)}
+                    auction_snapshot=payload.get('opening_snapshot'),include_pool=True,
+                    price_min=5,price_max=100)}
                 from sector_stock_selection import generate as select_sector_stocks
                 plan=research['opening_strength']
                 selected=select_sector_stocks(db,base,target,cutoff,research['sector_outlook'],plan,
