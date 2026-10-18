@@ -44,8 +44,10 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
     if isinstance(evidence,dict):
         from pa_entry_confirmation import review
         results=[]
+        symbols=evidence.get('symbols') if isinstance(evidence.get('symbols'),dict) else {}
         for candidate in research['pa_trade_research'].get('current_watchlist',[])[:3]:
-            symbol=candidate['symbol'];item=(evidence.get('symbols') or {}).get(symbol) or {}
+            symbol=candidate['symbol'];item=symbols.get(symbol)
+            item=item if isinstance(item,dict) else {}
             results.append(review(candidate,item.get('bars'),item.get('quote'),cutoff,
                                   mode=evidence.get('mode','breakout_retest')))
         research['pa_opening_confirmation']={'status':'conditional_research_review',
