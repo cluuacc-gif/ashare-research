@@ -2,6 +2,7 @@
 """Reports consume one independently restored immutable snapshot; exact paths."""
 import argparse
 import base64
+from contextlib import closing
 import datetime as dt
 import json
 import os
@@ -24,6 +25,44 @@ def delivery_record(repo, stage, day):
     except subprocess.CalledProcessError as exc:
         if 'HTTP 404' in (exc.stderr or ''): return path, None, None
         raise
+
+
+def attach_market_outlook(payload, db_path, base, target, input_sha256=None):
+    """Build optional research from the restored DB at this report's own cutoff."""
+    research = payload.setdefault('research', {})
+    cutoff = payload['information_cutoff']
+    common = {'base_date':base, 'target_date':target, 'information_cutoff':cutoff,
+              'snapshot_release':payload.get('snapshot_release'), 'input_sha256':input_sha256}
+    # Both modules use only the standard library. Optional research must not
+    # prevent an already sealed, on-time report from being prepared.
+    try:
+        with closing(sqlite3.connect(Path(db_path).resolve().as_uri()+'?mode=ro', uri=True)) as db:
+            db.row_factory = sqlite3.Row
+            try:
+                from sector_forecast import generate as sector_generate
+                research['sector_outlook'] = {**common, **sector_generate(db, base, target, cutoff)}
+            except (ImportError, OSError, ValueError, sqlite3.DatabaseError) as exc:
+                research['sector_outlook'] = {**common, 'schema':'sector-outlook-v1',
+                    'status':'unavailable', 'reason':type(exc).__name__, 'rankings':[]}
+            try:
+                from opening_strength import generate as opening_generate
+                research['opening_strength'] = {**common, **opening_generate(
+                    db, base, target, cutoff, sector_outlook=research['sector_outlook'],
+                    auction_snapshot=payload.get('opening_snapshot'))}
+            except (ImportError, OSError, ValueError, sqlite3.DatabaseError) as exc:
+                research['opening_strength'] = {**common, 'schema':'opening-strength-research-v1',
+                    'status':'unavailable', 'reason':type(exc).__name__, 'watchlist':[],
+                    'live_signal':False, 'formal_trade_eligible':False}
+            for key in ('sector_outlook', 'opening_strength'):
+                research[key]['snapshot_release'] = payload.get('snapshot_release')
+                research[key]['input_sha256'] = input_sha256
+    except (OSError, sqlite3.DatabaseError) as exc:
+        for key, schema in [('sector_outlook','sector-outlook-v1'),
+                            ('opening_strength','opening-strength-research-v1')]:
+            research[key] = {**common, 'schema':schema, 'status':'unavailable',
+                             'reason':type(exc).__name__, 'rankings':[], 'watchlist':[],
+                             'live_signal':False, 'formal_trade_eligible':False}
+    return payload
 
 
 def report(stage, day, store, model_store=None):
@@ -63,10 +102,13 @@ def report(stage, day, store, model_store=None):
         # Never retrieve a future-cutoff headline just because a preview is for tomorrow.
         cutoff = min(at,dt.datetime.fromisoformat(payload['information_cutoff']))
         payload['information_cutoff'] = cutoff.isoformat()
-        with sqlite3.connect((store/saved['database']['name']).as_uri()+'?mode=ro',uri=True) as db:
+        with closing(sqlite3.connect((store/saved['database']['name']).as_uri()+'?mode=ro',uri=True)) as db:
             db.row_factory = sqlite3.Row
             news = news_before(db,cutoff.isoformat())
         payload['public_news_until_0925' if stage == 'auction' else 'public_news_until_0900'] = news
+    outlook_target = context(day)['next_session'] if stage == 'evening' else day
+    attach_market_outlook(payload, store/saved['database']['name'], expected, outlook_target,
+                          input_sha256=saved['database'].get('sha256'))
     if late:
         payload['disclaimer'] = '迟到补发／回顾；不计入事前预测。' + payload['disclaimer']
     return payload

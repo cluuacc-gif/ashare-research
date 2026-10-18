@@ -1,0 +1,89 @@
+name: Freeze next-session sector outlook and opening research plan
+on:
+  push:
+    branches: [main]
+    paths: [requests/market-outlook.json]
+  pull_request:
+    paths:
+      - sector_forecast.py
+      - opening_strength.py
+      - market_outlook.py
+      - market_outlook_report.py
+      - test_sector_forecast.py
+      - test_opening_strength.py
+      - test_sector_opening_mail.py
+      - test_market_outlook.py
+      - snapshot_mail.py
+      - mail_layout.py
+      - .github/workflows/market-outlook.yml
+      - requests/market-outlook.json
+  workflow_dispatch:
+  workflow_run:
+    workflows: [A-share automatic after-close pipeline]
+    types: [completed]
+    branches: [main]
+permissions:
+  contents: read
+concurrency:
+  group: ashare-market-outlook-${{ github.event_name == 'pull_request' && github.event.pull_request.number || 'publisher' }}
+  cancel-in-progress: false
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Check information cutoffs, opening confirmation and mail content
+        run: >-
+          python -m unittest -v test_sector_forecast.py test_opening_strength.py
+          test_sector_opening_mail.py test_market_outlook.py test_mail_upgrade.py
+          test_autonomous_mailer.py test_mail_timing.py
+  freeze:
+    needs: verify
+    if: >-
+      github.event_name != 'pull_request' &&
+      (github.event_name != 'workflow_run' ||
+       (github.event.workflow_run.conclusion == 'success' &&
+        github.event.workflow_run.head_repository.full_name == github.repository &&
+        github.event.workflow_run.head_branch == 'main'))
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      TZ: Asia/Shanghai
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Record the source commit actually checked out
+        run: echo "OUTLOOK_SOURCE_COMMIT=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - name: Read enabled research request
+        id: request
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          value=json.loads(Path('requests/market-outlook.json').read_text())
+          with open(os.environ['GITHUB_OUTPUT'],'a') as output:
+              output.write('enabled='+str(value.get('enabled') is True).lower()+'\n')
+          PY
+      - name: Restore current immutable market data with independent hash verification
+        if: steps.request.outputs.enabled == 'true'
+        run: python pipeline_state.py restore --destination "$RUNNER_TEMP/outlook-source"
+      - name: Freeze actual next-session outlook and publish verified research assets
+        if: steps.request.outputs.enabled == 'true'
+        run: python market_outlook.py --store "$RUNNER_TEMP/outlook-source" --output market-outlook-out --publish
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: market-outlook-${{ github.run_id }}-${{ github.run_attempt }}
+          path: market-outlook-out/
+          if-no-files-found: warn
