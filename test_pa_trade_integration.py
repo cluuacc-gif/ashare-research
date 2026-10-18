@@ -59,5 +59,16 @@ class PAIntegrationTests(unittest.TestCase):
         saved=compact(data)['current_watchlist'][0]
         self.assertTrue(review(saved,bars,quote,now,mode='opening_breakout')['conditions_met_for_research'])
 
+    def test_malformed_optional_feed_does_not_block_preparing_report(self):
+        import sqlite3
+        from snapshot_mail import attach_market_outlook
+        from test_pa_entry_confirmation import fixture as opening_fixture
+        plan,_,_,now=opening_fixture();data=study();data['current_watchlist']=[plan]
+        payload={'information_cutoff':now,'pa_opening_evidence':{'symbols':'invalid feed'}}
+        with patch('snapshot_mail.sqlite3.connect',side_effect=sqlite3.DatabaseError('unavailable fixture')):
+            attach_market_outlook(payload,'fixture.sqlite3','2026-10-16','2026-10-19',
+                                  context_data={'pa_trade_research':data})
+        self.assertEqual(payload['research']['pa_opening_confirmation']['confirmed'],[])
+
 
 if __name__=='__main__':unittest.main()

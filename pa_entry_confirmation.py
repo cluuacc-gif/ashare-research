@@ -38,7 +38,15 @@ def review(plan,bars,quote,decision_time,*,mode):
     if frozen>=opening:return reject('plan_not_frozen_before_target_open')
     if plan.get('eligible') is not True or not plan.get('pa_plan_id'):
         return reject('frozen_structural_plan_missing')
+    required={key:number(plan.get(key)) for key in ('close','entry_cap','frozen_entry_floor','structural_stop','quantity_ref')}
+    if (any(value is None or value<=0 for value in required.values())
+            or not required['structural_stop']<required['frozen_entry_floor']<=required['entry_cap']
+            or required['quantity_ref']%100!=0):
+        return reject('incomplete_or_invalid_frozen_plan_prices_or_quantity')
+    plan={**plan,**required}
     if not bars:return reject('completed_minute_bars_unavailable')
+    if not isinstance(bars,list) or any(not isinstance(bar,dict) for bar in bars):
+        return reject('invalid_minute_evidence_shape')
     ordered=[];last_end=None
     for bar in bars:
         start,end,known=(instant(bar.get(key)) for key in ('start_at','end_at','observed_at'))
@@ -58,6 +66,8 @@ def review(plan,bars,quote,decision_time,*,mode):
     if not isinstance(quote,dict):return reject('official_fresh_quote_missing')
     exchange,received=(instant(quote.get(key)) for key in ('exchange_timestamp','received_at'))
     status=quote.get('status') or {};limits=quote.get('limits') or {}
+    if not isinstance(status,dict) or not isinstance(limits,dict):
+        return reject('invalid_official_quote_evidence_shape')
     if (quote.get('symbol')!=plan.get('symbol') or not exchange or not received
             or not ordered[-1]['end']<=exchange<=received<=now
             or (now-exchange).total_seconds()>60):return reject('quote_date_time_or_freshness_invalid')

@@ -58,5 +58,17 @@ class ConfirmationTests(unittest.TestCase):
         plan,bars,quote,now=fixture();plan['generated_at']='2026-10-19T09:31:00+08:00'
         self.assertFalse(review(plan,bars,quote,now,mode='opening_breakout')['conditions_met_for_research'])
 
+    def test_incomplete_plan_waits_instead_of_breaking_report_preparation(self):
+        plan,bars,quote,now=fixture();plan.pop('entry_cap')
+        result=review(plan,bars,quote,now,mode='opening_breakout')
+        self.assertFalse(result['conditions_met_for_research'])
+        self.assertIn('incomplete_or_invalid_frozen_plan_prices_or_quantity',result['reasons'])
+
+    def test_malformed_optional_feed_waits_without_exception(self):
+        plan,bars,quote,now=fixture()
+        self.assertFalse(review(plan,{'bad':'shape'},quote,now,mode='opening_breakout')['conditions_met_for_research'])
+        quote['status']='not verified'
+        self.assertFalse(review(plan,bars,quote,now,mode='opening_breakout')['conditions_met_for_research'])
+
 
 if __name__=='__main__':unittest.main()
