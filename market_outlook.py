@@ -429,6 +429,8 @@ def publish(repo, output, run_id):
         raise ValueError('outlook advanced after its forward ledger was prepared')
     tag = f"market-outlook-{value['base_trade_date']}-{run_id}-{os.environ.get('GITHUB_RUN_ATTEMPT','1')}"
     deadline = dt.datetime.combine(dt.date.fromisoformat(value['target_trade_date']), dt.time(9,15), c.TZ)
+    if c.now()>=deadline:
+        raise ValueError('prospective publication window has closed; retain the previous pointer')
     source_commit = os.environ.get('OUTLOOK_SOURCE_COMMIT') or os.environ.get('GITHUB_SHA','main')
     manifest = dict(schema='market-outlook-publication-v1', release_tag=tag,
                     github_commit=source_commit, github_run_id=str(run_id),
@@ -450,6 +452,8 @@ def publish(repo, output, run_id):
         verify_bundle(temporary,manifest)
     manifest['assets_readback_verified_at'] = c.stamp()
     manifest['forward_eligible'] = manifest['forward_eligible'] and c.now()<deadline
+    if not manifest['forward_eligible']:
+        raise ValueError('prospective deadline crossed during asset upload or readback')
     state.write(out/'outlook_manifest.json',manifest)
     state.run('gh','release','upload',tag,str(out/'outlook_manifest.json'),'--repo',repo)
     published_pointer = compact_pointer(manifest)
@@ -461,7 +465,7 @@ def publish(repo, output, run_id):
     _, current_blob = read_pointer(repo)
     if blob != current_blob:
         raise ValueError('outlook pointer changed concurrently')
-    if manifest['forward_eligible'] and c.now()>=deadline:
+    if c.now()>=deadline:
         raise ValueError('prospective publication deadline crossed during asset verification')
     request = dict(message=f'Freeze sector and opening research {value["target_trade_date"]}',
                    branch=state.BRANCH, content=base64.b64encode((out/'outlook_pointer.json').read_bytes()).decode())

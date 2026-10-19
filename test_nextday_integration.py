@@ -1,6 +1,7 @@
 """Publication identity, bounded mail reads and automatic prospective capture."""
 import base64
 import copy
+import datetime as dt
 import json
 from pathlib import Path
 import sqlite3
@@ -110,6 +111,19 @@ class NextdayIntegrationTests(unittest.TestCase):
                     patch.object(m.subprocess,'run',return_value=subprocess.CompletedProcess([],0,envelope,'')) as read:
                 self.assertEqual(m.verify_pointer_publication('fixture/repo',prior) is not None,expected)
                 self.assertEqual(read.call_args.kwargs['timeout'],10)
+
+    def test_late_publication_retains_previous_pointer_without_creating_release(self):
+        value,source=fixture()
+        with tempfile.TemporaryDirectory() as root:
+            m.state.write(Path(root)/'outlook.json',value)
+            m.state.write(Path(root)/'source_manifest.json',source)
+            with patch.object(m.state,'pointer',return_value=(source,'source-blob')), \
+                    patch.object(m,'read_pointer',return_value=(None,None)), \
+                    patch.object(m.c,'now',return_value=dt.datetime.fromisoformat('2026-10-19T09:15:00+08:00')), \
+                    patch.object(m.state,'run') as mutation:
+                with self.assertRaisesRegex(ValueError,'window has closed'):
+                    m.publish('fixture/repo',root,'test-run')
+                mutation.assert_not_called()
 
     def test_new_study_adds_mail_summary_without_network_capture_at_send_time(self):
         import mail_layout
