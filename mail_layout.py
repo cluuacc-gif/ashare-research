@@ -188,6 +188,17 @@ def content(payload):
            ('交易资格','已通过' if research.get('formal_trade_ready') else '待核验'),
            ('5～10元观察',f'{len(band):,}只')]
     sections=[]
+    nextday=research.get('nextday_research') or {}
+    if nextday.get('schema')=='nextday-forward-research-v1':
+        cohort=nextday.get('current_cohort') or {};coverage=cohort.get('coverage') or {}
+        primary=(nextday.get('summary') or {}).get('confluence_opening_retest') or {}
+        sections.append({'title':'隔日盈利前向研究','columns':['观察项目','本期状态'],
+            'rows':[['主要验收','D1参考买入，D2固定14:50参考退出；分别记录毛盈利、赚到3%和6%的比例'],
+                    ['市场与板块','按事前冻结的市场广度、板块相对强弱和板块内领先程度筛选；资金分类不混接'],
+                    ['同批股票对照','09:40与14:40分别观察，并另核验早盘回测、尾盘确认；六组规则提前固定'],
+                    ['本期观察池',str(coverage.get('base_cohort_count',0))+'只研究样本；其中'+str(coverage.get('confluence_count',0))+'只满足共振条件'],
+                    ['主研究组',str(primary.get('reference_closed',0))+'笔完整价格事件；待观察'+str(primary.get('pending',0))+'，未知'+str(primary.get('unknown',0))]],
+            'note':'研究样本不是买入名单或同一账户持仓。分钟数据盘后取得，未验证实时看到、官方限价或真实成交；未积累足够未来交易日，不发布预测胜率，正式策略仍未启用。'})
     pa_trade=research.get('pa_trade_research') or {}
     if pa_trade.get('schema')=='pa-context-trade-research-v1':
         active=bool((pa_trade.get('policy') or {}).get('active'))

@@ -13,6 +13,7 @@ import sqlite3
 import subprocess
 import tempfile
 import zipfile
+import urllib.parse
 from contextlib import closing
 
 import collector as c
@@ -21,7 +22,8 @@ from trade_calendar import context
 
 POINTER = 'state/market-outlook-current.json'
 ASSETS = ('outlook.json', 'report.html', 'source_manifest.json')
-EXTRA_ASSETS = ('fund_flow_evidence.zip','price_action_evidence.zip','probability_evidence.zip','pa_trade_evidence.zip')
+EXTRA_ASSETS = ('fund_flow_evidence.zip','price_action_evidence.zip','probability_evidence.zip','pa_trade_evidence.zip',
+                'nextday_evidence.zip')
 
 
 def read_pointer(repo):
@@ -69,6 +71,10 @@ def compact_pointer(manifest):
     if value['outlook'].get('pa_trade_research'):
         from pa_trade_report import compact
         value['outlook']['pa_trade_research']=compact(value['outlook']['pa_trade_research'])
+    if value['outlook'].get('nextday_research'):
+        from nextday_report import compact
+        value['outlook']['nextday_research']=compact(value['outlook']['nextday_research'])
+        value['outlook']['forward_ledgers_archived']=True
     raw = json.dumps(value,ensure_ascii=False,indent=2).encode('utf-8')
     if len(raw) > 800_000:
         raise ValueError('compact outlook pointer exceeds readback size limit')
@@ -98,6 +104,18 @@ def validate(value, source):
         raise ValueError('research output cannot claim actual trade qualification')
     if value.get('execution_win_rate_80_validated') is not False:
         raise ValueError('unvalidated execution win rate')
+    if value.get('nextday_research'):
+        study=value['nextday_research'];known=dt.datetime.fromisoformat(study['generated_at'])
+        from nextday_forward import SCHEMA, PROTOCOL_SHA256
+        if (study.get('schema')!=SCHEMA or study.get('protocol_sha256')!=PROTOCOL_SHA256
+                or study.get('base_trade_date')!=source['base_trade_date']
+                or study.get('target_trade_date')!=source['next_trade_date']
+                or study.get('input_database_sha256')!=source['database']['sha256']
+                or study.get('formal_trade_ready') is not False
+                or study.get('execution_win_rate_80_validated') is not False
+                or study.get('actual_win_rate') is not None
+                or known.tzinfo is None or known>cutoff):
+            raise ValueError('next-day forward research identity, cutoff or trade claims invalid')
     if value.get('pa_trade_research'):
         study=value['pa_trade_research'];known=dt.datetime.fromisoformat(study['generated_at'])
         if (study.get('schema')!='pa-context-trade-research-v1'
@@ -171,6 +189,12 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
                       price_min=5,price_max=100)
     selection=select_sector_stocks(database,source['base_trade_date'],source['next_trade_date'],cutoff,
                                    outlook,plan,fund_flow=flow)
+    from nextday_cohort import build as freeze_cohort
+    from nextday_forward import initialize
+    cohort=freeze_cohort(database,source['base_trade_date'],source['next_trade_date'],cutoff,
+        outlook,plan,flow,input_sha256=source['database']['sha256'])
+    nextday=initialize(cohort,source['base_trade_date'],source['next_trade_date'],
+        source['database']['sha256'],cutoff)
     plan.pop('candidate_pool',None)
     # The new primary list requires known sector membership and confluence.
     plan['independent_technical_watchlist']=plan['watchlist']
@@ -181,7 +205,7 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
                  snapshot_release=source['release_tag'], input_database_sha256=source['database']['sha256'],
                  base_trade_date=source['base_trade_date'], target_trade_date=source['next_trade_date'],
                  sector_outlook=outlook, opening_strength_plan=plan, fund_flow=flow,
-                 sector_stock_selection=selection, formal_trade_ready=False,
+                 sector_stock_selection=selection, nextday_research=nextday, formal_trade_ready=False,
                  actual_win_rate=None, execution_win_rate_80_validated=False, costs_included=False,
                  smtp_sent=False, orders_submitted=False)
     if price_action_dir:
@@ -208,12 +232,15 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
     return value, source
 
 
-def forward_tracking(value, source, store, repo):
+def forward_tracking(value, source, store, repo, prepared_minutes=None):
     """Score the earliest frozen forecast per target date after its actual close."""
-    prior, _ = read_pointer(repo)
-    prior_value=(prior or {}).get('outlook') or {}
-    if prior_value.get('forward_ledgers_archived'):
-        prior_value=archived_outlook(repo,prior['release_tag'],prior['files']['outlook.json'])
+    if prepared_minutes is not None:
+        prior,prior_value=prepared_minutes['prior'],prepared_minutes['prior_value']
+    else:
+        prior, _ = read_pointer(repo)
+        prior_value=(prior or {}).get('outlook') or {}
+        if prior_value.get('forward_ledgers_archived'):
+            prior_value=archived_outlook(repo,prior['release_tag'],prior['files']['outlook.json'])
     previous = prior_value.get('sector_forward_tracking') or {}
     resolved = list(previous.get('resolved', []))
     pending = list(previous.get('pending', []))
@@ -260,7 +287,65 @@ def forward_tracking(value, source, store, repo):
     }
     value['tracking_parent_release'] = prior['release_tag'] if prior else None
     stock_forward_tracking(value,source,store,repo,prior,prior_value)
+    if value.get('nextday_research'):
+        from nextday_forward import advance
+        database=Path(store).resolve()/source['database']['name']
+        with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as db:
+            value['nextday_research']=advance(value['nextday_research'],prior_value.get('nextday_research'),
+                bool(prior and prior.get('forward_eligible')
+                     and (prepared_minutes or {}).get('prior_publication_verified')),
+                (prepared_minutes or {}).get('evidence',{}),db,value['information_cutoff'])
     return value
+
+
+def prepare_nextday_minutes(repo, source, directory):
+    """Capture before freezing the new cutoff; SMTP never calls this path."""
+    prior,_=read_pointer(repo)
+    prior_value=(prior or {}).get('outlook') or {}
+    if prior_value.get('forward_ledgers_archived'):
+        prior_value=archived_outlook(repo,prior['release_tag'],prior['files']['outlook.json'])
+    study=prior_value.get('nextday_research') or {}
+    from nextday_forward import SCHEMA, PROTOCOL_SHA256
+    cohorts=[]
+    publication=None
+    if study.get('schema')==SCHEMA and study.get('protocol_sha256')==PROTOCOL_SHA256:
+        cohorts=list(study.get('tracked_cohorts',[]))
+        if prior and prior.get('forward_eligible'):
+            publication=verify_pointer_publication(repo,prior)
+        if publication and study.get('current_cohort',{}).get('forward_eligible'):
+            prior_value=copy.deepcopy(prior_value)
+            prior_value['nextday_research']['current_cohort']['publication_evidence']=publication
+            study=prior_value['nextday_research']
+            cohorts.append(study['current_cohort'])
+    # The OHLC endpoint may return only the most recent session. Entries are
+    # frozen on D1 and carried in the immutable ledger; D2 does not refetch D1.
+    # Earlier missing sessions stay unknown, without fabricated backfills.
+    relevant=[row for row in cohorts if source['base_trade_date'] in
+        (row.get('target_trade_date'),row.get('D2_trade_date'))]
+    symbols=sorted({item['symbol'] for row in relevant for item in row.get('base_candidates',[])})
+    from nextday_minutes import capture
+    evidence=capture(symbols,directory)
+    return {'prior':prior,'prior_value':prior_value,'evidence':evidence,
+            'prior_publication_verified':publication is not None}
+
+
+def verify_pointer_publication(repo, prior):
+    """Use the GitHub pointer commit, not a pre-upload eligibility flag alone."""
+    try:
+        query=urllib.parse.urlencode({'sha':state.BRANCH,'path':POINTER,'per_page':1})
+        raw=subprocess.run(['gh','api',f'repos/{repo}/commits?{query}'],
+            check=True,capture_output=True,text=True,timeout=10).stdout
+        rows=json.loads(raw)
+        published=dt.datetime.fromisoformat(rows[0]['commit']['committer']['date'].replace('Z','+00:00'))
+        deadline=dt.datetime.combine(dt.date.fromisoformat(prior['target_trade_date']),dt.time(9,15),c.TZ)
+        current,_=read_pointer(repo)
+        if (published.tzinfo is None or published>=deadline or current!=prior
+                or not prior.get('assets_readback_verified_at')):
+            return None
+        return {'pointer_commit_sha':rows[0]['sha'],'published_at':published.isoformat(),
+                'verified_before_target_deadline':True}
+    except (OSError,ValueError,KeyError,IndexError,TypeError,subprocess.SubprocessError):
+        return None
 
 
 def archived_outlook(repo,tag,asset):
@@ -344,6 +429,8 @@ def publish(repo, output, run_id):
         raise ValueError('outlook advanced after its forward ledger was prepared')
     tag = f"market-outlook-{value['base_trade_date']}-{run_id}-{os.environ.get('GITHUB_RUN_ATTEMPT','1')}"
     deadline = dt.datetime.combine(dt.date.fromisoformat(value['target_trade_date']), dt.time(9,15), c.TZ)
+    if c.now()>=deadline:
+        raise ValueError('prospective publication window has closed; retain the previous pointer')
     source_commit = os.environ.get('OUTLOOK_SOURCE_COMMIT') or os.environ.get('GITHUB_SHA','main')
     manifest = dict(schema='market-outlook-publication-v1', release_tag=tag,
                     github_commit=source_commit, github_run_id=str(run_id),
@@ -364,6 +451,9 @@ def publish(repo, output, run_id):
         state.run('gh','release','download',tag,'--repo',repo,'--dir',temporary)
         verify_bundle(temporary,manifest)
     manifest['assets_readback_verified_at'] = c.stamp()
+    manifest['forward_eligible'] = manifest['forward_eligible'] and c.now()<deadline
+    if not manifest['forward_eligible']:
+        raise ValueError('prospective deadline crossed during asset upload or readback')
     state.write(out/'outlook_manifest.json',manifest)
     state.run('gh','release','upload',tag,str(out/'outlook_manifest.json'),'--repo',repo)
     published_pointer = compact_pointer(manifest)
@@ -375,6 +465,8 @@ def publish(repo, output, run_id):
     _, current_blob = read_pointer(repo)
     if blob != current_blob:
         raise ValueError('outlook pointer changed concurrently')
+    if c.now()>=deadline:
+        raise ValueError('prospective publication deadline crossed during asset verification')
     request = dict(message=f'Freeze sector and opening research {value["target_trade_date"]}',
                    branch=state.BRANCH, content=base64.b64encode((out/'outlook_pointer.json').read_bytes()).decode())
     if blob:
@@ -411,6 +503,10 @@ def main():
     args = parser.parse_args()
     out = Path(args.output).resolve()
     out.mkdir(parents=True, exist_ok=False)
+    prepared_minutes=None
+    if args.publish:
+        restored=json.loads((Path(args.store)/'restore.json').read_text(encoding='utf-8'))
+        prepared_minutes=prepare_nextday_minutes(args.repo,restored['manifest'],out/'nextday-evidence')
     value, source = generate(args.store,args.cutoff,args.fund_flow_dir,args.price_action_dir,args.probability_dir,args.pa_trade_dir)
     value['evidence_assets']=[]
     for directory,name in [(args.fund_flow_dir,EXTRA_ASSETS[0]),(args.price_action_dir,EXTRA_ASSETS[1]),
@@ -419,7 +515,14 @@ def main():
             archive_evidence(directory,out/name)
             value['evidence_assets'].append(name)
     if args.publish:
-        forward_tracking(value,source,args.store,args.repo)
+        forward_tracking(value,source,args.store,args.repo,prepared_minutes)
+    evidence=out/'nextday-evidence'
+    evidence.mkdir(exist_ok=True)
+    state.write(evidence/'frozen_current_cohort.json',value['nextday_research']['current_cohort'])
+    state.write(evidence/'protocol.json',value['nextday_research']['protocol'])
+    state.write(evidence/'forward_ledger.json',value['nextday_research'])
+    archive_evidence(evidence,out/EXTRA_ASSETS[4])
+    value['evidence_assets'].append(EXTRA_ASSETS[4])
     from market_outlook_report import render
     state.write(out/'outlook.json', value)
     state.write(out/'source_manifest.json', source)
