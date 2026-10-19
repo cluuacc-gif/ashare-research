@@ -71,7 +71,11 @@ def published_context(snapshot, cutoff, repo=None):
           'price_action_research':{'status':'unavailable','formal_trade_ready':False},
           'probability_research':{'status':'unavailable','formal_trade_ready':False},
           'pa_trade_research':{'status':'unavailable','formal_trade_ready':False},
-          'nextday_research':{'status':'unavailable','formal_trade_ready':False}}
+          'nextday_research':{'status':'unavailable','formal_trade_ready':False},
+          'active_trade_system':{'schema':'active-tplus1-trade-system-v1','system_enabled':True,
+              'signal_generation_enabled':True,'mode':'conditional_manual_execution',
+              'order_execution_enabled':False,'status':'waiting_for_valid_source','plans':[],
+              'actual_win_rate':None,'empirical_validation_passed':False}}
     try:
         import base64
         from pipeline_state import BRANCH
@@ -119,6 +123,22 @@ def published_context(snapshot, cutoff, repo=None):
                 and study.get('execution_win_rate_80_validated') is False
                 and study.get('actual_win_rate') is None):
             safe['nextday_research']=study
+        study=outlook.get('active_trade_system') or {};generated=instant(study.get('generated_at'))
+        if (study.get('schema')=='active-tplus1-trade-system-v1'
+                and study.get('input_database_sha256')==snapshot['database']['sha256']
+                and study.get('base_trade_date')==base
+                and study.get('target_trade_date')==outlook.get('target_trade_date')
+                and generated is not None and generated<=instant(cutoff)
+                and study.get('system_enabled') is True
+                and study.get('signal_generation_enabled') is True
+                and study.get('mode')=='conditional_manual_execution'
+                and study.get('order_execution_enabled') is False
+                and study.get('empirical_validation_passed') is False
+                and study.get('formal_trade_ready') is False
+                and study.get('execution_win_rate_80_validated') is False
+                and study.get('actual_win_rate') is None):
+            from active_trade_report import compact
+            safe['active_trade_system']=compact(study)
         safe['context_release']=value['release_tag']
     except (OSError,ValueError,KeyError,TypeError,subprocess.SubprocessError):
         pass

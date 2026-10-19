@@ -89,6 +89,22 @@ class FrozenCohortTests(unittest.TestCase):
         self.assertTrue(rows[0]['sector_gate_eligible'])
         self.assertLess(rows[0]['stock_features']['return_5d'], .1)
 
+    def test_optional_candidate_limit_preserves_default_protocol_and_separate_hash(self):
+        default = self.build()
+        explicit = self.build(max_candidates=12)
+        self.assertEqual(default, explicit)
+        self.assertEqual(default['protocol'], cohort.PROTOCOL)
+        expanded = self.build(max_candidates=300)
+        self.assertEqual(len(expanded['base_candidates']), 24)
+        self.assertEqual(expanded['protocol']['universe'],
+                         'top300_valid_opening_pool_by_research_score_desc_then_symbol')
+        self.assertNotEqual(default['protocol_sha256'], expanded['protocol_sha256'])
+        self.assertEqual(cohort.PROTOCOL['universe'],
+                         'top12_valid_opening_pool_by_research_score_desc_then_symbol')
+        for invalid in (True, 0, -1, 301, 12.0, '12', None):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                self.build(max_candidates=invalid)
+
     def test_honest_research_protocol_and_no_probability_or_actual_fill(self):
         result = self.build()
         self.assertFalse(result['formal_trade_ready'])

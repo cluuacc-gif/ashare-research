@@ -4,7 +4,7 @@ import math
 import datetime as dt
 from urllib.parse import quote
 
-VERSION = 'research-email-v6-fund-flow-price-action'
+VERSION = 'research-email-v7-active-manual-tplus1'
 STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
@@ -154,6 +154,58 @@ def _confluence_section(selection):
         '资金板块中个股同日净额负值或未知仅作储备观察；无满足条件板块时保留空名单。'}
 
 
+def _active_sections(payload, research, base, target):
+    """Lead both email formats with the independent rule system and its book."""
+    from active_trade_report import compact, POLICY_NAME, VERSION as ACTIVE_VERSION
+    active=compact(research.get('active_trade_system'))
+    current=False
+    if active and active.get('base_trade_date')==base and active.get('target_trade_date')==target:
+        try:
+            own=dt.datetime.fromisoformat(active['generated_at'])
+            boundary=dt.datetime.fromisoformat(payload['information_cutoff'])
+            current=own.utcoffset() is not None and boundary.utcoffset() is not None and own<=boundary
+        except (KeyError,TypeError,ValueError):
+            pass
+    if not current:
+        active=compact({'schema':ACTIVE_VERSION,'status':'waiting_for_valid_source',
+            'base_trade_date':base,'target_trade_date':target,'plans':[]})
+    state={'conditional_plans_ready':'条件计划已生成；D1 14:40盘中确认待人工核对',
+           'cash_no_qualifying_setup':'当天空仓；没有满足全部条件的新计划',
+           'waiting_for_valid_source':'等待有效新数据；系统持续运行'}[active['status']]
+    sections=[{'title':'我的交易系统｜'+POLICY_NAME,'columns':['项目','本期安排'],
+        'rows':[['运行状态','已启用；条件式人工执行，未连接券商'],
+                ['本期状态',state],
+                ['固定范围','全量候选池最多300只；板块正流入、转强且个股相对领先，缺少同源证据则不买'],
+                ['入场与数量','D1 14:40使用此前完整分钟确认，人工核对券商新报价在冻结范围内；仅按冻结整手数量执行'],
+                ['资金与退出','3万元参考资金；持仓与待入场合计最多两只，不同板块；D1不卖，D2按结构止损／3%目标触发退出，最迟固定14:50参考退出'],
+                ['实际成交胜率','未知；80%以上实际胜率尚未验证']],
+        'note':'规则启用独立于旧研究结果。当前没有实时行情或券商连接，未确认盘中信号、未提交订单；计划需要人工核对完整分钟、官方状态及可成交报价。150元含2%跳空压力预算不是最大损失保证。'}]
+    plans=active['plans']
+    if plans:
+        sectors=[]
+        for row in plans:
+            identity=row.get('sector_identity') or {}
+            sectors.append(identity.get('sector') or '—' if isinstance(identity,dict) else str(identity))
+        sections.append({'title':'主动系统冻结条件计划','columns':['股票／板块','买价范围','结构止损','止盈触发','冻结股数／占款'],
+            'rows':[[str(row.get('name') or row['symbol'])+' '+row['symbol']+'／'+sector,
+                     number(row.get('frozen_entry_floor'))+'～'+number(row.get('frozen_entry_cap')),
+                     number(row.get('structural_stop')),'实际买价×1.03',
+                     number(row.get('frozen_quantity_shares'),0)+'股／'+number(row.get('frozen_reserved_cash_cny'))+'元']
+                    for row,sector in zip(plans,sectors)],
+            'note':'基础行情日 '+str(active.get('base_trade_date') or '—')+'；D1 '+str(active.get('target_trade_date') or '—')
+                +'；D2 '+str(active.get('D2_trade_date') or '待交易日历')+'。尚无实际买价，不能以前收盘当成交价。超价、缺数或不确认则不买，不追价、不补配；触发退出以下一分钟可交易开盘作参考，同分钟止盈止损并存时止损优先。'})
+    account=active.get('reference_account') or {}
+    if account:
+        reference_rate=pct(account.get('reference_profit_rate')) if account.get('reference_profit_rate') is not None else '未知'
+        sections.append({'title':'主动系统分钟参考账户','columns':['项目','参考账本'],
+            'rows':[['初始／可用／冻结资金',number(account.get('initial_capital_cny'))+'／'+number(account.get('available_cash_cny'))+'／'+number(account.get('reserved_cash_cny'))+'元'],
+                    ['已实现参考盈亏／已平仓胜率',number(account.get('realized_reference_pnl_cny'))+'元／'+reference_rate],
+                    ['持仓／已平仓／未知',number(account.get('open_positions'),0)+'／'+number(account.get('reference_closed'),0)+'／'+number(account.get('unknown_positions'),0)],
+                    ['真实持仓与盈利','待个人券商成交回执核对，当前未知']],
+            'note':'这是分钟参考成交账本，不代表实际券商持仓、成交或盈利；未知退出继续占用资金，收益沿用参考账本口径，实际费用与盈亏须由回执确认。'})
+    return sections
+
+
 def content(payload):
     research = payload.get('research') or {}
     predictions = research.get('model_predictions') or {}
@@ -174,20 +226,22 @@ def content(payload):
         rows.append([str(r.get('rank',rank)),r['symbol'],r.get('name') or '—',number(r.get('close')),
                      pct(r.get('P1')),pct(r.get('P2')),money(amounts.get(r['symbol']))])
     ready=bool(research.get('model_ready') and rows)
-    summary=f"基于 {base or '—'} 收盘价量，观察 {target or '—'} 收盘价格事件；模型覆盖 {predictions.get('prediction_count',0):,} 只。"
+    summary=f"主动规则系统已启用，每日按固定条件生成计划；真实胜率未知。基于 {base or '—'} 收盘价量，另行观察 {target or '—'} 模型价格事件，覆盖 {predictions.get('prediction_count',0):,} 只。"
     warnings=[]
     if not ready: warnings.append('模型预测尚未就绪，本期只展示已入库行情观察。')
-    if not research.get('formal_trade_ready'): warnings.append('交易资格待核验：官方ST／停牌状态、复权、限价及风险事件数据仍有缺口。')
+    if not research.get('formal_trade_ready'): warnings.append('买入前须人工核验：官方ST／停牌状态、复权、限价及风险事件数据仍有缺口。系统启用不等于成交与胜率已验证。')
     if stage=='auction' and not payload.get('auction_verified'):
         warnings.append('本期09:25观察沿用前收盘模型；当前竞价输入未核验，暂不提供竞价挂单价格。')
     if payload.get('late') and not payload.get('preview'):
         warnings.append('本期为迟到回顾，不计入事前预测成绩。')
-    stats=[('预测交易日',str(target or '—')),('基础行情日',str(base or '—')),
+    stats=[('主动规则系统','已启用'),('实际成交胜率','未知'),
+           ('预测交易日',str(target or '—')),('基础行情日',str(base or '—')),
            ('当日报价',number(inventory.get('base_quotes'),0)+'只'),
            ('模型状态','训练与预测已就绪' if ready else '等待模型'),
-           ('交易资格','已通过' if research.get('formal_trade_ready') else '待核验'),
+           ('人工交易状态','盘中条件及官方状态待核对'),
            ('5～10元观察',f'{len(band):,}只')]
-    sections=[]
+    active_target=(payload.get('calendar') or {}).get('next_session') or target if stage=='evening' else payload.get('target_date')
+    sections=_active_sections(payload,research,base,active_target)
     nextday=research.get('nextday_research') or {}
     if nextday.get('schema')=='nextday-forward-research-v1':
         cohort=nextday.get('current_cohort') or {};coverage=cohort.get('coverage') or {}
@@ -198,7 +252,7 @@ def content(payload):
                     ['同批股票对照','09:40与14:40分别观察，并另核验早盘回测、尾盘确认；六组规则提前固定'],
                     ['本期观察池',str(coverage.get('base_cohort_count',0))+'只研究样本；其中'+str(coverage.get('confluence_count',0))+'只满足共振条件'],
                     ['主研究组',str(primary.get('reference_closed',0))+'笔完整价格事件；待观察'+str(primary.get('pending',0))+'，未知'+str(primary.get('unknown',0))]],
-            'note':'研究样本不是买入名单或同一账户持仓。分钟数据盘后取得，未验证实时看到、官方限价或真实成交；未积累足够未来交易日，不发布预测胜率，正式策略仍未启用。'})
+            'note':'研究样本不是买入名单或同一账户持仓。分钟数据盘后取得，未验证实时看到、官方限价或真实成交；六组研究保持独立对照。主动规则系统已启用，实际胜率未知，研究数据不代表即时买入信号。'})
     pa_trade=research.get('pa_trade_research') or {}
     if pa_trade.get('schema')=='pa-context-trade-research-v1':
         active=bool((pa_trade.get('policy') or {}).get('active'))
@@ -207,7 +261,7 @@ def content(payload):
                     ['再看位置','用事前前高、区间边界和结构低点计算上方空间、失效价和允许买入上限'],
                     ['仓位与数学','研究账户每名额最多1万元，并按150元参考风险和额外2%跳空压力限制整数手'],
                     ['T+1退出','D1不能卖；D1收盘结构失败则D2开盘退出，否则按预定结构价、3%或6%目标及D2收盘研究退出'],
-                    ['本期状态','有选择期通过的研究形态，正式交易仍关闭' if active else '没有通过选择期的交易形态，不启用新规则']],
+                    ['旧形态研究状态','有选择期通过的研究形态；不改变已启用的独立系统' if active else '旧研究没有通过选择期的形态；独立主动系统仍已启用']],
             'note':'参考方方土PriceAction公开视频主题与Brooks一手理论；完整视频字幕尚未取得，量化阈值属于本项目适配。盈亏平衡所需胜率不是预测胜率；日线开盘参考不能代替突破或回测后的分钟成交验证。'})
         if active:
             watch=pa_trade.get('current_watchlist') or []
@@ -223,14 +277,14 @@ def content(payload):
     else:
         sections.append(_opening_section(payload, research.get('opening_strength') or {}, base, payload.get('target_date')))
     gross = research.get('gross_swing_strategy') or {}
-    sections.append({'title':'隔日毛收益策略', 'columns':['验收项目','当前状态'],
+    sections.append({'title':'隔日毛收益策略（旧研究）', 'columns':['验收项目','旧研究状态'],
         'rows':[['目标','毛盈利胜率严格高于80%，争取每笔3%～6%'],
                 ['统计口径','不扣交易费用；盈利比例、赚到3%和6%的比例分别统计'],
                 ['买入思路','优先普通走势和可买入机会；高开超限取消，不追封死涨停'],
                 ['实际成交胜率','尚无通过审核的真实成交样本'],
-                ['正式交易候选','空仓，等待前向成交与数据证据'],
+                ['旧研究交易候选','空仓，等待前向成交与数据证据；与主动系统分开'],
                 ['新策略研究','已生成研究版本' if gross.get('schema') == 'gross-swing-research-v2' else '等待与本期行情匹配的研究结果']],
-        'note':'第1天买入、第2天按预定目标或退出规则研究卖出，不要求买入当天上涨。至少200笔、60个入场日期，且日期分组置信下界高于80%、毛期望为正，才进入目标验收。全部入场交易与未解决退出保留；日线触价不代表实际成交。'})
+        'note':'本节保留旧研究验收口径，不决定主动规则系统是否启用。第1天买入、第2天按预定目标或退出规则研究卖出，不要求买入当天上涨。至少200笔、60个入场日期，且日期分组置信下界高于80%、毛期望为正，才进入目标验收。全部入场交易与未解决退出保留；日线触价不代表实际成交。'})
     diagnostic = gross.get('diagnostic') or {}
     shown = diagnostic.get('selected_policy' if (gross.get('policy') or {}).get('active') else 'fixed_reference') or {}
     if shown:

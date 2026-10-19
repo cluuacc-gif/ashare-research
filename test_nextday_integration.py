@@ -41,6 +41,16 @@ class NextdayIntegrationTests(unittest.TestCase):
                 self.assertGreater(len(value['nextday_research']['current_cohort']['base_candidates']),0)
                 self.assertEqual(render(value),render(m.compact_pointer({'outlook':value})['outlook']))
                 self.assertFalse(value['nextday_research']['formal_trade_ready'])
+                self.assertTrue(value['active_trade_system']['system_enabled'])
+                prior={'prior_value':value,'prior_publication_verified':False,'evidence':{}}
+                with self.assertRaisesRegex(ValueError,'publication is unverified'):
+                    m.generate(root,cutoff='2026-10-18T14:01:00+08:00',active_context=prior)
+                prior['prior_publication_verified']=True
+                rerun,_=m.generate(root,cutoff='2026-10-18T14:01:00+08:00',active_context=prior)
+                frozen=rerun['active_trade_system']
+                self.assertTrue(frozen['current_plan_preserved_from_first_publication'])
+                self.assertEqual(frozen['plans'],value['active_trade_system']['plans'])
+                self.assertEqual(frozen['first_published_plan_generated_at'],value['active_trade_system']['generated_at'])
         finally:db.close()
 
     def test_shared_buy_cap_preserves_exact_cent_arithmetic(self):
@@ -138,7 +148,7 @@ class NextdayIntegrationTests(unittest.TestCase):
         html=mail_layout.render_html(payload)
         self.assertIn('隔日盈利前向研究',html)
         self.assertIn('不是买入名单',html)
-        self.assertIn('正式策略仍未启用',html)
+        self.assertIn('主动规则系统已启用',html)
 
 
 if __name__=='__main__':unittest.main()

@@ -40,6 +40,23 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
     research['probability_research']=context_data.get('probability_research') or {'status':'unavailable'}
     research['pa_trade_research']=context_data.get('pa_trade_research') or {'status':'unavailable'}
     research['nextday_research']=context_data.get('nextday_research') or {'status':'unavailable'}
+    from active_trade_report import compact as compact_active, VERSION as ACTIVE_VERSION
+    active=compact_active(context_data.get('active_trade_system'))
+    active_current=False
+    if active and active.get('base_trade_date')==base and active.get('target_trade_date')==target:
+        try:
+            generated=dt.datetime.fromisoformat(active['generated_at'])
+            boundary=dt.datetime.fromisoformat(cutoff)
+            active_current=(generated.utcoffset() is not None and boundary.utcoffset() is not None
+                            and generated<=boundary
+                            and (not input_sha256 or active.get('input_database_sha256')==input_sha256))
+        except (KeyError,TypeError,ValueError):
+            pass
+    if not active_current:
+        active=compact_active({'schema':ACTIVE_VERSION,'status':'waiting_for_valid_source',
+            'base_trade_date':base,'target_trade_date':target,'generated_at':cutoff,
+            'input_database_sha256':input_sha256,'plans':[]})
+    research['active_trade_system']=active
     research['pa_opening_confirmation']={'status':'fresh_minute_evidence_not_connected','confirmed':[]}
     evidence=payload.get('pa_opening_evidence')
     if isinstance(evidence,dict):
@@ -54,7 +71,7 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
         research['pa_opening_confirmation']={'status':'conditional_research_review',
             'confirmed':[row for row in results if row['conditions_met_for_research']],'reviews':results,
             'actual_fill_verified':False,'formal_trade_ready':False}
-    # Both modules use only the standard library. Optional research must not
+    # Optional modules use only the standard library. Their data requirements must not
     # prevent an already sealed, on-time report from being prepared.
     try:
         with closing(sqlite3.connect(Path(db_path).resolve().as_uri()+'?mode=ro', uri=True)) as db:

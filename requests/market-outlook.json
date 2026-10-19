@@ -1,7 +1,9 @@
 {
   "enabled": true,
-  "request_id": "nextday-prospective-confluence-matched-minute-20261019-v5.0",
-  "purpose": "Freeze prospective T+1 cohorts, six matched timing and confluence arms, and retained minute reference evidence; no orders or email",
+  "request_id": "enabled-independent-tail-confirmation-tplus1-20261019-v6.0",
+  "purpose": "Enable independent fixed rules and conditional manual trade plans, retain a cash-constrained prospective reference account; no orders or email",
+  "active_trade_system_enabled": true,
+  "active_execution_mode": "conditional_manual_execution",
   "costs_included": false,
   "formal_trade_ready": false
 }

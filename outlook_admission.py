@@ -59,7 +59,10 @@ def evaluate(source_manifest, now_datetime):
         'database_hash_verified': False, 'database_identity_verified': False,
         'formal_trade_ready': False, 'actual_win_rate': None,
         'execution_win_rate_80_validated': False,
-        'main_policy_active': False, 'smtp_enabled': False,
+        'main_policy_active': True, 'system_enabled': True,
+        'signal_generation_enabled': True, 'mode': 'conditional_manual_execution',
+        'empirical_validation_passed': False, 'order_execution_enabled': False,
+        'smtp_enabled': False,
         'orders_enabled': False, 'smtp_sent': False, 'orders_submitted': False,
     }
     if source.get('preparation_ready') is not True:
@@ -152,6 +155,14 @@ def render(result):
                  if ready else
                  '下一份符合条件的收盘准备版本发布后，现有流程会自动尝试开展新一期研究；仍须通过时间与数据核对。')
     prepared = '已准备（仅来源声明）' if result.get('preparation_ready') is True else '尚未确认'
+    from active_trade_report import compact as compact_active, render as render_active, VERSION as ACTIVE_VERSION
+    active = compact_active(result.get('active_trade_system'))
+    if not active:
+        active = compact_active({'schema': ACTIVE_VERSION, 'status': 'waiting_for_valid_source',
+            'base_trade_date': result.get('base_trade_date'),
+            'target_trade_date': result.get('target_trade_date'),
+            'generated_at': result.get('checked_at'), 'plans': []})
+    active_section = render_active(active)
     transport_section = ''
     transport = result.get('minute_transport')
     if isinstance(transport, dict):
@@ -171,7 +182,7 @@ main{max-width:980px;margin:auto;padding:36px 26px 52px}h1{font-size:31px;line-h
 </style></head><body><main>
 <div class="eyebrow">A股 · 前向研究进度</div><h1>''' + esc(title) + '''</h1>
 <span class="pill">''' + esc(label) + '''</span><p class="muted">核对时点：''' + _clock(result.get('checked_at')) + '''</p>
-<p>''' + esc(result.get('reason')) + '''</p>
+<p>''' + esc(result.get('reason')) + '''</p>''' + active_section + '''
 <div class="grid"><div class="tile"><span>实际基础交易日</span><b>''' + esc(result.get('base_trade_date')) + '''</b></div>
 <div class="tile"><span>来源指定的目标交易日</span><b>''' + esc(result.get('target_trade_date')) + '''</b></div>
 <div class="tile"><span>本期冻结截止（必须早于）</span><b>09:15</b></div></div>
@@ -193,7 +204,7 @@ main{max-width:980px;margin:auto;padding:36px 26px 52px}h1{font-size:31px;line-h
 <tr><td>板块与分钟证据</td><td>板块领先筛选、分钟行情归档规则已实现</td><td>持续取得真实、完整且及时的观测</td></tr>
 <tr><td>前向记录</td><td>冻结及结果记录机制已实现</td><td>首个有效未来样本与D2收益结算</td></tr>
 <tr><td>正式数据与运行环境</td><td>现有GitHub收盘流程</td><td>官方时点状态、实时行情、独立云主机</td></tr>
-</tbody></table></div><div class="callout">主要交易策略尚未启用；正式交易未准入。实际胜率未知，“执行胜率达到80%”尚未得到验证。本页不会发送邮件或提交订单。</div></section>
+</tbody></table></div><div class="callout">主动规则系统已启用，独立生成条件计划；本页的六组研究继续保留对照。实际胜率未知，“执行胜率达到80%”尚未得到验证。尚未接入自动下单，本页不会发送邮件或提交订单。</div></section>
 <footer>本页是研究准入进度说明，不是股票推荐。没有把旧诊断结果算作新的前向验证，也没有填入假设收益。
 <details><summary>来源版本</summary><p class="provenance">''' + esc(result.get('source_release')) + '''</p></details></footer>
 </main></body></html>'''

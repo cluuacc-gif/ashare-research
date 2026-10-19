@@ -239,8 +239,11 @@ def _board_snapshot(board, histories, benchmark, frozen):
     return snapshot, valid, {symbol: index for index, symbol in enumerate(ranked, 1)}
 
 
-def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None, *, input_sha256=None):
+def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None, *, input_sha256=None,
+          max_candidates=MAX_COHORT):
     """Return a sealed, prospective same-cohort research design and T-only rows."""
+    if isinstance(max_candidates, bool) or not isinstance(max_candidates, int) or not 1 <= max_candidates <= 300:
+        raise ValueError('max_candidates must be an integer from 1 through 300')
     known_at = sector._instant(cutoff)
     if known_at is None:
         raise ValueError('explicit timezone-aware cutoff required')
@@ -260,6 +263,8 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
     if known_at >= datetime.combine(target_day, time(9, 15), TZ):
         forward_reasons.append('freeze_not_before_target_09_15')
     protocol = deepcopy(PROTOCOL)
+    if max_candidates != MAX_COHORT:
+        protocol['universe'] = f'top{max_candidates}_valid_opening_pool_by_research_score_desc_then_symbol'
     protocol_hash = _digest(protocol)
     outlook, sector_reason = _outlook(sector_outlook, base, target, known_at)
     market = _market_gate(outlook)
@@ -329,7 +334,7 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
                 'stock_features': sector._member_features(histories[symbol]),
                 'history_snapshot_sha256': _digest([_pick(item, BAR_FIELDS) for item in histories[symbol][-21:]])})
         valid.sort(key=lambda row: (-row['research_score'], row['symbol']))
-        cohort = valid[:MAX_COHORT]
+        cohort = valid[:max_candidates]
         result['coverage']['valid_pool_count'] = len(valid)
         contexts = []
         for board in sorted(boards, key=lambda item: (-int(item['flow_integrated']),
