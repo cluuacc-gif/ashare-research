@@ -23,7 +23,7 @@ from trade_calendar import context
 POINTER = 'state/market-outlook-current.json'
 ASSETS = ('outlook.json', 'report.html', 'source_manifest.json')
 EXTRA_ASSETS = ('fund_flow_evidence.zip','price_action_evidence.zip','probability_evidence.zip','pa_trade_evidence.zip',
-                'nextday_evidence.zip')
+                'nextday_evidence.zip','active_trade_evidence.zip')
 
 
 def read_pointer(repo):
@@ -75,6 +75,10 @@ def compact_pointer(manifest):
         from nextday_report import compact
         value['outlook']['nextday_research']=compact(value['outlook']['nextday_research'])
         value['outlook']['forward_ledgers_archived']=True
+    if value['outlook'].get('active_trade_system'):
+        from active_trade_report import compact
+        value['outlook']['active_trade_system']=compact(value['outlook']['active_trade_system'])
+        value['outlook']['forward_ledgers_archived']=True
     raw = json.dumps(value,ensure_ascii=False,indent=2).encode('utf-8')
     if len(raw) > 800_000:
         raise ValueError('compact outlook pointer exceeds readback size limit')
@@ -104,6 +108,23 @@ def validate(value, source):
         raise ValueError('research output cannot claim actual trade qualification')
     if value.get('execution_win_rate_80_validated') is not False:
         raise ValueError('unvalidated execution win rate')
+    if value.get('active_trade_system'):
+        study=value['active_trade_system'];known=dt.datetime.fromisoformat(study['generated_at'])
+        from active_trade_system import SCHEMA, PROTOCOL_SHA256
+        if (study.get('schema')!=SCHEMA or study.get('protocol_sha256')!=PROTOCOL_SHA256
+                or study.get('base_trade_date')!=source['base_trade_date']
+                or study.get('target_trade_date')!=source['next_trade_date']
+                or study.get('input_database_sha256')!=source['database']['sha256']
+                or study.get('system_enabled') is not True
+                or study.get('signal_generation_enabled') is not True
+                or study.get('mode')!='conditional_manual_execution'
+                or study.get('order_execution_enabled') is not False
+                or study.get('empirical_validation_passed') is not False
+                or study.get('actual_win_rate') is not None
+                or study.get('formal_trade_ready') is not False
+                or study.get('execution_win_rate_80_validated') is not False
+                or known.tzinfo is None or known>cutoff):
+            raise ValueError('active rule identity, cutoff or execution claims invalid')
     if value.get('nextday_research'):
         study=value['nextday_research'];known=dt.datetime.fromisoformat(study['generated_at'])
         from nextday_forward import SCHEMA, PROTOCOL_SHA256
@@ -150,7 +171,8 @@ def validate(value, source):
     return value
 
 
-def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, probability_dir=None,pa_trade_dir=None):
+def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, probability_dir=None,pa_trade_dir=None,
+             active_context=None):
     root = Path(store).resolve()
     restored = json.loads((root/'restore.json').read_text(encoding='utf-8'))
     source = restored['manifest']
@@ -195,6 +217,38 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
         outlook,plan,flow,input_sha256=source['database']['sha256'])
     nextday=initialize(cohort,source['base_trade_date'],source['next_trade_date'],
         source['database']['sha256'],cutoff)
+    from active_trade_system import build as active_build, PROTOCOL_SHA256 as ACTIVE_SHA
+    from active_trade_book import roll, evaluate as evaluate_active, account as active_account
+    active_context=active_context or {}
+    previous=(active_context.get('prior_value') or {}).get('active_trade_system') or {}
+    if previous and active_context.get('prior_publication_verified') is not True:
+        raise ValueError('existing active plans cannot be replaced while their publication is unverified')
+    with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as db:
+        db.row_factory=sqlite3.Row
+        book=roll(previous,active_context.get('prior_publication_verified') is True,
+            active_context.get('evidence',{}),db,cutoff,ACTIVE_SHA)
+    active=active_build(database,source['base_trade_date'],source['next_trade_date'],cutoff,
+        outlook,plan,flow,input_sha256=source['database']['sha256'],
+        available_cash=book['account']['available_cash_cny'],
+        occupied_symbols=book['occupied_symbols'],occupied_sectors=book['occupied_sectors'])
+    # A verified first publication owns the day's allocation. A rerun cannot
+    # replace its prices, quantities, or empty decision with a different list.
+    frozen=next((item for item in book['frozen_plan_dates']
+        if item['target_trade_date']==source['next_trade_date']),None)
+    if frozen is not None:
+        active['plans']=copy.deepcopy(frozen['plans'])
+        active['first_published_plan_generated_at']=frozen['generated_at']
+        active['status']='conditional_plans_ready' if active['plans'] else 'cash_no_qualifying_setup'
+        active['current_plan_preserved_from_first_publication']=True
+    active['reference_book']=book
+    if frozen is not None:
+        active['reference_account']=book['account']
+    else:
+        with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as db:
+            db.row_factory=sqlite3.Row
+            provisional=[evaluate_active(item,{},db,cutoff) for item in active['plans']]
+        active['reference_account']=active_account(book['records']+provisional)
+        active['reference_account']['current_plan_reservation_is_conditional']=True
     plan.pop('candidate_pool',None)
     # The new primary list requires known sector membership and confluence.
     plan['independent_technical_watchlist']=plan['watchlist']
@@ -205,7 +259,8 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
                  snapshot_release=source['release_tag'], input_database_sha256=source['database']['sha256'],
                  base_trade_date=source['base_trade_date'], target_trade_date=source['next_trade_date'],
                  sector_outlook=outlook, opening_strength_plan=plan, fund_flow=flow,
-                 sector_stock_selection=selection, nextday_research=nextday, formal_trade_ready=False,
+                 sector_stock_selection=selection, nextday_research=nextday,active_trade_system=active,
+                 formal_trade_ready=False,
                  actual_win_rate=None, execution_win_rate_80_validated=False, costs_included=False,
                  smtp_sent=False, orders_submitted=False)
     if price_action_dir:
@@ -308,10 +363,10 @@ def prepare_nextday_minutes(repo, source, directory):
     from nextday_forward import SCHEMA, PROTOCOL_SHA256
     cohorts=[]
     publication=None
+    if prior and prior.get('forward_eligible'):
+        publication=verify_pointer_publication(repo,prior)
     if study.get('schema')==SCHEMA and study.get('protocol_sha256')==PROTOCOL_SHA256:
         cohorts=list(study.get('tracked_cohorts',[]))
-        if prior and prior.get('forward_eligible'):
-            publication=verify_pointer_publication(repo,prior)
         if publication and study.get('current_cohort',{}).get('forward_eligible'):
             prior_value=copy.deepcopy(prior_value)
             prior_value['nextday_research']['current_cohort']['publication_evidence']=publication
@@ -323,6 +378,13 @@ def prepare_nextday_minutes(repo, source, directory):
     relevant=[row for row in cohorts if source['base_trade_date'] in
         (row.get('target_trade_date'),row.get('D2_trade_date'))]
     symbols=sorted({item['symbol'] for row in relevant for item in row.get('base_candidates',[])})
+    active=prior_value.get('active_trade_system') or {}
+    active_cohorts=list((active.get('reference_book') or {}).get('frozen_plan_dates',[]))
+    if publication and active.get('system_enabled') is True:
+        active_cohorts.append({'plans':active.get('plans',[])})
+    active_symbols={plan['symbol'] for item in active_cohorts for plan in item.get('plans',[])
+        if source['base_trade_date'] in (plan.get('target_trade_date'),plan.get('D2_trade_date'))}
+    symbols=sorted(set(symbols)|active_symbols)
     from nextday_minutes import capture
     evidence=capture(symbols,directory)
     return {'prior':prior,'prior_value':prior_value,'evidence':evidence,
@@ -507,7 +569,8 @@ def main():
     if args.publish:
         restored=json.loads((Path(args.store)/'restore.json').read_text(encoding='utf-8'))
         prepared_minutes=prepare_nextday_minutes(args.repo,restored['manifest'],out/'nextday-evidence')
-    value, source = generate(args.store,args.cutoff,args.fund_flow_dir,args.price_action_dir,args.probability_dir,args.pa_trade_dir)
+    value, source = generate(args.store,args.cutoff,args.fund_flow_dir,args.price_action_dir,args.probability_dir,
+                             args.pa_trade_dir,active_context=prepared_minutes)
     value['evidence_assets']=[]
     for directory,name in [(args.fund_flow_dir,EXTRA_ASSETS[0]),(args.price_action_dir,EXTRA_ASSETS[1]),
                            (args.probability_dir,EXTRA_ASSETS[2]),(args.pa_trade_dir,EXTRA_ASSETS[3])]:
@@ -523,6 +586,11 @@ def main():
     state.write(evidence/'forward_ledger.json',value['nextday_research'])
     archive_evidence(evidence,out/EXTRA_ASSETS[4])
     value['evidence_assets'].append(EXTRA_ASSETS[4])
+    active_evidence=out/'active-trade-evidence'
+    active_evidence.mkdir()
+    state.write(active_evidence/'independent_rule_and_reference_book.json',value['active_trade_system'])
+    archive_evidence(active_evidence,out/EXTRA_ASSETS[5])
+    value['evidence_assets'].append(EXTRA_ASSETS[5])
     from market_outlook_report import render
     state.write(out/'outlook.json', value)
     state.write(out/'source_manifest.json', source)

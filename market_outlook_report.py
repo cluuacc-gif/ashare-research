@@ -87,7 +87,7 @@ def mathematical_section(value):
     else:
         result+='<p class="muted">本期尚无与行情版本匹配的价格行为诊断，保留空缺。</p>'
     policy=study.get('policy') or {}
-    status='存在通过选择期条件的研究规则，正式交易仍未准入。' if policy.get('active') else '本期没有启用通过验证的价格行为交易规则。'
+    status='旧研究形态存在通过选择期条件的规则，仍需前向证据。' if policy.get('active') else '旧研究形态本期未通过选择期；独立规则系统见前方计划。'
     result+='<p class="note">'+e(status)+' 本表是原5～10元池的历史对照；新版5～100元预算研究池及资金共振需另作前向检验。旧历史已用于开发，本表不是新增样本外验证；日线开盘和触价是参考成交情景，无法证明个人订单成交。历史诊断没有资金流或当时行业成分证据，不能当作整套板块资金策略的胜率。</p>'
     risks=[]
     for name,label in labels.items():
@@ -119,6 +119,7 @@ def render(value):
     from probability_report import render as probability_section
     from pa_trade_report import render as pa_trade_section
     from nextday_report import render as nextday_section
+    from active_trade_report import render as active_section
     sectors=value.get('sector_outlook') or {}
     plan=value.get('opening_strength_plan') or {}
     rankings=sectors.get('rankings') or []
@@ -168,7 +169,7 @@ def render(value):
 <p class="lead">优先观察有相对强度、上涨家数和成交参与支持的板块，再从可成交的普通走势股票中寻找转强机会。以下是待验证的研究排序，当前没有已确认的买入信号。</p>
 <p class="muted">目标交易日 <b>'''+e(value.get('target_trade_date','—'))+'''</b>　｜　行情截至 '''+e(value.get('base_trade_date','—'))+'''收盘　｜　研究冻结于 '''+e(local_time(value.get('information_cutoff')))+'''</p>
 <div class="ribbon"><div class="tile"><span>真实资金流行业</span><b>'''+str(len((value.get('fund_flow') or {}).get('sectors',[])))+'''</b></div><div class="tile"><span>技术板块覆盖</span><b>'''+str(len(rankings))+'''</b></div><div class="tile"><span>开盘条件观察股票</span><b>'''+str(len(watch))+'''</b></div><div class="tile"><span>真实成交胜率</span><b>未验证</b></div></div>
-'''+nextday_section(value.get('nextday_research') or {})+pa_trade_section(value.get('pa_trade_research') or {})+probability_section(value.get('probability_research') or {})+flow_section(value)+'''<section><h2>次日板块强弱展望</h2><p>目标是找出下一交易日更可能相对走强的板块；相对走强时仍可能下跌。分数反映本期研究排序，不是上涨概率。</p>'''+table(['排名','板块','研究分','支持因素','失效与风险'],sector_rows)+'''
+'''+active_section(value.get('active_trade_system') or {})+nextday_section(value.get('nextday_research') or {})+pa_trade_section(value.get('pa_trade_research') or {})+probability_section(value.get('probability_research') or {})+flow_section(value)+'''<section><h2>次日板块强弱展望</h2><p>目标是找出下一交易日更可能相对走强的板块；相对走强时仍可能下跌。分数反映本期研究排序，不是上涨概率。</p>'''+table(['排名','板块','研究分','支持因素','失效与风险'],sector_rows)+'''
 <p class="note">每天下午的报告新增本节，保留数据不足时的空缺。'''+e(sectors.get('methodology_note') or sectors.get('score_definition') or '')+'''</p></section>
 <section><h2>开盘转强观察名单</h2><p>不要求买入当天收涨，也不以已经封死涨停的股票作为可买入机会。名单在开盘前冻结，当日需再核对价格、交易状态和及时行情。</p>'''+selection_funnel(value)+table(['序号','股票','行业','前收盘','研究分','依据与开盘条件'],watch_rows)+'''
 <div class="callout"><strong>开盘前是观察计划。</strong> 09:25报告提供条件清单；实际开盘后，只有及时行情、交易状态和限价等核验齐全，才可研究是否满足转强条件。触发条件不等于实际成交。</div>

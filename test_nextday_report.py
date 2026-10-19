@@ -75,7 +75,8 @@ class NextdayReportTests(unittest.TestCase):
         self.assertFalse(compact['orders_submitted'])
         self.assertFalse(compact['automatic_policy_activation'])
         self.assertNotIn('predicted_probability', compact['current_cohort']['base_candidates'][0])
-        self.assertIn('主策略继续停用', report.render(raw))
+        self.assertIn('主动规则系统已独立启用', report.render(raw))
+        self.assertNotIn('主策略继续停用', report.render(raw))
         self.assertIn('80%以上实际胜率尚未验证', report.render(raw))
 
     def test_compact_bound_includes_multibyte_metadata_and_all_intervals(self):
@@ -128,7 +129,7 @@ class NextdayReportTests(unittest.TestCase):
         for text in ('D2固定14:50', '09:40完成观察，下一分钟开盘参考',
             '14:40完成观察，下一分钟开盘参考', '同股、同日配对', 'D1买入至收盘均值',
             'D1收盘至D2开盘均值', 'D2开盘至退出均值', '不是账户组合', '不是12个持仓',
-            '原账户仍最多3个正式名额', '不会自动启用规则', '费用为零'):
+            '参考持仓及待入场合计最多两只', '不会自动启用规则', '费用为零'):
             self.assertIn(text, rendered)
 
     def test_zero_future_ledger_and_empty_cohort_are_pending_not_zero_win_probability(self):

@@ -130,9 +130,9 @@ def render(study):
     coverage = study["coverage"]
     parts = ['<section><h2>价格行为交易升级：先定背景，再定买卖与风险</h2>']
     if active:
-        state = '选择期通过的研究规则：' + _e(_name(policy['selected_setup'])) + '。可开展前向研究；正式交易资格仍未通过。'
+        state = '旧形态研究中选择期通过的规则：' + _e(_name(policy['selected_setup'])) + '。可开展前向研究；该研究的正式交易资格仍未通过。'
     else:
-        state = '本轮没有启用通过证据要求的交易规则，当前保留空名单。最终诊断数字不会反过来决定规则。'
+        state = '旧形态研究：本轮没有启用通过证据要求的交易规则，当前保留空名单。独立主动系统另列计划；最终诊断数字不会反过来决定旧研究规则。'
     parts.append('<div class="callout"><strong>' + state + '</strong></div>')
     parts.append('<p>这轮升级把背景、位置、信号、成交上限、结构失效和次日退出连成一份事前计划。3%与6%目标、入场上限及盈亏比联合求解，结构不允许时放弃交易。</p>')
     parts.append('<ol><li><b>看背景：</b>先检查市场宽度与流动性，再用均线斜率、趋势效率与重叠程度判断上涨趋势或交易区间。</li>'
@@ -199,5 +199,5 @@ def render(study):
                  '<a href="https://www.brookstradingcourse.com/wp-content/uploads/2017/02/BTC-Video-15D-Signs-of-Strong-and-Weak-Breakouts.pdf">强弱突破清单</a>、'
                  '<a href="https://www.brookstradingcourse.com/ask-al/china-futures-daily-interview-part-1/">趋势、区间与二次进场问答</a>、'
                  '<a href="https://www.brookstradingcourse.com/futures-market/should-i-take-this-trade/">交易方程</a>；具体数值阈值由本项目设定，未验证为最优。</p>')
-    parts.append('<p><b>80%以上实际胜率尚未验证，正式交易资格未通过。</b>研究计划和参考股数均不代表已发出的订单。</p></section>')
+    parts.append('<p><b>旧形态研究：80%以上实际胜率尚未验证，正式交易资格未通过。</b>独立主动系统保持启用；研究计划和参考股数均不代表已发出的订单。</p></section>')
     return ''.join(parts)

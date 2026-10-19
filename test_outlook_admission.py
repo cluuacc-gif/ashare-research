@@ -110,15 +110,18 @@ class AdmissionTests(unittest.TestCase):
         self.assertFalse(result['database_hash_verified'])
         self.assertFalse(result['database_identity_verified'])
 
-    def test_every_status_preserves_research_only_gates(self):
+    def test_every_status_keeps_independent_rules_enabled_and_validation_unknown(self):
         for source, now in [(fixture(), '2026-10-18T12:00:00+08:00'),
                             (fixture(), '2026-10-19T13:50:00+08:00'),
                             ({}, '2026-10-18T12:00:00+08:00')]:
             result = admission.evaluate(source, at(now))
             for field in ('formal_trade_ready', 'execution_win_rate_80_validated',
-                          'main_policy_active', 'smtp_enabled', 'orders_enabled',
+                          'empirical_validation_passed', 'order_execution_enabled', 'smtp_enabled', 'orders_enabled',
                           'smtp_sent', 'orders_submitted'):
                 self.assertIs(result[field], False)
+            for field in ('main_policy_active', 'system_enabled', 'signal_generation_enabled'):
+                self.assertIs(result[field], True)
+            self.assertEqual(result['mode'], 'conditional_manual_execution')
             self.assertIsNone(result['actual_win_rate'])
 
 
@@ -129,11 +132,20 @@ class ReportTests(unittest.TestCase):
         for text in ('2026-10-19 13:50:00 北京时间', '2026-10-16', '2026-10-19',
                      '09:15', '09:40', '14:40', '14:50', '16:35', '可能排队或延迟',
                      '首个未来样本', '官方时点状态', '实时行情', '独立云主机',
-                     '实际胜率未知', '主要交易策略尚未启用', '费用口径固定为0'):
+                     '实际胜率未知', '主动规则系统已启用', '等待有效新数据', '费用口径固定为0'):
             self.assertIn(text, report)
         self.assertIn('<html lang="zh-CN">', report)
         self.assertIn('</html>', report)
         self.assertNotIn('<script', report)
+        self.assertNotIn('主要交易策略尚未启用', report)
+
+    def test_missing_source_does_not_disable_the_active_rule_system(self):
+        result = admission.evaluate({}, at('2026-10-19T13:50:00+08:00'))
+        report = admission.render(result)
+        self.assertIn('规则系统已启用', report)
+        self.assertIn('系统持续运行', report)
+        self.assertIn('等待有效新数据', report)
+        self.assertIn('真实成交胜率</small><b>未知', report)
 
     def test_all_untrusted_status_strings_are_escaped(self):
         hostile = '<script>alert("x")</script>&'

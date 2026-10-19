@@ -62,6 +62,13 @@ on:
       - test_nextday_integration.py
       - outlook_admission.py
       - test_outlook_admission.py
+      - active_trade_system.py
+      - active_trade_book.py
+      - active_trade_report.py
+      - test_active_trade_system.py
+      - test_active_trade_book.py
+      - test_active_trade_report.py
+      - test_active_trade_integration.py
   workflow_dispatch:
   workflow_run:
     workflows: [A-share automatic after-close pipeline]
@@ -100,6 +107,8 @@ jobs:
           test_nextday_cohort.py test_nextday_minutes.py test_nextday_forward.py
           test_nextday_report.py test_nextday_integration.py
           test_outlook_admission.py
+          test_active_trade_system.py test_active_trade_book.py
+          test_active_trade_report.py test_active_trade_integration.py
   freeze:
     needs: verify
     if: >-
