@@ -1,14 +1,14 @@
 {
   "schema_version": "gross-swing-research-store-v2",
-  "release_tag": "gross-swing-research-2026-10-16-39101760022-1",
-  "base_trade_date": "2026-10-16",
-  "target_trade_date": "2026-10-19",
-  "snapshot_release": "prepared-2026-10-16-39017480832-1",
-  "input_database_sha256": "4e79ef54caba811e84941dc1ff099020b2c3e7a248b7611f40e15827f03b58cf",
-  "github_run_id": "39101760022",
-  "github_commit": "0dea0fb2c02c9f3b00549d64055358a1dd0bc2ab",
-  "github_run_url": "https://github.com/cluuacc-gif/ashare-research/actions/runs/39101760022",
-  "generated_at": "2026-10-18T13:49:55.484348+08:00",
+  "release_tag": "gross-swing-research-2026-10-19-39285102109-1",
+  "base_trade_date": "2026-10-19",
+  "target_trade_date": "2026-10-20",
+  "snapshot_release": "prepared-2026-10-19-39280897985-1",
+  "input_database_sha256": "36b963d3e40bd0eb7582933359353e67e6f9f97da901839eccdba9350137d625",
+  "github_run_id": "39285102109",
+  "github_commit": "4b3c21a5f43b886ed9b602f6b5351285e8a86ff0",
+  "github_run_url": "https://github.com/cluuacc-gif/ashare-research/actions/runs/39285102109",
+  "generated_at": "2026-10-20T00:28:27.210542+08:00",
   "formal_trade_ready": false,
   "formal_prediction_allowed": false,
   "execution_win_rate_80_validated": false,
@@ -29,18 +29,18 @@
       "target_win_rate_strictly_greater_than": 0.8
     },
     "costs_included": false,
-    "base_trade_date": "2026-10-16",
-    "generated_at": "2026-10-18T13:49:52.850283+08:00",
-    "target_trade_date": "2026-10-19",
+    "base_trade_date": "2026-10-19",
+    "generated_at": "2026-10-20T00:28:23.453923+08:00",
+    "target_trade_date": "2026-10-20",
     "generated_before_target_open": true,
-    "input_database_sha256": "4e79ef54caba811e84941dc1ff099020b2c3e7a248b7611f40e15827f03b58cf",
+    "input_database_sha256": "36b963d3e40bd0eb7582933359353e67e6f9f97da901839eccdba9350137d625",
     "research_ready": true,
     "formal_trade_ready": false,
     "formal_prediction_allowed": false,
     "actual_win_rate": null,
     "real_execution_win_rate": null,
     "execution_win_rate_80_validated": false,
-    "protocol_sha256": "9e58869e3882b597907a906e63d60bae51f2fa50772763766bb690b493f69a0b",
+    "protocol_sha256": "fb006f88acd62873e7345d1ae59b29e0e28957f631e41597eab58463ecac05fd",
     "strategy_definition_sha256": "8cde83eb9fde24b569b61426feec7459a1b9bfcbc4a7985e6ac74c1b5a1929bd",
     "protocol": {
       "schema": "gross-swing-research-v2",
@@ -237,12 +237,17 @@
         },
         "calibrator": "IsotonicRegression_out_of_bounds_clip"
       },
-      "frozen_at": "2026-10-18T13:49:52.850283+08:00",
-      "historical_development_cutoff": "2026-10-16"
+      "frozen_at": "2026-10-20T00:28:23.453923+08:00",
+      "historical_development_cutoff": "2026-10-19"
     },
     "policy": {
-      "active": false,
-      "selected_parameters": null,
+      "active": true,
+      "selected_parameters": {
+        "entry_rule": "bullish",
+        "target": 0.06,
+        "stop": 0.02,
+        "threshold": 0.0
+      },
       "fallback_parameters": {
         "entry_rule": "ordinary",
         "target": 0.03,
@@ -250,12 +255,12 @@
         "threshold": 0.5
       },
       "diagnostic_parameters": {
-        "entry_rule": "ordinary",
-        "target": 0.03,
+        "entry_rule": "bullish",
+        "target": 0.06,
         "stop": 0.02,
-        "threshold": 0.5
+        "threshold": 0.0
       },
-      "inactive_reason": "insufficient_selection_evidence",
+      "inactive_reason": null,
       "selection_only": true,
       "selected_before_diagnostic_evaluation": true,
       "active_scope": "research_only_never_formal_trade_authorization",
@@ -272,31 +277,31 @@
         "last_outcome_date": "2026-01-27"
       },
       "calibration": {
-        "rows": 52534,
-        "labeled_closed_rows": 52377,
-        "unresolved_rows": 157,
-        "independent_dates": 48,
+        "rows": 53645,
+        "labeled_closed_rows": 53487,
+        "unresolved_rows": 158,
+        "independent_dates": 49,
         "first_input_date": "2026-01-28",
-        "last_input_date": "2026-04-14",
-        "last_outcome_date": "2026-04-16"
+        "last_input_date": "2026-04-15",
+        "last_outcome_date": "2026-04-17"
       },
       "selection": {
-        "rows": 53726,
-        "labeled_closed_rows": 53504,
-        "unresolved_rows": 222,
+        "rows": 53745,
+        "labeled_closed_rows": 53529,
+        "unresolved_rows": 216,
         "independent_dates": 49,
-        "first_input_date": "2026-04-17",
-        "last_input_date": "2026-06-30",
-        "last_outcome_date": "2026-07-02"
+        "first_input_date": "2026-04-20",
+        "last_input_date": "2026-07-01",
+        "last_outcome_date": "2026-07-03"
       },
       "diagnostic": {
-        "rows": 83455,
-        "labeled_closed_rows": 81951,
-        "unresolved_rows": 1504,
+        "rows": 83625,
+        "labeled_closed_rows": 82122,
+        "unresolved_rows": 1503,
         "independent_dates": 68,
-        "first_input_date": "2026-07-03",
-        "last_input_date": "2026-10-15",
-        "last_outcome_date": "2026-10-16"
+        "first_input_date": "2026-07-06",
+        "last_input_date": "2026-10-16",
+        "last_outcome_date": "2026-10-19"
       }
     },
     "selection_grid": [
@@ -308,20 +313,20 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.30950396559750293,
+        "score": 0.2916677428784621,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 23,
           "independent_entry_dates": 20,
-          "win_rate": 0.4339622641509434,
-          "ge3_rate": 0.41509433962264153,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.001779442256223377,
-          "selection_score_wilson_lower": 0.30950396559750293
+          "win_rate": 0.4107142857142857,
+          "ge3_rate": 0.375,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.0035755431588526698,
+          "selection_score_wilson_lower": 0.2916677428784621
         }
       },
       {
@@ -332,20 +337,20 @@
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.30950396559750293,
+        "score": 0.2916677428784621,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 23,
           "independent_entry_dates": 20,
-          "win_rate": 0.4339622641509434,
-          "ge3_rate": 0.41509433962264153,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.001779442256223377,
-          "selection_score_wilson_lower": 0.30950396559750293
+          "win_rate": 0.4107142857142857,
+          "ge3_rate": 0.375,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.0035755431588526698,
+          "selection_score_wilson_lower": 0.2916677428784621
         }
       },
       {
@@ -404,20 +409,20 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.3612424984784324,
+        "score": 0.3238672125478336,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 26,
+          "n_wins": 25,
           "independent_entry_dates": 20,
-          "win_rate": 0.49056603773584906,
-          "ge3_rate": 0.4339622641509434,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.00207157915003125,
-          "selection_score_wilson_lower": 0.3612424984784324
+          "win_rate": 0.44642857142857145,
+          "ge3_rate": 0.39285714285714285,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.004468701876715743,
+          "selection_score_wilson_lower": 0.3238672125478336
         }
       },
       {
@@ -428,20 +433,20 @@
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.3612424984784324,
+        "score": 0.3238672125478336,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 26,
+          "n_wins": 25,
           "independent_entry_dates": 20,
-          "win_rate": 0.49056603773584906,
-          "ge3_rate": 0.4339622641509434,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.00207157915003125,
-          "selection_score_wilson_lower": 0.3612424984784324
+          "win_rate": 0.44642857142857145,
+          "ge3_rate": 0.39285714285714285,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.004468701876715743,
+          "selection_score_wilson_lower": 0.3238672125478336
         }
       },
       {
@@ -500,20 +505,20 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.29260908779813966,
+        "score": 0.260102143264709,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 22,
+          "n_wins": 21,
           "independent_entry_dates": 20,
-          "win_rate": 0.41509433962264153,
-          "ge3_rate": 0.3584905660377358,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.000583287621573661,
-          "selection_score_wilson_lower": 0.29260908779813966
+          "win_rate": 0.375,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.0037873113351861126,
+          "selection_score_wilson_lower": 0.260102143264709
         }
       },
       {
@@ -524,20 +529,20 @@
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.29260908779813966,
+        "score": 0.260102143264709,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 22,
+          "n_wins": 21,
           "independent_entry_dates": 20,
-          "win_rate": 0.41509433962264153,
-          "ge3_rate": 0.3584905660377358,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.000583287621573661,
-          "selection_score_wilson_lower": 0.29260908779813966
+          "win_rate": 0.375,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.0037873113351861126,
+          "selection_score_wilson_lower": 0.260102143264709
         }
       },
       {
@@ -596,236 +601,236 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.3438224347819615,
+        "score": 0.2916677428784621,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
-          "n_unresolved": 0,
-          "n_wins": 25,
-          "independent_entry_dates": 20,
-          "win_rate": 0.4716981132075472,
-          "ge3_rate": 0.37735849056603776,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.0008666560974265493,
-          "selection_score_wilson_lower": 0.3438224347819615
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.3438224347819615,
-        "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
-          "n_unresolved": 0,
-          "n_wins": 25,
-          "independent_entry_dates": 20,
-          "win_rate": 0.4716981132075472,
-          "ge3_rate": 0.37735849056603776,
-          "ge6_rate": 0.03773584905660377,
-          "mean_gross_return": -0.0008666560974265493,
-          "selection_score_wilson_lower": 0.3438224347819615
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 0.061491944720396215,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 1,
-          "independent_entry_dates": 1,
-          "win_rate": 0.3333333333333333,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.014892926295630141,
-          "selection_score_wilson_lower": 0.061491944720396215
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 0.061491944720396215,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 1,
-          "independent_entry_dates": 1,
-          "win_rate": 0.3333333333333333,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.014892926295630141,
-          "selection_score_wilson_lower": 0.061491944720396215
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.259362654728761,
-        "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
-          "n_unresolved": 0,
-          "n_wins": 20,
-          "independent_entry_dates": 20,
-          "win_rate": 0.37735849056603776,
-          "ge3_rate": 0.2830188679245283,
-          "ge6_rate": 0.24528301886792453,
-          "mean_gross_return": -0.0015895855244707784,
-          "selection_score_wilson_lower": 0.259362654728761
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.259362654728761,
-        "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
-          "n_unresolved": 0,
-          "n_wins": 20,
-          "independent_entry_dates": 20,
-          "win_rate": 0.37735849056603776,
-          "ge3_rate": 0.2830188679245283,
-          "ge6_rate": 0.24528301886792453,
-          "mean_gross_return": -0.0015895855244707784,
-          "selection_score_wilson_lower": 0.259362654728761
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 0.061491944720396215,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 1,
-          "independent_entry_dates": 1,
-          "win_rate": 0.3333333333333333,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.00787601550380057,
-          "selection_score_wilson_lower": 0.061491944720396215
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 0.061491944720396215,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 1,
-          "independent_entry_dates": 1,
-          "win_rate": 0.3333333333333333,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.00787601550380057,
-          "selection_score_wilson_lower": 0.061491944720396215
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "ordinary",
-          "target": 0.06,
-          "stop": 0.03,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.30950396559750293,
-        "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 23,
           "independent_entry_dates": 20,
-          "win_rate": 0.4339622641509434,
-          "ge3_rate": 0.3018867924528302,
-          "ge6_rate": 0.24528301886792453,
-          "mean_gross_return": -0.0022342809210290577,
-          "selection_score_wilson_lower": 0.30950396559750293
+          "win_rate": 0.4107142857142857,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.004672171371770361,
+          "selection_score_wilson_lower": 0.2916677428784621
         }
       },
       {
         "parameters": {
           "entry_rule": "ordinary",
-          "target": 0.06,
+          "target": 0.045,
           "stop": 0.03,
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.30950396559750293,
+        "score": 0.2916677428784621,
         "metrics": {
-          "n_signals": 56,
-          "n_cancelled": 3,
-          "n_attempts": 53,
-          "n_closed": 53,
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 23,
           "independent_entry_dates": 20,
-          "win_rate": 0.4339622641509434,
-          "ge3_rate": 0.3018867924528302,
-          "ge6_rate": 0.24528301886792453,
-          "mean_gross_return": -0.0022342809210290577,
-          "selection_score_wilson_lower": 0.30950396559750293
+          "win_rate": 0.4107142857142857,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.05357142857142857,
+          "mean_gross_return": -0.004672171371770361,
+          "selection_score_wilson_lower": 0.2916677428784621
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.014892926295630141,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.014892926295630141,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.24456571707649907,
+        "metrics": {
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 20,
+          "independent_entry_dates": 20,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.26785714285714285,
+          "ge6_rate": 0.23214285714285715,
+          "mean_gross_return": -0.003102058878621101,
+          "selection_score_wilson_lower": 0.24456571707649907
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.24456571707649907,
+        "metrics": {
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 20,
+          "independent_entry_dates": 20,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.26785714285714285,
+          "ge6_rate": 0.23214285714285715,
+          "mean_gross_return": -0.003102058878621101,
+          "selection_score_wilson_lower": 0.24456571707649907
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.00787601550380057,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.00787601550380057,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.06,
+          "stop": 0.03,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.2758041573011051,
+        "metrics": {
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 22,
+          "independent_entry_dates": 20,
+          "win_rate": 0.39285714285714285,
+          "ge3_rate": 0.2857142857142857,
+          "ge6_rate": 0.23214285714285715,
+          "mean_gross_return": -0.004150317608015807,
+          "selection_score_wilson_lower": 0.2758041573011051
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "ordinary",
+          "target": 0.06,
+          "stop": 0.03,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.2758041573011051,
+        "metrics": {
+          "n_signals": 58,
+          "n_cancelled": 2,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 22,
+          "independent_entry_dates": 20,
+          "win_rate": 0.39285714285714285,
+          "ge3_rate": 0.2857142857142857,
+          "ge6_rate": 0.23214285714285715,
+          "mean_gross_return": -0.004150317608015807,
+          "selection_score_wilson_lower": 0.2758041573011051
         }
       },
       {
@@ -884,140 +889,92 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.23151007666465911,
+        "score": 0.2291997240159191,
         "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 18,
-          "independent_entry_dates": 21,
-          "win_rate": 0.34615384615384615,
-          "ge3_rate": 0.3076923076923077,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.003721231822420826,
-          "selection_score_wilson_lower": 0.23151007666465911
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.03,
-          "stop": 0.02,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.23151007666465911,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 18,
-          "independent_entry_dates": 21,
-          "win_rate": 0.34615384615384615,
-          "ge3_rate": 0.3076923076923077,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.003721231822420826,
-          "selection_score_wilson_lower": 0.23151007666465911
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.03,
-          "stop": 0.02,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.02064238478262011,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.03,
-          "stop": 0.02,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.02064238478262011,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.03,
-          "stop": 0.03,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.24800699873813398,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 19,
           "independent_entry_dates": 21,
-          "win_rate": 0.36538461538461536,
-          "ge3_rate": 0.3269230769230769,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.005242322166008549,
-          "selection_score_wilson_lower": 0.24800699873813398
+          "win_rate": 0.3392857142857143,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.0029064958229533117,
+          "selection_score_wilson_lower": 0.2291997240159191
         }
       },
       {
         "parameters": {
           "entry_rule": "bullish",
           "target": 0.03,
-          "stop": 0.03,
+          "stop": 0.02,
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.24800699873813398,
+        "score": 0.2291997240159191,
         "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 19,
           "independent_entry_dates": 21,
-          "win_rate": 0.36538461538461536,
-          "ge3_rate": 0.3269230769230769,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.005242322166008549,
-          "selection_score_wilson_lower": 0.24800699873813398
+          "win_rate": 0.3392857142857143,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.0029064958229533117,
+          "selection_score_wilson_lower": 0.2291997240159191
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.03,
+          "stop": 0.02,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.02064238478262011,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.03,
+          "stop": 0.02,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.02064238478262011,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
         }
       },
       {
@@ -1025,580 +982,52 @@
           "entry_rule": "bullish",
           "target": 0.03,
           "stop": 0.03,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.030760572707831873,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.03,
-          "stop": 0.03,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.030760572707831873,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.02,
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.23151007666465911,
+        "score": 0.24456571707649907,
         "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 18,
-          "independent_entry_dates": 21,
-          "win_rate": 0.34615384615384615,
-          "ge3_rate": 0.3076923076923077,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.001666621152429798,
-          "selection_score_wilson_lower": 0.23151007666465911
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.02,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.23151007666465911,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 18,
-          "independent_entry_dates": 21,
-          "win_rate": 0.34615384615384615,
-          "ge3_rate": 0.3076923076923077,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.001666621152429798,
-          "selection_score_wilson_lower": 0.23151007666465911
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.02,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.02064238478262011,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.02,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.02064238478262011,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.24800699873813398,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 19,
-          "independent_entry_dates": 21,
-          "win_rate": 0.36538461538461536,
-          "ge3_rate": 0.3269230769230769,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.0028997641492466463,
-          "selection_score_wilson_lower": 0.24800699873813398
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.24800699873813398,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 19,
-          "independent_entry_dates": 21,
-          "win_rate": 0.36538461538461536,
-          "ge3_rate": 0.3269230769230769,
-          "ge6_rate": 0.057692307692307696,
-          "mean_gross_return": -0.0028997641492466463,
-          "selection_score_wilson_lower": 0.24800699873813398
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.030760572707831873,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.045,
-          "stop": 0.03,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.030760572707831873,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.21522074458569176,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 17,
-          "independent_entry_dates": 21,
-          "win_rate": 0.3269230769230769,
-          "ge3_rate": 0.28846153846153844,
-          "ge6_rate": 0.2692307692307692,
-          "mean_gross_return": -2.6192765918044468e-05,
-          "selection_score_wilson_lower": 0.21522074458569176
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.21522074458569176,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 17,
-          "independent_entry_dates": 21,
-          "win_rate": 0.3269230769230769,
-          "ge3_rate": 0.28846153846153844,
-          "ge6_rate": 0.2692307692307692,
-          "mean_gross_return": -2.6192765918044468e-05,
-          "selection_score_wilson_lower": 0.21522074458569176
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.02064238478262011,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.02,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.02064238478262011,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.03,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.23151007666465911,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 18,
-          "independent_entry_dates": 21,
-          "win_rate": 0.34615384615384615,
-          "ge3_rate": 0.28846153846153844,
-          "ge6_rate": 0.2692307692307692,
-          "mean_gross_return": -0.0017529597857706798,
-          "selection_score_wilson_lower": 0.23151007666465911
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.03,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.23151007666465911,
-        "metrics": {
-          "n_signals": 57,
-          "n_cancelled": 5,
-          "n_attempts": 52,
-          "n_closed": 52,
-          "n_unresolved": 0,
-          "n_wins": 18,
-          "independent_entry_dates": 21,
-          "win_rate": 0.34615384615384615,
-          "ge3_rate": 0.28846153846153844,
-          "ge6_rate": 0.2692307692307692,
-          "mean_gross_return": -0.0017529597857706798,
-          "selection_score_wilson_lower": 0.23151007666465911
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.03,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.030760572707831873,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "bullish",
-          "target": 0.06,
-          "stop": 0.03,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.030760572707831873,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "pullback",
-          "target": 0.03,
-          "stop": 0.02,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.25423375191660275,
-        "metrics": {
-          "n_signals": 55,
-          "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 20,
-          "independent_entry_dates": 19,
-          "win_rate": 0.37037037037037035,
-          "ge3_rate": 0.35185185185185186,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0028790446101255546,
-          "selection_score_wilson_lower": 0.25423375191660275
+          "independent_entry_dates": 21,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.3392857142857143,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.004498381741413565,
+          "selection_score_wilson_lower": 0.24456571707649907
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.03,
-          "stop": 0.02,
+          "stop": 0.03,
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.25423375191660275,
+        "score": 0.24456571707649907,
         "metrics": {
-          "n_signals": 55,
-          "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 20,
-          "independent_entry_dates": 19,
-          "win_rate": 0.37037037037037035,
-          "ge3_rate": 0.35185185185185186,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0028790446101255546,
-          "selection_score_wilson_lower": 0.25423375191660275
+          "independent_entry_dates": 21,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.3392857142857143,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.004498381741413565,
+          "selection_score_wilson_lower": 0.24456571707649907
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
-          "target": 0.03,
-          "stop": 0.02,
-          "threshold": 0.45
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.028618970870365395,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "pullback",
-          "target": 0.03,
-          "stop": 0.02,
-          "threshold": 0.5
-        },
-        "eligible_research": false,
-        "score": 4.8683609171202235e-17,
-        "metrics": {
-          "n_signals": 3,
-          "n_cancelled": 0,
-          "n_attempts": 3,
-          "n_closed": 3,
-          "n_unresolved": 0,
-          "n_wins": 0,
-          "independent_entry_dates": 1,
-          "win_rate": 0.0,
-          "ge3_rate": 0.0,
-          "ge6_rate": 0.0,
-          "mean_gross_return": -0.028618970870365395,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "pullback",
-          "target": 0.03,
-          "stop": 0.03,
-          "threshold": 0.0
-        },
-        "eligible_research": false,
-        "score": 0.28678212085914584,
-        "metrics": {
-          "n_signals": 55,
-          "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
-          "n_unresolved": 0,
-          "n_wins": 22,
-          "independent_entry_dates": 19,
-          "win_rate": 0.4074074074074074,
-          "ge3_rate": 0.3888888888888889,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0026368739081557733,
-          "selection_score_wilson_lower": 0.28678212085914584
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "pullback",
-          "target": 0.03,
-          "stop": 0.03,
-          "threshold": 0.35
-        },
-        "eligible_research": false,
-        "score": 0.28678212085914584,
-        "metrics": {
-          "n_signals": 55,
-          "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
-          "n_unresolved": 0,
-          "n_wins": 22,
-          "independent_entry_dates": 19,
-          "win_rate": 0.4074074074074074,
-          "ge3_rate": 0.3888888888888889,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0026368739081557733,
-          "selection_score_wilson_lower": 0.28678212085914584
-        }
-      },
-      {
-        "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.03,
           "stop": 0.03,
           "threshold": 0.45
@@ -1616,13 +1045,13 @@
           "win_rate": 0.0,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.0343493129208986,
+          "mean_gross_return": -0.030760572707831873,
           "selection_score_wilson_lower": 4.8683609171202235e-17
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.03,
           "stop": 0.03,
           "threshold": 0.5
@@ -1640,61 +1069,61 @@
           "win_rate": 0.0,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.0343493129208986,
+          "mean_gross_return": -0.030760572707831873,
           "selection_score_wilson_lower": 4.8683609171202235e-17
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.045,
           "stop": 0.02,
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.23823011108114728,
+        "score": 0.2291997240159191,
         "metrics": {
-          "n_signals": 55,
-          "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 19,
-          "independent_entry_dates": 19,
-          "win_rate": 0.35185185185185186,
-          "ge3_rate": 0.3148148148148148,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0013367598244262845,
-          "selection_score_wilson_lower": 0.23823011108114728
+          "independent_entry_dates": 21,
+          "win_rate": 0.3392857142857143,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.001103365619334414,
+          "selection_score_wilson_lower": 0.2291997240159191
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.045,
           "stop": 0.02,
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.23823011108114728,
+        "score": 0.2291997240159191,
         "metrics": {
-          "n_signals": 55,
-          "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 19,
-          "independent_entry_dates": 19,
-          "win_rate": 0.35185185185185186,
-          "ge3_rate": 0.3148148148148148,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0013367598244262845,
-          "selection_score_wilson_lower": 0.23823011108114728
+          "independent_entry_dates": 21,
+          "win_rate": 0.3392857142857143,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.001103365619334414,
+          "selection_score_wilson_lower": 0.2291997240159191
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.045,
           "stop": 0.02,
           "threshold": 0.45
@@ -1712,13 +1141,13 @@
           "win_rate": 0.0,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.028618970870365395,
+          "mean_gross_return": -0.02064238478262011,
           "selection_score_wilson_lower": 4.8683609171202235e-17
         }
       },
       {
         "parameters": {
-          "entry_rule": "pullback",
+          "entry_rule": "bullish",
           "target": 0.045,
           "stop": 0.02,
           "threshold": 0.5
@@ -1736,56 +1165,632 @@
           "win_rate": 0.0,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.028618970870365395,
+          "mean_gross_return": -0.02064238478262011,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.24456571707649907,
+        "metrics": {
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 20,
+          "independent_entry_dates": 21,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.3392857142857143,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.002427871858650284,
+          "selection_score_wilson_lower": 0.24456571707649907
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.24456571707649907,
+        "metrics": {
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 20,
+          "independent_entry_dates": 21,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.3392857142857143,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.002427871858650284,
+          "selection_score_wilson_lower": 0.24456571707649907
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.030760572707831873,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.030760572707831873,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.0
+        },
+        "eligible_research": true,
+        "score": 0.2140099479255152,
+        "metrics": {
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 18,
+          "independent_entry_dates": 21,
+          "win_rate": 0.32142857142857145,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.2857142857142857,
+          "mean_gross_return": 0.0006284385181058846,
+          "selection_score_wilson_lower": 0.2140099479255152
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.35
+        },
+        "eligible_research": true,
+        "score": 0.2140099479255152,
+        "metrics": {
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 18,
+          "independent_entry_dates": 21,
+          "win_rate": 0.32142857142857145,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.2857142857142857,
+          "mean_gross_return": 0.0006284385181058846,
+          "selection_score_wilson_lower": 0.2140099479255152
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.02064238478262011,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.02,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.02064238478262011,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.03,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.2291997240159191,
+        "metrics": {
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 19,
+          "independent_entry_dates": 21,
+          "win_rate": 0.3392857142857143,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.2857142857142857,
+          "mean_gross_return": -0.0011544328854575017,
+          "selection_score_wilson_lower": 0.2291997240159191
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.03,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.2291997240159191,
+        "metrics": {
+          "n_signals": 59,
+          "n_cancelled": 3,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 19,
+          "independent_entry_dates": 21,
+          "win_rate": 0.3392857142857143,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.2857142857142857,
+          "mean_gross_return": -0.0011544328854575017,
+          "selection_score_wilson_lower": 0.2291997240159191
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.03,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.030760572707831873,
+          "selection_score_wilson_lower": 4.8683609171202235e-17
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "bullish",
+          "target": 0.06,
+          "stop": 0.03,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 4.8683609171202235e-17,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 0,
+          "independent_entry_dates": 1,
+          "win_rate": 0.0,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.030760572707831873,
           "selection_score_wilson_lower": 4.8683609171202235e-17
         }
       },
       {
         "parameters": {
           "entry_rule": "pullback",
-          "target": 0.045,
-          "stop": 0.03,
+          "target": 0.03,
+          "stop": 0.02,
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.270419338291165,
+        "score": 0.260102143264709,
         "metrics": {
-          "n_signals": 55,
+          "n_signals": 57,
           "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 21,
           "independent_entry_dates": 19,
-          "win_rate": 0.3888888888888889,
-          "ge3_rate": 0.3333333333333333,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0013267720629727758,
-          "selection_score_wilson_lower": 0.270419338291165
+          "win_rate": 0.375,
+          "ge3_rate": 0.375,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.0023748677816872277,
+          "selection_score_wilson_lower": 0.260102143264709
         }
       },
       {
         "parameters": {
           "entry_rule": "pullback",
-          "target": 0.045,
-          "stop": 0.03,
+          "target": 0.03,
+          "stop": 0.02,
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.270419338291165,
+        "score": 0.260102143264709,
         "metrics": {
-          "n_signals": 55,
+          "n_signals": 57,
           "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
           "n_wins": 21,
           "independent_entry_dates": 19,
-          "win_rate": 0.3888888888888889,
+          "win_rate": 0.375,
+          "ge3_rate": 0.375,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.0023748677816872277,
+          "selection_score_wilson_lower": 0.260102143264709
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.03,
+          "stop": 0.02,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.3333333333333333,
-          "ge6_rate": 0.07407407407407407,
-          "mean_gross_return": -0.0013267720629727758,
-          "selection_score_wilson_lower": 0.270419338291165
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.004335290296240246,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.03,
+          "stop": 0.02,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.3333333333333333,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.004335290296240246,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.03,
+          "stop": 0.03,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.2916677428784621,
+        "metrics": {
+          "n_signals": 57,
+          "n_cancelled": 1,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 23,
+          "independent_entry_dates": 19,
+          "win_rate": 0.4107142857142857,
+          "ge3_rate": 0.4107142857142857,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.002521331745409117,
+          "selection_score_wilson_lower": 0.2916677428784621
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.03,
+          "stop": 0.03,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.2916677428784621,
+        "metrics": {
+          "n_signals": 57,
+          "n_cancelled": 1,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 23,
+          "independent_entry_dates": 19,
+          "win_rate": 0.4107142857142857,
+          "ge3_rate": 0.4107142857142857,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.002521331745409117,
+          "selection_score_wilson_lower": 0.2916677428784621
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.03,
+          "stop": 0.03,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.3333333333333333,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.010065632346773453,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.03,
+          "stop": 0.03,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.3333333333333333,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.010065632346773453,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.045,
+          "stop": 0.02,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.24456571707649907,
+        "metrics": {
+          "n_signals": 57,
+          "n_cancelled": 1,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 20,
+          "independent_entry_dates": 19,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.0006270636103400673,
+          "selection_score_wilson_lower": 0.24456571707649907
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.045,
+          "stop": 0.02,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.24456571707649907,
+        "metrics": {
+          "n_signals": 57,
+          "n_cancelled": 1,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 20,
+          "independent_entry_dates": 19,
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.32142857142857145,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.0006270636103400673,
+          "selection_score_wilson_lower": 0.24456571707649907
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.045,
+          "stop": 0.02,
+          "threshold": 0.45
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.005580620308693478,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.045,
+          "stop": 0.02,
+          "threshold": 0.5
+        },
+        "eligible_research": false,
+        "score": 0.061491944720396215,
+        "metrics": {
+          "n_signals": 3,
+          "n_cancelled": 0,
+          "n_attempts": 3,
+          "n_closed": 3,
+          "n_unresolved": 0,
+          "n_wins": 1,
+          "independent_entry_dates": 1,
+          "win_rate": 0.3333333333333333,
+          "ge3_rate": 0.0,
+          "ge6_rate": 0.0,
+          "mean_gross_return": -0.005580620308693478,
+          "selection_score_wilson_lower": 0.061491944720396215
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.0
+        },
+        "eligible_research": false,
+        "score": 0.2758041573011051,
+        "metrics": {
+          "n_signals": 57,
+          "n_cancelled": 1,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 22,
+          "independent_entry_dates": 19,
+          "win_rate": 0.39285714285714285,
+          "ge3_rate": 0.3392857142857143,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.000997418266702648,
+          "selection_score_wilson_lower": 0.2758041573011051
+        }
+      },
+      {
+        "parameters": {
+          "entry_rule": "pullback",
+          "target": 0.045,
+          "stop": 0.03,
+          "threshold": 0.35
+        },
+        "eligible_research": false,
+        "score": 0.2758041573011051,
+        "metrics": {
+          "n_signals": 57,
+          "n_cancelled": 1,
+          "n_attempts": 56,
+          "n_closed": 56,
+          "n_unresolved": 0,
+          "n_wins": 22,
+          "independent_entry_dates": 19,
+          "win_rate": 0.39285714285714285,
+          "ge3_rate": 0.3392857142857143,
+          "ge6_rate": 0.08928571428571429,
+          "mean_gross_return": -0.000997418266702648,
+          "selection_score_wilson_lower": 0.2758041573011051
         }
       },
       {
@@ -1796,20 +1801,20 @@
           "threshold": 0.45
         },
         "eligible_research": false,
-        "score": 4.8683609171202235e-17,
+        "score": 0.061491944720396215,
         "metrics": {
           "n_signals": 3,
           "n_cancelled": 0,
           "n_attempts": 3,
           "n_closed": 3,
           "n_unresolved": 0,
-          "n_wins": 0,
+          "n_wins": 1,
           "independent_entry_dates": 1,
-          "win_rate": 0.0,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.0343493129208986,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
+          "mean_gross_return": -0.011310962359226684,
+          "selection_score_wilson_lower": 0.061491944720396215
         }
       },
       {
@@ -1820,20 +1825,20 @@
           "threshold": 0.5
         },
         "eligible_research": false,
-        "score": 4.8683609171202235e-17,
+        "score": 0.061491944720396215,
         "metrics": {
           "n_signals": 3,
           "n_cancelled": 0,
           "n_attempts": 3,
           "n_closed": 3,
           "n_unresolved": 0,
-          "n_wins": 0,
+          "n_wins": 1,
           "independent_entry_dates": 1,
-          "win_rate": 0.0,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.0343493129208986,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
+          "mean_gross_return": -0.011310962359226684,
+          "selection_score_wilson_lower": 0.061491944720396215
         }
       },
       {
@@ -1844,20 +1849,20 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.22241416537492575,
+        "score": 0.24456571707649907,
         "metrics": {
-          "n_signals": 55,
+          "n_signals": 57,
           "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 18,
+          "n_wins": 20,
           "independent_entry_dates": 19,
-          "win_rate": 0.3333333333333333,
-          "ge3_rate": 0.25925925925925924,
-          "ge6_rate": 0.2222222222222222,
-          "mean_gross_return": -0.0015742473148789807,
-          "selection_score_wilson_lower": 0.22241416537492575
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.2857142857142857,
+          "ge6_rate": 0.21428571428571427,
+          "mean_gross_return": -0.00011828643931042057,
+          "selection_score_wilson_lower": 0.24456571707649907
         }
       },
       {
@@ -1868,20 +1873,20 @@
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.22241416537492575,
+        "score": 0.24456571707649907,
         "metrics": {
-          "n_signals": 55,
+          "n_signals": 57,
           "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 18,
+          "n_wins": 20,
           "independent_entry_dates": 19,
-          "win_rate": 0.3333333333333333,
-          "ge3_rate": 0.25925925925925924,
-          "ge6_rate": 0.2222222222222222,
-          "mean_gross_return": -0.0015742473148789807,
-          "selection_score_wilson_lower": 0.22241416537492575
+          "win_rate": 0.35714285714285715,
+          "ge3_rate": 0.2857142857142857,
+          "ge6_rate": 0.21428571428571427,
+          "mean_gross_return": -0.00011828643931042057,
+          "selection_score_wilson_lower": 0.24456571707649907
         }
       },
       {
@@ -1892,20 +1897,20 @@
           "threshold": 0.45
         },
         "eligible_research": false,
-        "score": 4.8683609171202235e-17,
+        "score": 0.061491944720396215,
         "metrics": {
           "n_signals": 3,
           "n_cancelled": 0,
           "n_attempts": 3,
           "n_closed": 3,
           "n_unresolved": 0,
-          "n_wins": 0,
+          "n_wins": 1,
           "independent_entry_dates": 1,
-          "win_rate": 0.0,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.028618970870365395,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
+          "mean_gross_return": -0.005580620308693478,
+          "selection_score_wilson_lower": 0.061491944720396215
         }
       },
       {
@@ -1916,20 +1921,20 @@
           "threshold": 0.5
         },
         "eligible_research": false,
-        "score": 4.8683609171202235e-17,
+        "score": 0.061491944720396215,
         "metrics": {
           "n_signals": 3,
           "n_cancelled": 0,
           "n_attempts": 3,
           "n_closed": 3,
           "n_unresolved": 0,
-          "n_wins": 0,
+          "n_wins": 1,
           "independent_entry_dates": 1,
-          "win_rate": 0.0,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.028618970870365395,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
+          "mean_gross_return": -0.005580620308693478,
+          "selection_score_wilson_lower": 0.061491944720396215
         }
       },
       {
@@ -1940,20 +1945,20 @@
           "threshold": 0.0
         },
         "eligible_research": false,
-        "score": 0.25423375191660275,
+        "score": 0.2758041573011051,
         "metrics": {
-          "n_signals": 55,
+          "n_signals": 57,
           "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 20,
+          "n_wins": 22,
           "independent_entry_dates": 19,
-          "win_rate": 0.37037037037037035,
-          "ge3_rate": 0.2777777777777778,
-          "ge6_rate": 0.24074074074074073,
-          "mean_gross_return": -0.0014800844692503883,
-          "selection_score_wilson_lower": 0.25423375191660275
+          "win_rate": 0.39285714285714285,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.23214285714285715,
+          "mean_gross_return": -0.00022890083593273984,
+          "selection_score_wilson_lower": 0.2758041573011051
         }
       },
       {
@@ -1964,20 +1969,20 @@
           "threshold": 0.35
         },
         "eligible_research": false,
-        "score": 0.25423375191660275,
+        "score": 0.2758041573011051,
         "metrics": {
-          "n_signals": 55,
+          "n_signals": 57,
           "n_cancelled": 1,
-          "n_attempts": 54,
-          "n_closed": 54,
+          "n_attempts": 56,
+          "n_closed": 56,
           "n_unresolved": 0,
-          "n_wins": 20,
+          "n_wins": 22,
           "independent_entry_dates": 19,
-          "win_rate": 0.37037037037037035,
-          "ge3_rate": 0.2777777777777778,
-          "ge6_rate": 0.24074074074074073,
-          "mean_gross_return": -0.0014800844692503883,
-          "selection_score_wilson_lower": 0.25423375191660275
+          "win_rate": 0.39285714285714285,
+          "ge3_rate": 0.30357142857142855,
+          "ge6_rate": 0.23214285714285715,
+          "mean_gross_return": -0.00022890083593273984,
+          "selection_score_wilson_lower": 0.2758041573011051
         }
       },
       {
@@ -1988,20 +1993,20 @@
           "threshold": 0.45
         },
         "eligible_research": false,
-        "score": 4.8683609171202235e-17,
+        "score": 0.061491944720396215,
         "metrics": {
           "n_signals": 3,
           "n_cancelled": 0,
           "n_attempts": 3,
           "n_closed": 3,
           "n_unresolved": 0,
-          "n_wins": 0,
+          "n_wins": 1,
           "independent_entry_dates": 1,
-          "win_rate": 0.0,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.0343493129208986,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
+          "mean_gross_return": -0.011310962359226684,
+          "selection_score_wilson_lower": 0.061491944720396215
         }
       },
       {
@@ -2012,126 +2017,129 @@
           "threshold": 0.5
         },
         "eligible_research": false,
-        "score": 4.8683609171202235e-17,
+        "score": 0.061491944720396215,
         "metrics": {
           "n_signals": 3,
           "n_cancelled": 0,
           "n_attempts": 3,
           "n_closed": 3,
           "n_unresolved": 0,
-          "n_wins": 0,
+          "n_wins": 1,
           "independent_entry_dates": 1,
-          "win_rate": 0.0,
+          "win_rate": 0.3333333333333333,
           "ge3_rate": 0.0,
           "ge6_rate": 0.0,
-          "mean_gross_return": -0.0343493129208986,
-          "selection_score_wilson_lower": 4.8683609171202235e-17
+          "mean_gross_return": -0.011310962359226684,
+          "selection_score_wilson_lower": 0.061491944720396215
         }
       }
     ],
     "diagnostic": {
       "baseline": {
         "n_signals": 109,
-        "n_cancelled": 15,
-        "n_attempts": 94,
-        "n_selected_attempts": 94,
-        "n_closed": 93,
-        "n_entry_reference_known": 93,
-        "n_unresolved": 1,
-        "n_wins": 37,
+        "n_cancelled": 12,
+        "n_attempts": 97,
+        "n_selected_attempts": 97,
+        "n_closed": 95,
+        "n_entry_reference_known": 96,
+        "n_unresolved": 2,
+        "n_wins": 39,
         "n_losses": 56,
         "n_flat": 0,
-        "independent_entry_dates": 60,
-        "n_abstain_dates": 5,
-        "win_rate": 0.39361702127659576,
-        "closed_win_rate": 0.3978494623655914,
-        "ge3_rate": 0.35106382978723405,
-        "ge6_rate": 0.1276595744680851,
-        "day2_touch3_rate": 0.4787234042553192,
-        "day2_touch6_rate": 0.32978723404255317,
-        "n_known_touch": 93,
-        "first_day_green_rate": 0.5,
-        "n_known_first_day": 93,
+        "independent_entry_dates": 63,
+        "n_abstain_dates": 3,
+        "win_rate": 0.4020618556701031,
+        "closed_win_rate": 0.4105263157894737,
+        "ge3_rate": 0.3402061855670103,
+        "ge6_rate": 0.12371134020618557,
+        "day2_touch3_rate": 0.44329896907216493,
+        "day2_touch6_rate": 0.31958762886597936,
+        "n_known_touch": 95,
+        "first_day_green_rate": 0.4948453608247423,
+        "n_known_first_day": 96,
         "first_day_green_conditional": {
-          "n": 47,
-          "win_rate": 0.7021276595744681,
-          "ge3_rate": 0.6382978723404256,
-          "ge6_rate": 0.2553191489361702
+          "n": 48,
+          "win_rate": 0.7291666666666666,
+          "ge3_rate": 0.625,
+          "ge6_rate": 0.25
         },
         "first_day_not_green_conditional": {
-          "n": 46,
-          "win_rate": 0.08695652173913043,
-          "ge3_rate": 0.06521739130434782,
+          "n": 48,
+          "win_rate": 0.08333333333333333,
+          "ge3_rate": 0.0625,
           "ge6_rate": 0.0
         },
-        "day2_close_up_rate": 0.44680851063829785,
+        "day2_close_up_rate": 0.4639175257731959,
         "mean_gross_return": null,
-        "mean_closed_gross_return": -0.0040016743905960175,
-        "gross_pnl_cny": -4136.999999999989,
+        "mean_closed_gross_return": -0.0019101535267582257,
+        "gross_pnl_cny": -873.9999999999911,
         "date_block_bootstrap": {
           "win_rate_ci95": [
-            0.28405385375494074,
-            0.5100051020408163
+            0.29292929292929293,
+            0.5053763440860215
           ],
           "samples": 2000,
           "unit": "entry_date",
           "unresolved_count_as_nonwins": true
         },
-        "selection_score_wilson_lower": 0.30089893259000317,
-        "ambiguity_count": 6,
-        "optimistic_win_rate_upper_proxy": 0.4574468085106383,
+        "selection_score_wilson_lower": 0.310021966016566,
+        "ambiguity_count": 5,
+        "optimistic_win_rate_upper_proxy": 0.4536082474226804,
         "denominator": "closed_plus_unresolved_selected_attempts_excludes_predeclared_open_cancellations",
         "costs_included": false,
         "actual_win_rate": null,
         "formal_trade_ready": false
       },
       "selected_policy": {
-        "n_signals": 0,
+        "n_signals": 81,
         "n_cancelled": 0,
-        "n_attempts": 0,
-        "n_selected_attempts": 0,
-        "n_closed": 0,
-        "n_entry_reference_known": 0,
-        "n_unresolved": 0,
-        "n_wins": 0,
-        "n_losses": 0,
-        "n_flat": 0,
-        "independent_entry_dates": 0,
-        "n_abstain_dates": 0,
-        "win_rate": null,
-        "closed_win_rate": null,
-        "ge3_rate": null,
-        "ge6_rate": null,
-        "day2_touch3_rate": null,
-        "day2_touch6_rate": null,
-        "n_known_touch": 0,
-        "first_day_green_rate": null,
-        "n_known_first_day": 0,
+        "n_attempts": 81,
+        "n_selected_attempts": 81,
+        "n_closed": 78,
+        "n_entry_reference_known": 81,
+        "n_unresolved": 3,
+        "n_wins": 33,
+        "n_losses": 44,
+        "n_flat": 1,
+        "independent_entry_dates": 27,
+        "n_abstain_dates": 41,
+        "win_rate": 0.4074074074074074,
+        "closed_win_rate": 0.4230769230769231,
+        "ge3_rate": 0.2222222222222222,
+        "ge6_rate": 0.1728395061728395,
+        "day2_touch3_rate": 0.41975308641975306,
+        "day2_touch6_rate": 0.18518518518518517,
+        "n_known_touch": 78,
+        "first_day_green_rate": 0.4567901234567901,
+        "n_known_first_day": 81,
         "first_day_green_conditional": {
-          "n": 0,
-          "win_rate": null,
-          "ge3_rate": null,
-          "ge6_rate": null
+          "n": 37,
+          "win_rate": 0.7837837837837838,
+          "ge3_rate": 0.43243243243243246,
+          "ge6_rate": 0.35135135135135137
         },
         "first_day_not_green_conditional": {
-          "n": 0,
-          "win_rate": null,
-          "ge3_rate": null,
-          "ge6_rate": null
+          "n": 44,
+          "win_rate": 0.09090909090909091,
+          "ge3_rate": 0.045454545454545456,
+          "ge6_rate": 0.022727272727272728
         },
-        "day2_close_up_rate": null,
+        "day2_close_up_rate": 0.5432098765432098,
         "mean_gross_return": null,
-        "mean_closed_gross_return": null,
-        "gross_pnl_cny": 0.0,
+        "mean_closed_gross_return": -0.0009077412154496684,
+        "gross_pnl_cny": -692.0000000000042,
         "date_block_bootstrap": {
-          "win_rate_ci95": null,
+          "win_rate_ci95": [
+            0.2962962962962963,
+            0.5308641975308642
+          ],
           "samples": 2000,
           "unit": "entry_date",
           "unresolved_count_as_nonwins": true
         },
-        "selection_score_wilson_lower": 0.0,
-        "ambiguity_count": 0,
-        "optimistic_win_rate_upper_proxy": null,
+        "selection_score_wilson_lower": 0.3069627781339348,
+        "ambiguity_count": 1,
+        "optimistic_win_rate_upper_proxy": 0.41975308641975306,
         "denominator": "closed_plus_unresolved_selected_attempts_excludes_predeclared_open_cancellations",
         "costs_included": false,
         "actual_win_rate": null,
@@ -2196,11 +2204,11 @@
     "endpoints": {
       "p_profit": {
         "label": "D2_close_over_D1_open_strictly_positive",
-        "n": 81951,
-        "actual_frequency": 0.5065832021573867,
-        "predicted_mean": 0.42968892653955393,
-        "brier": 0.2871113868789136,
-        "calibration_constant_baseline_brier": 0.25198569010678123,
+        "n": 82122,
+        "actual_frequency": 0.5095589488809332,
+        "predicted_mean": 0.4328709141182598,
+        "brier": 0.2871909260030511,
+        "calibration_constant_baseline_brier": 0.25197738127943037,
         "probability_bins": [
           {
             "lower": 0.0,
@@ -2233,23 +2241,23 @@
           {
             "lower": 0.4,
             "upper": 0.5,
-            "n": 66835,
-            "mean_prediction": 0.4408544972093597,
-            "observed_frequency": 0.49694022592952797
+            "n": 66805,
+            "mean_prediction": 0.44436708114013856,
+            "observed_frequency": 0.5011151859890727
           },
           {
             "lower": 0.5,
             "upper": 0.6,
-            "n": 1901,
-            "mean_prediction": 0.5129326997583711,
-            "observed_frequency": 0.5660178853235139
+            "n": 2035,
+            "mean_prediction": 0.5129349455075592,
+            "observed_frequency": 0.5513513513513514
           },
           {
             "lower": 0.6,
             "upper": 0.7,
-            "n": 1631,
-            "mean_prediction": 0.6746206714177178,
-            "observed_frequency": 0.46597179644389947
+            "n": 1698,
+            "mean_prediction": 0.674278103069746,
+            "observed_frequency": 0.45995288574793874
           },
           {
             "lower": 0.7,
@@ -2276,108 +2284,108 @@
       },
       "p_ge3": {
         "label": "D2_close_over_D1_open_at_least_0.03",
-        "n": 81951,
-        "actual_frequency": 0.16639211235982476,
-        "predicted_mean": 0.14195516344967501,
-        "brier": 0.14089474151156747,
-        "calibration_constant_baseline_brier": 0.13923166295194972,
+        "n": 82122,
+        "actual_frequency": 0.1667640827062176,
+        "predicted_mean": 0.1437893072495648,
+        "brier": 0.14145566091486217,
+        "calibration_constant_baseline_brier": 0.13948757232006082,
         "probability_bins": [
           {
             "lower": 0.0,
             "upper": 0.1,
-            "n": 29086,
-            "mean_prediction": 0.059245499569460146,
-            "observed_frequency": 0.13917348552568246
+            "n": 33310,
+            "mean_prediction": 0.06433280294717748,
+            "observed_frequency": 0.1386070249174422
           },
           {
             "lower": 0.1,
             "upper": 0.2,
-            "n": 28566,
-            "mean_prediction": 0.14162158253225363,
-            "observed_frequency": 0.1572498774767206
+            "n": 23865,
+            "mean_prediction": 0.1503579790306592,
+            "observed_frequency": 0.16417347580138278
           },
           {
             "lower": 0.2,
             "upper": 0.3,
-            "n": 24299,
-            "mean_prediction": 0.2413511203247311,
-            "observed_frequency": 0.20972056463228939
+            "n": 24947,
+            "mean_prediction": 0.243598294552916,
+            "observed_frequency": 0.2068384976149437
           }
         ]
       },
       "p_ge6": {
         "label": "D2_close_over_D1_open_at_least_0.06",
-        "n": 81951,
-        "actual_frequency": 0.05201888933631072,
-        "predicted_mean": 0.05585588390489616,
-        "brier": 0.04851995083101496,
-        "calibration_constant_baseline_brier": 0.04933147566309009,
+        "n": 82122,
+        "actual_frequency": 0.05208105014490636,
+        "predicted_mean": 0.055840693033458365,
+        "brier": 0.04854688676448936,
+        "calibration_constant_baseline_brier": 0.04938769834401262,
         "probability_bins": [
           {
             "lower": 0.0,
             "upper": 0.1,
-            "n": 71763,
-            "mean_prediction": 0.044879711524110896,
-            "observed_frequency": 0.04293298775134819
+            "n": 71936,
+            "mean_prediction": 0.044722117004360115,
+            "observed_frequency": 0.042954848754448396
           },
           {
             "lower": 0.1,
             "upper": 0.2,
-            "n": 9581,
-            "mean_prediction": 0.12739279841862325,
-            "observed_frequency": 0.11418432313954702
+            "n": 9573,
+            "mean_prediction": 0.12860075648764435,
+            "observed_frequency": 0.1144886660399039
           },
           {
             "lower": 0.2,
             "upper": 0.3,
-            "n": 607,
-            "mean_prediction": 0.22436969050501873,
-            "observed_frequency": 0.14497528830313014
+            "n": 613,
+            "mean_prediction": 0.22434607277618004,
+            "observed_frequency": 0.14845024469820556
           }
         ]
       },
       "p_day1_green": {
         "label": "D1_close_over_D1_open_strictly_positive",
-        "n": 83357,
-        "actual_frequency": 0.5071319745192365,
-        "predicted_mean": 0.44901313086594263,
-        "brier": 0.2673760581084761,
-        "calibration_constant_baseline_brier": 0.2519551285346001,
+        "n": 83524,
+        "actual_frequency": 0.5090991810737033,
+        "predicted_mean": 0.4554211183736708,
+        "brier": 0.26705952986221526,
+        "calibration_constant_baseline_brier": 0.2515404151770542,
         "probability_bins": [
           {
             "lower": 0.0,
             "upper": 0.1,
-            "n": 3413,
-            "mean_prediction": 0.00011256954227365167,
-            "observed_frequency": 0.6021095810137709
+            "n": 3412,
+            "mean_prediction": 8.508547487728337e-05,
+            "observed_frequency": 0.6019929660023446
           },
           {
             "lower": 0.1,
             "upper": 0.2,
             "n": 22,
-            "mean_prediction": 0.15058128630232112,
+            "mean_prediction": 0.14876176448441772,
             "observed_frequency": 0.7272727272727273
           },
           {
             "lower": 0.2,
             "upper": 0.3,
-            "n": 18,
-            "mean_prediction": 0.2511295464802177,
-            "observed_frequency": 0.7222222222222222
+            "n": 19,
+            "mean_prediction": 0.25310363373395717,
+            "observed_frequency": 0.7368421052631579
           },
           {
             "lower": 0.3,
             "upper": 0.4,
             "n": 18,
-            "mean_prediction": 0.3557337575324787,
+            "mean_prediction": 0.36243167792396114,
             "observed_frequency": 0.7222222222222222
           },
           {
             "lower": 0.4,
             "upper": 0.5,
-            "n": 71188,
-            "mean_prediction": 0.45016321478201027,
-            "observed_frequency": 0.4917682755520593
+            "n": 71355,
+            "mean_prediction": 0.457657481511709,
+            "observed_frequency": 0.4941069301380422
           },
           {
             "lower": 0.5,
@@ -2429,10 +2437,10 @@
       "amount_ratio20",
       "range_ratio20"
     ],
-    "history_rows_scanned": 3170608,
-    "history_signal_rows": 385921,
+    "history_rows_scanned": 3176172,
+    "history_signal_rows": 387222,
     "history_symbols": 2265,
-    "prediction_count": 1301,
+    "prediction_count": 1287,
     "validation_origin": "previously_exposed_historical_development_diagnostic_not_fresh_holdout",
     "formal_blockers": [
       "official_point_in_time_universe_status_limits_actions_unverified",
@@ -2453,7 +2461,53 @@
       "Current vendor census and raw corporate action handling retain survivorship and adjustment risks.",
       "An 80 percent real win rate has not been established."
     ],
-    "current_watchlist": [],
+    "current_watchlist": [
+      {
+        "symbol": "002169.SZ",
+        "name": "智光电气",
+        "close": 10.0,
+        "rank": 24,
+        "p_profit": 0.4441934329426499,
+        "p_ge3": 0.23972464061550922,
+        "p_ge6": 0.08964451313755795,
+        "p_day1_green": 0.4575382282320234,
+        "research_signal": true,
+        "policy_signal": true,
+        "shadow_signal": false,
+        "formal_trade_ready": false,
+        "entry_proxy_notes": "T-close research observation only; D1 opening reference must respect the frozen buy cap. Official limits, order priority and actual auction execution are unverified."
+      },
+      {
+        "symbol": "300133.SZ",
+        "name": "华策影视",
+        "close": 9.08,
+        "rank": 42,
+        "p_profit": 0.4441934329426499,
+        "p_ge3": 0.23972464061550922,
+        "p_ge6": 0.11596180081855388,
+        "p_day1_green": 0.4575382282320234,
+        "research_signal": true,
+        "policy_signal": true,
+        "shadow_signal": false,
+        "formal_trade_ready": false,
+        "entry_proxy_notes": "T-close research observation only; D1 opening reference must respect the frozen buy cap. Official limits, order priority and actual auction execution are unverified."
+      },
+      {
+        "symbol": "600192.SH",
+        "name": "长城电工",
+        "close": 7.78,
+        "rank": 59,
+        "p_profit": 0.4441934329426499,
+        "p_ge3": 0.23972464061550922,
+        "p_ge6": 0.11086717892425905,
+        "p_day1_green": 0.4575382282320234,
+        "research_signal": true,
+        "policy_signal": true,
+        "shadow_signal": false,
+        "formal_trade_ready": false,
+        "entry_proxy_notes": "T-close research observation only; D1 opening reference must respect the frozen buy cap. Official limits, order priority and actual auction execution are unverified."
+      }
+    ],
     "model_save_reload_verified": true
   },
   "objective": "gross_profit_3_to_6_percent",
@@ -2470,50 +2524,50 @@
   "files": {
     "summary.json": {
       "name": "summary.json",
-      "bytes": 68702,
-      "sha256": "97a41c28418da472f2ba03826252fd9c2f0f8d1769b1173e2ebc85a203cd4fa1"
+      "bytes": 70890,
+      "sha256": "40b04265f2ce9baea8353cfb7ec26af65701dee228905df2d7bb735911c9b9a9"
     },
     "protocol.json": {
       "name": "protocol.json",
       "bytes": 5815,
-      "sha256": "9e58869e3882b597907a906e63d60bae51f2fa50772763766bb690b493f69a0b"
+      "sha256": "fb006f88acd62873e7345d1ae59b29e0e28957f631e41597eab58463ecac05fd"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 510453,
-      "sha256": "e4d4ff6286350d3096049d2ae6ab43b5236fb296ed7d0dc8590b78d435978a8f"
+      "bytes": 503657,
+      "sha256": "e53b07c64286289c044c3d898d0ddd5852cc2fa35ce0199716722e3d3d662d59"
     },
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 409099,
-      "sha256": "df2fc08b401e9d4e729138883913e27715098f8f9797d3d90a6459ba41dc778a"
+      "bytes": 409140,
+      "sha256": "ead39c797b6b1cca3be3bba1137d676d867eeecc9046cc10a041c7f806d3f60e"
     },
     "diagnostic_trades.csv.gz": {
       "name": "diagnostic_trades.csv.gz",
-      "bytes": 9569,
-      "sha256": "922e515c5ea87d666d1fbdcec1b2db5d67d16a6d45ef1b31d7504219fbb80bb2"
+      "bytes": 15407,
+      "sha256": "32088ef6d9a18d0dd12be175a1d9e2935ae424f5c03fb9489598bb4497d1b59c"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 237738,
-      "sha256": "6597a0211d7694c5f800ed6e2538095ac037177ea83262df112e76ffc7977846"
+      "bytes": 233911,
+      "sha256": "0340d4eb4567c1f9a41b4c528ff6a50abe7ce5983fb046bbb3316c45ed1e36de"
     },
     "report.html": {
       "name": "report.html",
-      "bytes": 50079,
-      "sha256": "3e5a58cba25ee428c5e88aa0de794a53dc50704baca63c5318d65206996dc2a9"
+      "bytes": 51859,
+      "sha256": "de434b58b2531c5163f1d4ece6b83713dcde3a764133759b4bc64b9b9e945d0b"
     },
     "source_manifest.json": {
       "name": "source_manifest.json",
       "bytes": 1654,
-      "sha256": "3fda4117e597267c714f8befbe56f164a05bcc3e7486e6eaa5d4a2a137a026ab"
+      "sha256": "84c3cd73068c2eff6938595469a83d6bfae350cd3d1fb559f9c61706a650f15f"
     }
   },
-  "parent_pointer_blob_sha": "08951f468a880d4c8dc691e33352f2491f3c60d5",
-  "data_pointer_blob_sha": "f9553b0880e5f48b18c7302e22cff853678b0ab6",
+  "parent_pointer_blob_sha": "2440c429b3f84c5f31543ea2f349469a87d1901a",
+  "data_pointer_blob_sha": "653ad56afc4550dfd5c9aabcf112dd5fe042910c",
   "strategy_definition_sha256": "8cde83eb9fde24b569b61426feec7459a1b9bfcbc4a7985e6ac74c1b5a1929bd",
   "forward_evidence_scope": "frozen_research_predictions_only_not_broker_execution",
-  "protocol_sha256": "9e58869e3882b597907a906e63d60bae51f2fa50772763766bb690b493f69a0b",
-  "assets_readback_verified_at": "2026-10-18T13:49:58.642883+08:00",
+  "protocol_sha256": "fb006f88acd62873e7345d1ae59b29e0e28957f631e41597eab58463ecac05fd",
+  "assets_readback_verified_at": "2026-10-20T00:28:31.077924+08:00",
   "forward_eligible": true
 }
