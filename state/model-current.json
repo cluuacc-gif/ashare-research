@@ -1,64 +1,64 @@
 {
-  "model_id": "price-volume-production-v1-2026-10-16-e12161ca5de16e85",
+  "model_id": "price-volume-production-v1-2026-10-19-caef018f93bd088a",
   "model_version": "price-volume-production-v1",
-  "base_trade_date": "2026-10-16",
-  "target_trade_date": "2026-10-19",
-  "snapshot_release": "prepared-2026-10-16-39017480832-1",
-  "input_database_sha256": "4e79ef54caba811e84941dc1ff099020b2c3e7a248b7611f40e15827f03b58cf",
-  "prediction_count": 1301,
-  "generated_at": "2026-10-17T16:41:02.478169+08:00",
+  "base_trade_date": "2026-10-19",
+  "target_trade_date": "2026-10-20",
+  "snapshot_release": "prepared-2026-10-19-39280897985-1",
+  "input_database_sha256": "36b963d3e40bd0eb7582933359353e67e6f9f97da901839eccdba9350137d625",
+  "prediction_count": 1287,
+  "generated_at": "2026-10-20T00:00:44.837920+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
-  "win_rate_gate": "deferred_by_user",
+  "win_rate_gate": "active_gross_swing_forward_validation_required",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-16-39017480832-1",
-  "github_run_id": "39017480832",
-  "github_commit": "7687049fccd5ba8e6309f5a2b4f3e85b7b8fa5ce",
+  "release_tag": "model-2026-10-19-39280897985-1",
+  "github_run_id": "39280897985",
+  "github_commit": "4b3c21a5f43b886ed9b602f6b5351285e8a86ff0",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 184535,
-      "sha256": "e12161ca5de16e85253a65db8b8330b96ec6bc2b9160f1f92fe5d0c682d78637"
+      "bytes": 184031,
+      "sha256": "caef018f93bd088ac1b78ecc404dbcb293d47c77d5ec6861dc5658fa1255428f"
     },
     "validation.json": {
       "name": "validation.json",
-      "bytes": 6630,
-      "sha256": "f119ab2631f6bb018d12794f66e2d1f92de312211edd1e47c16178067e21b477"
+      "bytes": 6113,
+      "sha256": "42618e63766f29d0d5ee1d9f2e7b95170154b17961b25ed35b339f47a9e25454"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 265459,
-      "sha256": "7e989aeacb3232b3d2845da0888cf1052e1298cf1671aeb8fc1c2eecf6846eac"
+      "bytes": 261617,
+      "sha256": "2a55b58c8fd08fa645ff94496eac0c84f6bc7ac25c7b5a22ddec365d7c36b389"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
-      "bytes": 368640,
-      "sha256": "7c9ea153904a1ed515916eb79bec7c7c2821407d782114642beef829b2bf7ddb"
+      "bytes": 364544,
+      "sha256": "5f7c88bbe4e0aeebfb8fdd02371e2bf90d4319ef87a6ae85ba1ad376649e06a2"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "3fda4117e597267c714f8befbe56f164a05bcc3e7486e6eaa5d4a2a137a026ab"
+      "sha256": "84c3cd73068c2eff6938595469a83d6bfae350cd3d1fb559f9c61706a650f15f"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 67187,
-      "sha256": "1f4c8fcfb7a68b62e89433498fd15c6733131124ecf3d4a64ae76699925d67ab"
+      "bytes": 69522,
+      "sha256": "25b7d148bcb32d8c2e8ce1772f4fbb38305898651d239a590246bc15e3f7f4b4"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
-      "bytes": 1236249,
-      "sha256": "3bb555600cfc909e29b923dced3367070c125c72692aefdd869ee1fcb840461b"
+      "bytes": 1224906,
+      "sha256": "31ea24fd010b24b8aa300ff5c47afafc534c40e5fbaffb03852ae174267401b1"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 175793,
-      "sha256": "81afab2001575cd432ab1d575d88bb52e41102a486ecbc698e0d1d26f944ca76"
+      "bytes": 173242,
+      "sha256": "e765175ffd60a4fa7f174204fdd22347e7aa93b59d580132444067d8587a7274"
     }
   },
-  "parent_pointer_blob_sha": "b47cf73ad05ef78f0aa55292ddad2d2fd61002d9",
-  "data_pointer_blob_sha": "f9553b0880e5f48b18c7302e22cff853678b0ab6",
-  "publication_started_at": "2026-10-17T16:41:04.240054+08:00",
-  "assets_readback_verified_at": "2026-10-17T16:41:08.022176+08:00",
+  "parent_pointer_blob_sha": "3fab5937e9b3316744ea49fbfb227ae3a3ad35ea",
+  "data_pointer_blob_sha": "653ad56afc4550dfd5c9aabcf112dd5fe042910c",
+  "publication_started_at": "2026-10-20T00:00:46.939194+08:00",
+  "assets_readback_verified_at": "2026-10-20T00:00:51.421217+08:00",
   "forward_eligible": true
 }
