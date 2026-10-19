@@ -51,6 +51,17 @@ on:
       - test_pa_trade_report.py
       - test_pa_entry_confirmation.py
       - test_pa_trade_integration.py
+      - nextday_cohort.py
+      - nextday_minutes.py
+      - nextday_forward.py
+      - nextday_report.py
+      - test_nextday_cohort.py
+      - test_nextday_minutes.py
+      - test_nextday_forward.py
+      - test_nextday_report.py
+      - test_nextday_integration.py
+      - outlook_admission.py
+      - test_outlook_admission.py
   workflow_dispatch:
   workflow_run:
     workflows: [A-share automatic after-close pipeline]
@@ -86,6 +97,9 @@ jobs:
           test_probability_report.py test_probability_integration.py
           test_pa_trade_engine.py test_pa_trade_features.py test_pa_trade_research.py
           test_pa_trade_report.py test_pa_entry_confirmation.py test_pa_trade_integration.py
+          test_nextday_cohort.py test_nextday_minutes.py test_nextday_forward.py
+          test_nextday_report.py test_nextday_integration.py
+          test_outlook_admission.py
   freeze:
     needs: verify
     if: >-
@@ -125,11 +139,36 @@ jobs:
           with open(os.environ['GITHUB_OUTPUT'],'a') as output:
               output.write('enabled='+str(value.get('enabled') is True).lower()+'\n')
           PY
-      - name: Restore current immutable market data with independent hash verification
+      - name: Verify a new prospective freeze is still possible before downloading the market database
+        id: admission
         if: steps.request.outputs.enabled == 'true'
+        run: |
+          python - <<'PY'
+          import json, os
+          import collector as c
+          import pipeline_state as state
+          from outlook_admission import evaluate, render
+          from pathlib import Path
+          source,_=state.pointer(os.environ['GITHUB_REPOSITORY'])
+          result=evaluate(source,c.now())
+          root=Path('outlook-admission-out');root.mkdir()
+          if not result['ready']:
+              from nextday_minutes import capture
+              probe=capture(['000001.SZ'],root/'minute-transport-probe')
+              result['minute_transport']={'symbols_requested':1,
+                  'symbols_available':sum(bool(item.get('bars')) for item in probe.values()),
+                  'validation_scope':'transport_only_not_trading_performance'}
+          state.write(root/'status.json',result)
+          (root/'report.html').write_text(render(result),encoding='utf-8')
+          with open(os.environ['GITHUB_OUTPUT'],'a') as stream:
+              stream.write('ready='+str(result['ready']).lower()+'\n')
+          print(json.dumps(result,ensure_ascii=False))
+          PY
+      - name: Restore current immutable market data with independent hash verification
+        if: steps.request.outputs.enabled == 'true' && steps.admission.outputs.ready == 'true'
         run: python pipeline_state.py restore --destination "$RUNNER_TEMP/outlook-source"
       - name: Research mathematical price action with separate T+1 and three-day outcomes
-        if: steps.request.outputs.enabled == 'true'
+        if: steps.request.outputs.enabled == 'true' && steps.admission.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import json, os, subprocess, sys
@@ -141,7 +180,7 @@ jobs:
               '--output','price-action-out'],check=True)
           PY
       - name: Capture actual vendor industry money flow and same-vendor constituents
-        if: steps.request.outputs.enabled == 'true'
+        if: steps.request.outputs.enabled == 'true' && steps.admission.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import json, os, subprocess, sys
@@ -151,7 +190,7 @@ jobs:
               '--output','fund-flow-out'],check=True)
           PY
       - name: Compare probability and context-based T+1 trading from one causal market scan
-        if: steps.request.outputs.enabled == 'true'
+        if: steps.request.outputs.enabled == 'true' && steps.admission.outputs.ready == 'true'
         run: |
           python - <<'PY'
           import json, os, subprocess, sys
@@ -163,7 +202,7 @@ jobs:
               '--output','pa-trade-out','--probability-output','probability-out'],check=True)
           PY
       - name: Freeze actual next-session outlook and publish verified research assets
-        if: steps.request.outputs.enabled == 'true'
+        if: steps.request.outputs.enabled == 'true' && steps.admission.outputs.ready == 'true'
         run: >-
           python market_outlook.py --store "$RUNNER_TEMP/outlook-source" --output market-outlook-out
           --fund-flow-dir fund-flow-out --price-action-dir price-action-out --probability-dir probability-out
@@ -172,5 +211,7 @@ jobs:
         if: always()
         with:
           name: market-outlook-${{ github.run_id }}-${{ github.run_attempt }}
-          path: market-outlook-out/
+          path: |
+            market-outlook-out/
+            outlook-admission-out/
           if-no-files-found: warn

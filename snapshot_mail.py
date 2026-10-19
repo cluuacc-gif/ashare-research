@@ -39,6 +39,7 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
     research['price_action_research']=context_data.get('price_action_research') or {'status':'unavailable'}
     research['probability_research']=context_data.get('probability_research') or {'status':'unavailable'}
     research['pa_trade_research']=context_data.get('pa_trade_research') or {'status':'unavailable'}
+    research['nextday_research']=context_data.get('nextday_research') or {'status':'unavailable'}
     research['pa_opening_confirmation']={'status':'fresh_minute_evidence_not_connected','confirmed':[]}
     evidence=payload.get('pa_opening_evidence')
     if isinstance(evidence,dict):

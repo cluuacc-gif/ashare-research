@@ -86,6 +86,13 @@ def _cent_floor(value):
                                                      rounding=decimal.ROUND_FLOOR))
 
 
+def frozen_cap(close, price_max=10):
+    """Multiply in decimal before cent flooring (6.00 * 1.025 = 6.15)."""
+    value=min(decimal.Decimal(str(close))*(decimal.Decimal('1')+decimal.Decimal(str(MAXIMUM_OPEN_GAP))),
+              decimal.Decimal(str(price_max)))
+    return float(value.quantize(decimal.Decimal('.01'),rounding=decimal.ROUND_FLOOR))
+
+
 @contextlib.contextmanager
 def _connection(database):
     if isinstance(database, sqlite3.Connection):
@@ -309,7 +316,7 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
                               'source': 'sector_forecast_frozen_members',
                               'observed_at': sector_forecast['information_cutoff']}
             sector_score = scores.get(sector)
-            cap = _cent_floor(min(float(row['close']) * (1 + MAXIMUM_OPEN_GAP), price_max))
+            cap = frozen_cap(row['close'], price_max)
             quantity = int(10000 / cap / 100) * 100
             if quantity < 100:
                 reject('one_lot_exceeds_frozen_position_budget'); continue

@@ -1,7 +1,7 @@
 {
   "enabled": true,
-  "request_id": "price-action-context-structure-risk-tplus1-20261018-v4.0",
-  "purpose": "Freeze next-session sector outlook and conditional opening watchlist; no orders or email",
+  "request_id": "nextday-prospective-confluence-matched-minute-20261019-v5.0",
+  "purpose": "Freeze prospective T+1 cohorts, six matched timing and confluence arms, and retained minute reference evidence; no orders or email",
   "costs_included": false,
   "formal_trade_ready": false
 }

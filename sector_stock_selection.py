@@ -498,7 +498,8 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
             stock_flow = board.get('member_flow_by_symbol', {}).get(symbol)
             primary_eligible = (not board['flow_integrated']
                                 or stock_flow is not None and stock_flow['status'] == 'positive')
-            cap = _cent_floor(min(close * 1.025, price_max))
+            from opening_strength import frozen_cap
+            cap = frozen_cap(close, price_max)
             if cap < price_min or cap < close * 1.002 - 1e-10:
                 reject(candidate, 'frozen_cap_cannot_allow_required_opening_strength', action)
                 continue
