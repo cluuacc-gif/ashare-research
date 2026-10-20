@@ -191,6 +191,86 @@ class AutonomousMailerTests(unittest.TestCase):
         self.assertEqual(value['state'],'missed_window')
         for mock in [read,cached,restore,model,sender]: mock.assert_not_called()
 
+    def test_far_early_wait_skips_without_sleep_read_or_sender(self):
+        self.clock[0] = instant(DAY+'T00:36:00+08:00')
+        with (patch('autonomous_mailer.time.sleep') as sleep,
+              patch('autonomous_mailer.read_ready') as read,
+              patch('autonomous_mailer.subprocess.run') as sender):
+            value = a.deliver(STAGE,DAY,self.root,wait=True)
+        self.assertEqual(value['state'],'before_send_window')
+        self.assertFalse(value['smtp_accepted'])
+        self.assertEqual(json.loads((self.out()/'last-attempt.json').read_text())['state'],
+                         'before_send_window')
+        for mock in [sleep,read,sender]: mock.assert_not_called()
+
+    def test_near_deadline_wait_still_delivers_once_at_due_time(self):
+        self.sealed(); self.clock[0] = instant(DAY+'T17:59:59+08:00')
+        def advance(seconds):
+            self.clock[0] += dt.timedelta(seconds=seconds)
+        with (patch('autonomous_mailer.time.sleep',side_effect=advance) as sleep,
+              patch('autonomous_mailer.subprocess.run',side_effect=self.sender()) as sender,
+              patch('autonomous_mailer.state.run')):
+            value = a.deliver(STAGE,DAY,self.root,wait=True)
+        sleep.assert_called_once_with(1); sender.assert_called_once()
+        self.assertEqual(self.clock[0],instant(DAY+'T18:00:00+08:00'))
+        self.assertTrue(value['smtp_accepted'])
+
+    def test_wait_that_wakes_after_deadline_never_reads_or_sends(self):
+        self.clock[0] = instant(DAY+'T17:59:59+08:00')
+        def delayed_wakeup(_seconds):
+            self.clock[0] = instant(DAY+'T18:01:00+08:00')
+        with (patch('autonomous_mailer.time.sleep',side_effect=delayed_wakeup),
+              patch('autonomous_mailer.read_ready') as read,
+              patch('autonomous_mailer.subprocess.run') as sender):
+            value = a.deliver(STAGE,DAY,self.root,wait=True)
+        self.assertEqual(value['state'],'missed_window')
+        read.assert_not_called(); sender.assert_not_called()
+
+    def test_hosted_evening_schedule_after_midnight_skips_before_any_work(self):
+        self.clock[0] = instant('2026-10-20T00:36:01+08:00')
+        env = {'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'schedule'}
+        for mode in ['--prepare','--deliver']:
+            with self.subTest(mode=mode):
+                argv = ['autonomous_mailer.py','--stage',STAGE,'--state-dir',str(self.root),mode]
+                if mode == '--deliver': argv.append('--wait')
+                with (patch.dict(os.environ,env,clear=True),patch('sys.argv',argv),
+                      patch('autonomous_mailer.prepare') as prepare,
+                      patch('autonomous_mailer.deliver') as deliver,
+                      patch('autonomous_mailer.cached_inputs') as inputs,
+                      patch('autonomous_mailer.time.sleep') as sleep,
+                      patch('autonomous_mailer.subprocess.run') as sender):
+                    self.assertEqual(a.main(),0)
+                for mock in [prepare,deliver,inputs,sleep,sender]: mock.assert_not_called()
+                path = a.slot(self.root,STAGE,'2026-10-19')/('preparation.json' if mode=='--prepare' else 'last-attempt.json')
+                result = json.loads(path.read_text())
+                self.assertEqual(result['state'],'missed_window')
+                self.assertEqual(result['scheduled_at'],'2026-10-19T18:00:00+08:00')
+                self.assertFalse(result['smtp_accepted'])
+                self.assertFalse(result['intended_schedule_date_verified'])
+                self.assertFalse(a.slot(self.root,STAGE,'2026-10-20').exists())
+
+    def test_queued_schedule_date_inference_never_applies_to_explicit_manual_or_preview(self):
+        self.clock[0] = instant('2026-10-20T00:36:01+08:00')
+        env = {'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'schedule'}
+        with patch.dict(os.environ,env,clear=True):
+            self.assertIsNone(a.queued_schedule_skip(STAGE,'2026-10-20',explicit_day=True))
+            self.assertIsNone(a.queued_schedule_skip(STAGE,'2026-10-20',dry_run=True))
+        with patch.dict(os.environ,{'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'workflow_dispatch'},clear=True):
+            self.assertIsNone(a.queued_schedule_skip(STAGE,'2026-10-20'))
+        with patch.dict(os.environ,{'MAIL_DELIVERY_BACKEND':'dedicated'},clear=True):
+            self.assertIsNone(a.queued_schedule_skip(STAGE,'2026-10-20'))
+
+    def test_hosted_schedule_wait_boundary_and_weekend_inference(self):
+        with patch.dict(os.environ,{'GITHUB_ACTIONS':'true','GITHUB_EVENT_NAME':'schedule'},clear=True):
+            self.clock[0] = instant('2026-10-20T17:00:00+08:00')
+            self.assertIsNone(a.queued_schedule_skip(STAGE,'2026-10-20'))
+            self.clock[0] -= dt.timedelta(microseconds=1)
+            result = a.queued_schedule_skip(STAGE,'2026-10-20')
+            self.assertEqual(result['state'],'missed_window')
+            self.assertEqual(result['target_date'],'2026-10-19')
+            self.clock[0] = instant('2026-10-19T00:36:01+08:00')
+            self.assertEqual(a.queued_schedule_skip(STAGE,'2026-10-19')['target_date'],'2026-10-16')
+
     def test_accepted_and_uncertain_receipts_suppress_before_reading_body(self):
         self.clock[0] = instant(DAY+'T18:00:30+08:00')
         for state in ['smtp_accepted','in_flight','delivery_unknown','partial_acceptance']:

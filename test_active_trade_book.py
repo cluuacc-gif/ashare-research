@@ -249,7 +249,7 @@ class ReferenceBookTests(unittest.TestCase):
         self.assertEqual(book.account([outside])['available_cash_cny'], 30000)
 
     def test_frozen_admission_and_budget_survive_reruns_and_cannot_be_rewritten(self):
-        study = {'protocol_sha256': 'policy', 'target_trade_date': D1,
+        study = {'schema': book.ACTIVE_SCHEMA, 'protocol_sha256': 'policy', 'target_trade_date': D1,
             'generated_at': plan()['generated_at'], 'plans': [plan()]}
         self.assertEqual(book.roll(study, False, {}, self.db, D1+'T08:00:00+08:00', 'policy')['records'], [])
         frozen = book.roll(study, True, {}, self.db, D1+'T08:00:00+08:00', 'policy')
@@ -283,12 +283,65 @@ class ReferenceBookTests(unittest.TestCase):
         with self.assertRaises(ValueError): book.account([overspent])
 
     def test_policy_change_cannot_reset_existing_positions_or_cash(self):
-        study = {'protocol_sha256': 'old-policy', 'target_trade_date': D1,
+        study = {'schema': book.ACTIVE_SCHEMA, 'protocol_sha256': 'old-policy', 'target_trade_date': D1,
             'generated_at': plan()['generated_at'], 'plans': [plan()]}
         old_book = book.roll(study, True, {}, self.db, D1+'T08:00:00+08:00', 'old-policy')
         study['reference_book'] = old_book
         with self.assertRaises(ValueError):
             book.roll(study, False, {}, self.db, D1+'T08:01:00+08:00', 'new-policy')
+
+    def test_first_boot_ignores_legacy_publication_without_active_state(self):
+        for previous in (None, {}):
+            for admitted in (True, False):
+                with self.subTest(previous=previous, admitted=admitted):
+                    current = book.roll(previous, admitted, {}, self.db,
+                        D1+'T08:00:00+08:00', 'policy')
+                    self.assertEqual(current['frozen_plan_dates'], [])
+                    self.assertEqual(current['records'], [])
+                    self.assertEqual(current['occupied_symbols'], [])
+                    self.assertEqual(current['occupied_sectors'], [])
+                    self.assertEqual(current['account']['available_cash_cny'], 30000)
+                    self.assertEqual(current['account']['reserved_cash_cny'], 0)
+                    self.assertIsNone(current['account']['actual_win_rate'])
+
+    def test_explicit_empty_published_decision_is_admitted_and_remains_immutable(self):
+        study = {'schema': book.ACTIVE_SCHEMA, 'protocol_sha256': 'policy',
+            'target_trade_date': D1, 'generated_at': plan()['generated_at'], 'plans': []}
+        first = book.roll(study, True, {}, self.db, D1+'T08:00:00+08:00', 'policy')
+        self.assertEqual(len(first['frozen_plan_dates']), 1)
+        self.assertEqual(first['frozen_plan_dates'][0]['plans'], [])
+        self.assertEqual(first['records'], [])
+        study['reference_book'] = first
+        study['plans'] = [plan()]
+        rerun = book.roll(study, True, {}, self.db, D1+'T08:01:00+08:00', 'policy')
+        self.assertEqual(rerun['frozen_plan_dates'], first['frozen_plan_dates'])
+        self.assertEqual(rerun['records'], [])
+        self.assertEqual(rerun['account']['available_cash_cny'], 30000)
+
+    def test_malformed_nonempty_active_state_cannot_reset_or_admit_an_account(self):
+        valid = {'schema': book.ACTIVE_SCHEMA, 'protocol_sha256': 'policy',
+            'target_trade_date': D1, 'generated_at': plan()['generated_at'], 'plans': []}
+        changes = [('schema', 'legacy-study'), ('target_trade_date', None),
+            ('target_trade_date', 'not-a-date'), ('target_trade_date', D1+'T00:00:00'),
+            ('generated_at', None), ('generated_at', D1+'T08:00:00'),
+            ('plans', None), ('plans', {}), ('plans', [{}]),
+            ('reference_book', []), ('reference_book', None),
+            ('reference_book', {'records': [], 'frozen_plan_dates': []})]
+        malformed = [[], '', 0, False, {'legacy': 'publication'}]
+        for key, value in changes:
+            changed = copy.deepcopy(valid); changed[key] = value; malformed.append(changed)
+        for missing in ('schema', 'protocol_sha256', 'target_trade_date', 'generated_at', 'plans'):
+            changed = copy.deepcopy(valid); changed.pop(missing); malformed.append(changed)
+        for previous in malformed:
+            for admitted in (True, False):
+                with self.subTest(previous=previous, admitted=admitted), self.assertRaises(ValueError):
+                    book.roll(previous, admitted, {}, self.db, D1+'T08:00:00+08:00', 'policy')
+
+    def test_late_nonempty_admission_is_rejected_even_when_publication_flag_is_true(self):
+        study = {'schema': book.ACTIVE_SCHEMA, 'protocol_sha256': 'policy',
+            'target_trade_date': D1, 'generated_at': D1+'T09:15:00+08:00', 'plans': []}
+        with self.assertRaisesRegex(ValueError, 'freeze deadline'):
+            book.roll(study, True, {}, self.db, D1+'T09:16:00+08:00', 'policy')
 
 
 if __name__ == '__main__':

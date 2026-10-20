@@ -42,6 +42,21 @@ class NextdayIntegrationTests(unittest.TestCase):
                 self.assertEqual(render(value),render(m.compact_pointer({'outlook':value})['outlook']))
                 self.assertFalse(value['nextday_research']['formal_trade_ready'])
                 self.assertTrue(value['active_trade_system']['system_enabled'])
+                # The real initial publication reads a verified legacy outlook
+                # that has research ledgers but no independent-system payload.
+                legacy=copy.deepcopy(value);legacy.pop('active_trade_system')
+                initial,_=m.generate(root,cutoff='2026-10-18T14:00:30+08:00',active_context={
+                    'prior_value':legacy,'prior_publication_verified':True,'evidence':{}})
+                first=initial['active_trade_system']
+                self.assertTrue(first['system_enabled'])
+                self.assertEqual(first['reference_book']['frozen_plan_dates'],[])
+                self.assertEqual(first['reference_book']['records'],[])
+                self.assertEqual(first['reference_account']['initial_capital_cny'],30000)
+                self.assertNotIn('current_plan_preserved_from_first_publication',first)
+                broken=copy.deepcopy(legacy);broken['active_trade_system']=[]
+                with self.assertRaisesRegex(ValueError,'must be an object or absent'):
+                    m.generate(root,cutoff='2026-10-18T14:00:40+08:00',active_context={
+                        'prior_value':broken,'prior_publication_verified':True,'evidence':{}})
                 prior={'prior_value':value,'prior_publication_verified':False,'evidence':{}}
                 with self.assertRaisesRegex(ValueError,'publication is unverified'):
                     m.generate(root,cutoff='2026-10-18T14:01:00+08:00',active_context=prior)

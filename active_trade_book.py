@@ -19,6 +19,7 @@ from nextday_forward import expected_ends, minute_index, trigger, _daily, _insid
 from trade_calendar import adjacent
 
 SCHEMA='active-trade-reference-book-v1'
+ACTIVE_SCHEMA='active-tplus1-trade-system-v1'
 OPEN_STATES=('pending_entry','pending_exit','unknown_entry','unknown_exit')
 
 
@@ -228,15 +229,37 @@ def account(records,initial=30000):
 
 def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
     """Admit first actually published plans; preserve their prices and budget."""
-    previous=previous_study if isinstance(previous_study,dict) else {}
+    # A verified legacy publication can predate the active system entirely.
+    # Its publication evidence must not manufacture an empty active cohort.
+    if previous_study is None:
+        previous={}
+    elif isinstance(previous_study,dict):
+        previous=previous_study
+    else:
+        raise ValueError('previous active study must be an object or absent')
     if previous and previous.get('protocol_sha256')!=protocol_sha256:
         raise ValueError('active policy changed; explicit account migration required, balances cannot reset')
-    book=deepcopy(previous.get('reference_book') or {})
+    if previous:
+        if previous.get('schema')!=ACTIVE_SCHEMA:
+            raise ValueError('previous active study schema mismatch')
+        _validate_frozen_decision(previous)
+    book=deepcopy(previous.get('reference_book',{}))
+    if not isinstance(book,dict):
+        raise ValueError('previous active reference book must be an object')
+    if book and (book.get('schema')!=SCHEMA or book.get('protocol_sha256')!=protocol_sha256
+            or not isinstance(book.get('frozen_plan_dates'),list)
+            or not isinstance(book.get('records'),list)):
+        raise ValueError('previous active reference book identity or ledger is malformed')
     cohorts=book.get('frozen_plan_dates',[])
+    for cohort in cohorts:
+        _validate_frozen_decision(cohort)
     known={item['target_trade_date'] for item in cohorts}
-    if admitted and previous.get('target_trade_date') not in known:
+    if admitted and previous and previous['target_trade_date'] not in known:
+        target=datetime.fromisoformat(previous['target_trade_date']).date()
+        if instant(previous['generated_at'])>=datetime.combine(target,time(9,15),TZ):
+            raise ValueError('active admission must precede target session freeze deadline')
         cohorts.append({'target_trade_date':previous['target_trade_date'],
-            'generated_at':previous['generated_at'],'plans':deepcopy(previous.get('plans',[]))})
+            'generated_at':previous['generated_at'],'plans':deepcopy(previous['plans'])})
     if len({item['target_trade_date'] for item in cohorts})!=len(cohorts):
         raise ValueError('duplicate active plan target dates')
     prior={row['active_plan_id']:row for row in book.get('records',[])}
@@ -251,3 +274,26 @@ def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
         'occupied_symbols':[row['symbol'] for row in active],
         'occupied_sectors':[row['sector_identity'] for row in active],
         'actual_win_rate':None,'order_execution_enabled':False}
+
+
+def _validate_frozen_decision(value):
+    """Distinguish an explicit empty decision from missing active state."""
+    if not isinstance(value,dict):
+        raise ValueError('active frozen decision must be an object')
+    target=value.get('target_trade_date')
+    try:
+        day=datetime.fromisoformat(target).date()
+        if day.isoformat()!=target:
+            raise ValueError('noncanonical date')
+        instant(value['generated_at'])
+    except (KeyError,TypeError,ValueError,OverflowError) as error:
+        raise ValueError('active frozen decision date or timestamp is malformed') from error
+    if not isinstance(value.get('plans'),list):
+        raise ValueError('active frozen decision requires an explicit plans list')
+    required=('active_plan_id','symbol','base_trade_date','target_trade_date','D2_trade_date',
+        'generated_at','frozen_entry_floor','frozen_entry_cap','structural_stop',
+        'frozen_quantity_shares','frozen_reserved_cash_cny','sector_identity','base_close')
+    for plan in value['plans']:
+        if (not isinstance(plan,dict) or any(key not in plan for key in required)
+                or plan['target_trade_date']!=target):
+            raise ValueError('active frozen plan is malformed or targets a different session')

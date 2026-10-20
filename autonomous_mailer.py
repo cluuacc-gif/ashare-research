@@ -23,6 +23,7 @@ import snapshot_mail
 
 ROOT = Path(__file__).resolve().parent
 NO_RESEND = {'in_flight','delivery_unknown','partial_acceptance'}
+MAX_WAIT_SECONDS = 3600
 
 
 def atomic(path, value):
@@ -36,6 +37,31 @@ def atomic(path, value):
 def slot(root, stage, day):
     mail_timing.scheduled_at(stage, day)
     return Path(root).resolve() / 'outbox' / (day+'-'+stage)
+
+
+def queued_schedule_skip(stage, day, explicit_day=False, dry_run=False):
+    """Do not roll a delayed hosted weekday schedule into a future report.
+
+    Hosted jobs warm within one hour of the configured mail time. If an implicit
+    schedule starts earlier than that on its execution date, the latest elapsed
+    weekday occurrence has already been missed. This inferred date is only used
+    for a skip receipt, never for preparation or delivery.
+    """
+    if (explicit_day or dry_run or os.environ.get('GITHUB_ACTIONS') != 'true' or
+            os.environ.get('GITHUB_EVENT_NAME') != 'schedule'):
+        return None
+    now = c.now().astimezone(mail_timing.TZ)
+    if (mail_timing.scheduled_at(stage,day)-now).total_seconds() <= MAX_WAIT_SECONDS:
+        return None
+    elapsed = now.date()-dt.timedelta(days=1)
+    while elapsed.weekday() >= 5:
+        elapsed -= dt.timedelta(days=1)
+    missed_day = elapsed.isoformat()
+    result = mail_timing.check(stage,missed_day,at=now)
+    return {**result,'state':'missed_window','allowed':False,'smtp_accepted':False,
+            'reason':'hosted_schedule_started_outside_warmup_window',
+            'target_date_resolution':'latest_elapsed_weekday_stage_occurrence',
+            'intended_schedule_date_verified':False}
 
 
 def local_file(root, name):
@@ -290,9 +316,11 @@ def deliver(stage, day, root, wait=False, dry_run=False):
     if wait and not dry_run:
         due = mail_timing.scheduled_at(stage,day)
         remaining = (due-c.now()).total_seconds()
-        if remaining > 3600:
-            raise ValueError('refuse to keep a delivery worker waiting over one hour')
-        while 0 < remaining <= 3600:
+        if remaining > MAX_WAIT_SECONDS:
+            result = mail_timing.check(stage,day)
+            atomic(out/'last-attempt.json',result)
+            return result
+        while 0 < remaining <= MAX_WAIT_SECONDS:
             time.sleep(min(remaining,1))
             remaining = (due-c.now()).total_seconds()
     gate = mail_timing.check(stage,day,preview=dry_run)
@@ -369,8 +397,13 @@ def main():
     p.add_argument('--missing-policy',choices=['skip','brief'],default=os.environ.get('MAIL_MISSING_POLICY','brief'))
     a = p.parse_args()
     day = a.day or c.now().date().isoformat()
-    result = (prepare(a.stage,day,a.state_dir,a.repo,a.missing_policy,a.store,a.model_store) if a.prepare else
-              deliver(a.stage,day,a.state_dir,a.wait,a.dry_run))
+    result = queued_schedule_skip(a.stage,day,explicit_day=a.day is not None,dry_run=a.dry_run)
+    if result:
+        out = slot(a.state_dir,a.stage,result['target_date'])
+        atomic(out/('preparation.json' if a.prepare else 'last-attempt.json'),result)
+    else:
+        result = (prepare(a.stage,day,a.state_dir,a.repo,a.missing_policy,a.store,a.model_store) if a.prepare else
+                  deliver(a.stage,day,a.state_dir,a.wait,a.dry_run))
     print(json.dumps({k:result[k] for k in ('state','stage','target_date','smtp_accepted','prepared_at','content_kind') if k in result},ensure_ascii=False))
     return 1 if result.get('state') in ('failed','delivery_unknown','not_configured','recipient_refused','partial_acceptance') else 0
 

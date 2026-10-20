@@ -220,12 +220,15 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
     from active_trade_system import build as active_build, PROTOCOL_SHA256 as ACTIVE_SHA
     from active_trade_book import roll, evaluate as evaluate_active, account as active_account
     active_context=active_context or {}
-    previous=(active_context.get('prior_value') or {}).get('active_trade_system') or {}
+    previous=(active_context.get('prior_value') or {}).get('active_trade_system')
+    previous={} if previous is None else previous
+    if not isinstance(previous,dict):
+        raise ValueError('previous active system must be an object or absent')
     if previous and active_context.get('prior_publication_verified') is not True:
         raise ValueError('existing active plans cannot be replaced while their publication is unverified')
     with closing(sqlite3.connect(database.as_uri()+'?mode=ro',uri=True)) as db:
         db.row_factory=sqlite3.Row
-        book=roll(previous,active_context.get('prior_publication_verified') is True,
+        book=roll(previous,bool(previous) and active_context.get('prior_publication_verified') is True,
             active_context.get('evidence',{}),db,cutoff,ACTIVE_SHA)
     active=active_build(database,source['base_trade_date'],source['next_trade_date'],cutoff,
         outlook,plan,flow,input_sha256=source['database']['sha256'],
