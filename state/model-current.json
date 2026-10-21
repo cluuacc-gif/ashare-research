@@ -1,64 +1,64 @@
 {
-  "model_id": "price-volume-production-v1-2026-10-20-d06f3c71ce80bd28",
+  "model_id": "price-volume-production-v1-2026-10-21-623f7404dda5a8b6",
   "model_version": "price-volume-production-v1",
-  "base_trade_date": "2026-10-20",
-  "target_trade_date": "2026-10-21",
-  "snapshot_release": "prepared-2026-10-20-39433668403-1",
-  "input_database_sha256": "4efb9a39200a38c310931b2790ccc7fabc9e736e79669eb6de337cd2faadc32f",
+  "base_trade_date": "2026-10-21",
+  "target_trade_date": "2026-10-22",
+  "snapshot_release": "prepared-2026-10-21-39613574426-1",
+  "input_database_sha256": "b1db24f3721260ef7b15cfdcb8d473482e7e59b915f6518994a131f04331bb10",
   "prediction_count": 1270,
-  "generated_at": "2026-10-20T21:59:48.466019+08:00",
+  "generated_at": "2026-10-21T22:18:59.299257+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "active_gross_swing_forward_validation_required",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-20-39433668403-1",
-  "github_run_id": "39433668403",
+  "release_tag": "model-2026-10-21-39613574426-1",
+  "github_run_id": "39613574426",
   "github_commit": "ef86a8639fa7c26085335ba5463a7af779a135de",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 184369,
-      "sha256": "d06f3c71ce80bd2812d45e6ef8281d91fc40b14b568a7d6708b4abb86c7fe4f2"
+      "bytes": 184367,
+      "sha256": "623f7404dda5a8b6a112fa3280b841ffffc96dc6f1ff6fac5c8a34163ef86e80"
     },
     "validation.json": {
       "name": "validation.json",
-      "bytes": 6272,
-      "sha256": "55f51fec70e8bfbbdcb2390aeb0cc095c33c73bfa151ef7fa454e81f63e18f07"
+      "bytes": 6289,
+      "sha256": "07e5618faa971648f5da5c138540ac1134216ce0955d04c7d5170691cfb34783"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 259647,
-      "sha256": "088f4016d75245667567ae47ff4d0a125dbf4917216da06a173811024cb715cb"
+      "bytes": 259408,
+      "sha256": "4c4eef44fcbfdaaa5828d6c9091bd19dce275c0bc8a5ab805df941934d886225"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
       "bytes": 360448,
-      "sha256": "4e8a60b3fb574debb700ccc014ac007133745288815b15c74f8b81602dbbc1e5"
+      "sha256": "dcfdd44945bb66b935e266064cd27246ff24d0a1b01ec5dd06c4a5aea597a4be"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "7c7d9ca960244194e58ba97dbe360769e5c5f75f78f78ff5c951b72476218abc"
+      "sha256": "c70a48280878a26860145374932e446dcca328a6233b73026fb246da1bbdd546"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 72601,
-      "sha256": "a037294c12d524f58a81ae90f69804a6b2386527f8dfba60f806f6fa88ac8613"
+      "bytes": 74911,
+      "sha256": "f28b90bd630cc35aacef234412222c8004140b72c6adefaf3f7b6ef5e3333405"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
-      "bytes": 1245026,
-      "sha256": "e91ca824ed7c162a0ebe0dcdf7bfe16c29d3214e3072a9f6d90643bc71f413b6"
+      "bytes": 1263511,
+      "sha256": "0395341433644c9d9189596f6c6221f28449e8eb24c67b2121713a736d0e3032"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 170812,
-      "sha256": "51b2d7caa1a6d5299c00a28c20922734fb8593a8758ef7a1661ce6279fe04e35"
+      "bytes": 168942,
+      "sha256": "aa4239de1a6ad804c0c951eab1fc014ca8238dfe5d9e26815e9161015af52294"
     }
   },
-  "parent_pointer_blob_sha": "8c4616525cfd9ea186a6e8efcce258b34a59d401",
-  "data_pointer_blob_sha": "55c8baa8dcacf2eddec99bb31c8cf88326bc4c16",
-  "publication_started_at": "2026-10-20T21:59:50.410882+08:00",
-  "assets_readback_verified_at": "2026-10-20T21:59:54.404520+08:00",
+  "parent_pointer_blob_sha": "bccddc3cfa9aaddee4cfb74de1193e021571e779",
+  "data_pointer_blob_sha": "b6cbc84d6740fa367ef1319527eee7d13b1aab7a",
+  "publication_started_at": "2026-10-21T22:19:01.137585+08:00",
+  "assets_readback_verified_at": "2026-10-21T22:19:06.098900+08:00",
   "forward_eligible": true
 }
