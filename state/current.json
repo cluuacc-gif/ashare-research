@@ -2,12 +2,12 @@
   "schema_version": "2.0",
   "market_file_id": "libfile_d756624099288191b2687f1948b17c94",
   "handoff_file_id": "libfile_d5f3ecbb7d448191adaa8f1cbf66e977",
-  "release_tag": "prepared-2026-10-21-39613574426-1",
-  "base_trade_date": "2026-10-21",
-  "next_trade_date": "2026-10-22",
-  "generated_at": "2026-10-21T22:12:13.163224+08:00",
-  "published_at": "2026-10-21T22:12:20.905635+08:00",
-  "github_run_id": "39613574426",
+  "release_tag": "prepared-2026-10-22-39792323314-1",
+  "base_trade_date": "2026-10-22",
+  "next_trade_date": "2026-10-23",
+  "generated_at": "2026-10-22T22:09:48.247126+08:00",
+  "published_at": "2026-10-22T22:09:56.341310+08:00",
+  "github_run_id": "39792323314",
   "github_commit": "ef86a8639fa7c26085335ba5463a7af779a135de",
   "data_status": "DATA NOT READY",
   "model_ready": false,
@@ -16,34 +16,34 @@
   "engineering_quality": {
     "name": "engineering_quality.json",
     "bytes": 582,
-    "sha256": "bf2f018b50731951eb40a99c6318d96f9fe273be1b800d3fb2705aa6ec91ac14"
+    "sha256": "08b54c2929f2ca8b8b3e990f8828fdcfc878aa1a311e470cc6b274c8ac0da71b"
   },
-  "daily_rows": 3187308,
-  "base_quotes": 5568,
+  "daily_rows": 3192878,
+  "base_quotes": 5570,
   "database": {
     "name": "market.sqlite3",
-    "bytes": 1650864128,
-    "sha256": "b1db24f3721260ef7b15cfdcb8d473482e7e59b915f6518994a131f04331bb10"
+    "bytes": 1730605056,
+    "sha256": "7fd322dbc84e9b3cb62482d7da19ae1cb7123c6db974bc11ff2decab07c1effc"
   },
   "handoff": {
     "name": "handoff.json",
-    "bytes": 72595,
-    "sha256": "c3a15b3bd0373c9b4ce779e787d306d36aec9840904afb5117f6ac8eceaa941a"
+    "bytes": 74898,
+    "sha256": "9f2ba6302f6b35b1edd9e1e51fc60f545afca6977d4db657ac8c2cb0b7d0d21d"
   },
   "frozen": {
     "name": "frozen.zip",
-    "bytes": 3406198,
-    "sha256": "261238613619de158638e5a3df6a2337a62afadd5f66f5d77937e6d2fd77d104"
+    "bytes": 3406367,
+    "sha256": "70c89acd1aa071c53589be419df8b131e3afc866d55450fd6c225d479519c54a"
   },
   "quality": {
     "name": "quality.json",
-    "bytes": 8362,
-    "sha256": "0b7a7b32a90af42d7e467b3f975075424b92a6d9e28502d6ed358f45813a6bd8"
+    "bytes": 8228,
+    "sha256": "9220d1f0a0691220e6e1d5f1043b34e0fa2edd429a56f094a12adec0021758fa"
   },
   "quality_markdown": {
     "name": "quality.md",
     "bytes": 651,
-    "sha256": "b9ba06130b7add0f495c25e85feb992b5b0dc66561dd66a78371e15030b771b5"
+    "sha256": "1378922e5285e49f6bf1e5d0e04482727e38a20915c733506d4fb2a5af6cb498"
   },
-  "parent_pointer_blob_sha": "55c8baa8dcacf2eddec99bb31c8cf88326bc4c16"
+  "parent_pointer_blob_sha": "b6cbc84d6740fa367ef1319527eee7d13b1aab7a"
 }
