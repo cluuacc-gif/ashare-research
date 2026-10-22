@@ -79,6 +79,16 @@
       "index_path": "admission/39737414340-0ee10d195f4cbd61/index.json",
       "raw_replay_verified": false,
       "formal_data_ready": false
+    },
+    {
+      "base_trade_date": "2026-10-22",
+      "generated_at": "2026-10-22T23:40:49.927273+08:00",
+      "github_run_id": "39804501751",
+      "archive_sha256": "28418d5b51863f2fc98039d43c1bd6d50ec8b29105260d950988b42a8d9187ab",
+      "archive_bytes": 5615406,
+      "index_path": "admission/39804501751-28418d5b51863f2f/index.json",
+      "raw_replay_verified": false,
+      "formal_data_ready": false
     }
   ]
 }
