@@ -1,64 +1,64 @@
 {
-  "model_id": "price-volume-production-v1-2026-10-21-623f7404dda5a8b6",
+  "model_id": "price-volume-production-v1-2026-10-22-fa79b10136a277ee",
   "model_version": "price-volume-production-v1",
-  "base_trade_date": "2026-10-21",
-  "target_trade_date": "2026-10-22",
-  "snapshot_release": "prepared-2026-10-21-39613574426-1",
-  "input_database_sha256": "b1db24f3721260ef7b15cfdcb8d473482e7e59b915f6518994a131f04331bb10",
-  "prediction_count": 1270,
-  "generated_at": "2026-10-21T22:18:59.299257+08:00",
+  "base_trade_date": "2026-10-22",
+  "target_trade_date": "2026-10-23",
+  "snapshot_release": "prepared-2026-10-22-39792323314-1",
+  "input_database_sha256": "7fd322dbc84e9b3cb62482d7da19ae1cb7123c6db974bc11ff2decab07c1effc",
+  "prediction_count": 1300,
+  "generated_at": "2026-10-22T22:14:00.118281+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "active_gross_swing_forward_validation_required",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-21-39613574426-1",
-  "github_run_id": "39613574426",
+  "release_tag": "model-2026-10-22-39792323314-1",
+  "github_run_id": "39792323314",
   "github_commit": "ef86a8639fa7c26085335ba5463a7af779a135de",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 184367,
-      "sha256": "623f7404dda5a8b6a112fa3280b841ffffc96dc6f1ff6fac5c8a34163ef86e80"
+      "bytes": 184053,
+      "sha256": "fa79b10136a277ee08ad54a6f6e12416147f00381670893f672af6d3244df170"
     },
     "validation.json": {
       "name": "validation.json",
-      "bytes": 6289,
-      "sha256": "07e5618faa971648f5da5c138540ac1134216ce0955d04c7d5170691cfb34783"
+      "bytes": 6283,
+      "sha256": "43bbee3bb99189ed1c79aa12e6fd93826a2598fd1c6a24d313c9f578af5b3a66"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 259408,
-      "sha256": "4c4eef44fcbfdaaa5828d6c9091bd19dce275c0bc8a5ab805df941934d886225"
+      "bytes": 266005,
+      "sha256": "53dae05ecd51a30dc8b121561994372b6dbc8de275747c102778e532941f7cef"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
-      "bytes": 360448,
-      "sha256": "dcfdd44945bb66b935e266064cd27246ff24d0a1b01ec5dd06c4a5aea597a4be"
+      "bytes": 380928,
+      "sha256": "c4c8a7295edcdc2a3948b98831719b39c42615b4de1f5e1abd636591967621b0"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "c70a48280878a26860145374932e446dcca328a6233b73026fb246da1bbdd546"
+      "sha256": "80925f5bdf4345e38ce75e067c069171c529b511efea9ba24e0e6a4daad446fe"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 74911,
-      "sha256": "f28b90bd630cc35aacef234412222c8004140b72c6adefaf3f7b6ef5e3333405"
+      "bytes": 77214,
+      "sha256": "6c60d89939f100a2e25d88c58abbcd46654913514e3480159fe0190b91e13806"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
-      "bytes": 1263511,
-      "sha256": "0395341433644c9d9189596f6c6221f28449e8eb24c67b2121713a736d0e3032"
+      "bytes": 1261926,
+      "sha256": "78b0b534d34b032d9c109a910b5bbaf7416beae2ad436850c996c51db430076c"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 168942,
-      "sha256": "aa4239de1a6ad804c0c951eab1fc014ca8238dfe5d9e26815e9161015af52294"
+      "bytes": 174039,
+      "sha256": "555764055dc7292c734a8bc32433c862b059e5f4e40f363fd1480f1caef76436"
     }
   },
-  "parent_pointer_blob_sha": "bccddc3cfa9aaddee4cfb74de1193e021571e779",
-  "data_pointer_blob_sha": "b6cbc84d6740fa367ef1319527eee7d13b1aab7a",
-  "publication_started_at": "2026-10-21T22:19:01.137585+08:00",
-  "assets_readback_verified_at": "2026-10-21T22:19:06.098900+08:00",
+  "parent_pointer_blob_sha": "01483be009ce7b10d3f7cfb7ddf07ca035167760",
+  "data_pointer_blob_sha": "240e25b444f0b6760b9d240aee4034a16e372b61",
+  "publication_started_at": "2026-10-22T22:14:01.729797+08:00",
+  "assets_readback_verified_at": "2026-10-22T22:14:06.853869+08:00",
   "forward_eligible": true
 }
