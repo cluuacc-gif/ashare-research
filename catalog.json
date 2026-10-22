@@ -504,6 +504,30 @@
       "model_ready": false,
       "canonical_database_imported": false,
       "index_path": "bundles/2026-10-21/39613574426-8ccce40735a5e940/index.json"
+    },
+    {
+      "schema_version": "1.0",
+      "kind": "verified_public_quote_transport",
+      "base_trade_date": "2026-10-22",
+      "github_run_id": "39792323314",
+      "github_commit": "ef86a8639fa7c26085335ba5463a7af779a135de",
+      "archive_sha256": "94bed7ef998d6613046c1e545ae24c5b4ef5153b0e1ec0f1a6565c15d259bb58",
+      "archive_bytes": 3429359,
+      "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+      "original_finished_at": "2026-10-22T22:06:15.099677+08:00",
+      "published_at": "2026-10-22T14:06:28.399755+00:00",
+      "raw_replay_verified": true,
+      "securities": 5577,
+      "quotes": 5570,
+      "quote_exchange_counts": {
+        "SH": 2316,
+        "SZ": 2902,
+        "BJ": 352
+      },
+      "data_status": "DATA NOT READY",
+      "model_ready": false,
+      "canonical_database_imported": false,
+      "index_path": "bundles/2026-10-22/39792323314-94bed7ef998d6613/index.json"
     }
   ]
 }
