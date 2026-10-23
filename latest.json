@@ -1,24 +1,24 @@
 {
   "schema_version": "1.0",
   "kind": "verified_public_quote_transport",
-  "base_trade_date": "2026-10-22",
-  "github_run_id": "39792323314",
+  "base_trade_date": "2026-10-23",
+  "github_run_id": "39963855387",
   "github_commit": "ef86a8639fa7c26085335ba5463a7af779a135de",
-  "archive_sha256": "94bed7ef998d6613046c1e545ae24c5b4ef5153b0e1ec0f1a6565c15d259bb58",
-  "archive_bytes": 3429359,
+  "archive_sha256": "a729cc62b6fbf63a94721b069cb577a24d7c014a97f72fef8eb474cc5a9044e1",
+  "archive_bytes": 3442496,
   "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
-  "original_finished_at": "2026-10-22T22:06:15.099677+08:00",
-  "published_at": "2026-10-22T14:06:28.399755+00:00",
+  "original_finished_at": "2026-10-23T21:48:27.779790+08:00",
+  "published_at": "2026-10-23T13:48:39.600106+00:00",
   "raw_replay_verified": true,
   "securities": 5577,
-  "quotes": 5570,
+  "quotes": 5572,
   "quote_exchange_counts": {
     "SH": 2316,
-    "SZ": 2902,
-    "BJ": 352
+    "SZ": 2903,
+    "BJ": 353
   },
   "data_status": "DATA NOT READY",
   "model_ready": false,
   "canonical_database_imported": false,
-  "index_path": "bundles/2026-10-22/39792323314-94bed7ef998d6613/index.json"
+  "index_path": "bundles/2026-10-23/39963855387-a729cc62b6fbf63a/index.json"
 }
