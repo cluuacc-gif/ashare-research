@@ -42,6 +42,10 @@ def compact_pointer(manifest):
     value['schema'] = 'market-outlook-pointer-v1'
     value['outlook']['sector_outlook'].pop('frozen_members', None)
     value['outlook']['sector_outlook']['frozen_members_archived'] = True
+    # Pack large arrays before the legacy small-row cleanup so their exact
+    # identities, timestamps, stock flows and source hashes survive unchanged.
+    from fund_flow_pointer import pack_members
+    pack_members(value['outlook'].get('fund_flow'))
     for row in (value['outlook'].get('fund_flow') or {}).get('sectors',[]):
         row.pop('field_evidence',None)
         for member in row.get('members',[]):

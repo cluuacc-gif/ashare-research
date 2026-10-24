@@ -52,5 +52,27 @@ class ContextTests(unittest.TestCase):
         self.assertEqual(read.call_args.kwargs['timeout'],10)
         self.assertEqual(result['fund_flow']['status'],'unavailable')
 
+    def test_large_pointer_members_are_expanded_before_the_existing_time_checks(self):
+        from fund_flow_pointer import pack_members
+        from test_market_outlook import large_flow
+        data=large_flow()
+        packed=pack_members(copy.deepcopy(data))
+        result=r.verified_flow(packed,BASE,CUTOFF)
+        self.assertEqual(result['status'],'ready')
+        self.assertEqual(result['sectors'][0]['members'],data['sectors'][0]['members'])
+        data['sectors'][0]['members'][0]['flow_trade_date']='2026-10-15'
+        self.assertEqual(r.verified_flow(pack_members(data),BASE,CUTOFF)['status'],'unavailable')
+
+    def test_corrupt_member_payload_fails_closed_without_an_extra_network_request(self):
+        from fund_flow_pointer import pack_members
+        from test_market_outlook import large_flow
+        data=pack_members(large_flow())
+        data['sectors'][0]['members_payload']['sha256']='0'*64
+        with patch.object(r.subprocess,'run') as network:
+            result=r.verified_flow(data,BASE,CUTOFF)
+        self.assertEqual(result['status'],'unavailable')
+        self.assertEqual(result['sectors'],[])
+        network.assert_not_called()
+
 
 if __name__=='__main__':unittest.main()

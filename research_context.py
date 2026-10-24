@@ -36,6 +36,14 @@ def verified_flow(value, base, cutoff):
     rows=value.get('sectors')
     if not isinstance(rows,list) or not rows:
         return unavailable_flow(base,'资金流没有可用板块')
+    # The current pointer stores large member arrays losslessly.  Expand once,
+    # within fixed byte/count bounds, then apply the original causal checks.
+    try:
+        from fund_flow_pointer import unpack_members
+        value=unpack_members(value)
+        rows=value['sectors']
+    except (TypeError,ValueError,KeyError,AttributeError):
+        return unavailable_flow(base,'资金流成分压缩证据损坏或超出读取上限')
     for row in rows:
         if not isinstance(row,dict) or row.get('trade_date')!=base:
             return unavailable_flow(base,'板块资金流包含日期不明或过时行')

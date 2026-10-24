@@ -8,6 +8,7 @@ on:
       - sector_forecast.py
       - opening_strength.py
       - market_outlook.py
+      - fund_flow_pointer.py
       - market_outlook_report.py
       - test_sector_forecast.py
       - test_opening_strength.py
