@@ -8,6 +8,7 @@ import tempfile
 import unittest
 from unittest.mock import patch
 
+import fund_flow_pointer as fp
 import market_outlook as m
 from market_outlook_report import render
 
@@ -172,6 +173,114 @@ class PublicationTests(unittest.TestCase):
         self.assertEqual(second['sector_forward_tracking']['resolved_dates'],1)
         run.assert_not_called()
         evaluate.assert_not_called()
+
+
+def large_flow():
+    """128 boards with 3,000 complete members, rather than a tiny toy pointer."""
+    from test_research_context import flow
+    value = flow()
+    template = value['sectors'][0]
+    value['sectors'] = []
+    for board_index in range(128):
+        board = copy.deepcopy(template)
+        board.update(code=f'BK{board_index:04d}', name=f'行业{board_index}',
+                     main_net_inflow_yuan=128_000_000-board_index*1_000_000,
+                     main_net_ratio_pct=1, main_net_3d_yuan=200_000_000,
+                     main_net_5d_yuan=300_000_000, membership_status='complete')
+        board['members'] = []
+        if board_index < 12:
+            for index in range(250):
+                board['members'].append({
+                    'symbol': f'{board_index*250+index:06d}.SZ', 'name': f'股票{index}',
+                    'effective_date': '2026-10-18',
+                    'observed_at': '2026-10-18T15:59:00+08:00',
+                    'flow_status': 'verified_current_date', 'flow_trade_date': '2026-10-16',
+                    'flow_observed_at': '2026-10-18T15:59:00+08:00',
+                    'source_updated_at': '2026-10-16T15:00:00+08:00',
+                    'main_net_inflow_yuan': index*1234567-100000000,
+                    'source_url': 'https://example.invalid/members', 'raw_sha256': 'a'*64,
+                    'flow_date_source_url': 'https://example.invalid/member-dates',
+                    'flow_date_raw_sha256': 'b'*64})
+        board['member_count'] = len(board['members'])
+        board['vendor_member_total'] = len(board['members'])
+        value['sectors'].append(board)
+    return value
+
+
+class MemberCompactionTests(unittest.TestCase):
+    def test_large_current_pointer_keeps_all_members_and_identical_report(self):
+        value, _ = fixture()
+        value['fund_flow'] = large_flow()
+        manifest = {'schema': 'market-outlook-publication-v1', 'outlook': value,
+                    'files': {'outlook.json': {'sha256': 'c'*64, 'bytes': 9_000_000}}}
+        pointer = m.compact_pointer(manifest)
+        self.assertLess(len(json.dumps(pointer, ensure_ascii=False, indent=2).encode()), 200_000)
+        self.assertEqual(render(pointer['outlook']), render(value))
+        self.assertEqual(pointer['files'], manifest['files'])
+        self.assertEqual(len(value['fund_flow']['sectors'][0]['members']), 250)
+        restored = fp.unpack_members(pointer['outlook']['fund_flow'])
+        self.assertEqual(sum(len(board['members']) for board in restored['sectors']), 3000)
+        for full, expanded in zip(value['fund_flow']['sectors'], restored['sectors']):
+            for original, member in zip(full['members'], expanded['members']):
+                self.assertEqual(member, original)
+        self.assertEqual(m.compact_pointer(pointer), pointer)
+
+    def test_packing_is_lossless_and_preserves_zero_negative_unknown_flow(self):
+        original = large_flow()
+        original['sectors'][0]['members'][0]['main_net_inflow_yuan'] = None
+        original['sectors'][0]['members'][1]['main_net_inflow_yuan'] = 0
+        compact = fp.pack_members(copy.deepcopy(original))
+        self.assertEqual(fp.unpack_members(compact), original)
+        self.assertIn('members_payload', compact['sectors'][0])
+        self.assertNotIn('members', compact['sectors'][0])
+
+    def test_existing_future_member_checks_still_apply_after_expansion(self):
+        from research_context import verified_flow
+        from test_research_context import BASE, CUTOFF
+        original = large_flow()
+        compact = fp.pack_members(copy.deepcopy(original))
+        self.assertEqual(verified_flow(fp.unpack_members(compact), BASE, CUTOFF)['status'], 'ready')
+        original['sectors'][0]['members'][0]['flow_observed_at'] = '2026-10-19T09:00:00+08:00'
+        malformed = fp.pack_members(original)
+        self.assertEqual(verified_flow(fp.unpack_members(malformed), BASE, CUTOFF)['status'], 'unavailable')
+
+    def test_checksum_count_schema_encoding_and_size_cannot_silently_drop_members(self):
+        original = fp.pack_members(large_flow())
+        for key, replacement in [('sha256', '0'*64), ('member_count', 249),
+                                 ('schema', 'unknown'), ('zlib_base64', 'invalid!'),
+                                 ('sector_code', 'BK9999'), ('base_trade_date', '2026-10-15'),
+                                 ('uncompressed_bytes', 2), ('uncompressed_bytes', True),
+                                 ('uncompressed_bytes', fp.MAX_BOARD_BYTES+1)]:
+            with self.subTest(key=key, replacement=replacement):
+                value = copy.deepcopy(original)
+                value['sectors'][0]['members_payload'][key] = replacement
+                with self.assertRaises(ValueError): fp.unpack_members(value)
+
+    def test_duplicate_or_trailing_member_representations_are_rejected(self):
+        import base64
+        import zlib
+        original = fp.pack_members(large_flow())
+        duplicate = copy.deepcopy(original)
+        duplicate['sectors'][0]['members'] = []
+        with self.assertRaises(ValueError): fp.unpack_members(duplicate)
+        trailing = copy.deepcopy(original)
+        payload = trailing['sectors'][0]['members_payload']
+        packed = base64.b64decode(payload['zlib_base64']) + zlib.compress(b'[]')
+        payload['zlib_base64'] = base64.b64encode(packed).decode()
+        with self.assertRaises(ValueError): fp.unpack_members(trailing)
+
+    def test_decompression_bomb_and_total_expansion_budget_are_bounded(self):
+        import base64
+        import zlib
+        original = fp.pack_members(large_flow())
+        bomb = copy.deepcopy(original)
+        payload = bomb['sectors'][0]['members_payload']
+        payload['uncompressed_bytes'] = 32
+        payload['zlib_base64'] = base64.b64encode(zlib.compress(b' '*(fp.MAX_BOARD_BYTES+1))).decode()
+        with self.assertRaises(ValueError): fp.unpack_members(bomb)
+        first_size = original['sectors'][0]['members_payload']['uncompressed_bytes']
+        with patch.object(fp, 'MAX_TOTAL_BYTES', first_size):
+            with self.assertRaises(ValueError): fp.unpack_members(original)
 
 
 if __name__=='__main__':
