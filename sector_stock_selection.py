@@ -19,14 +19,15 @@ import sqlite3
 import statistics
 
 from price_action_snapshot import price_action_snapshot
+from security_selection import load_metadata, rejection_reasons
 
 SCHEMA = 'sector-stock-confluence-v1'
 TZ = timezone(timedelta(hours=8))
 APP_ID = 0x41534851
 MIN_MEMBERS = 5
 MIN_MEMBER_COVERAGE = .65
-MAX_PRIMARY = 3
-MAX_SECTOR_POSITIONS = 2
+MAX_PRIMARY = 2
+MAX_SECTOR_POSITIONS = 1
 MAX_WATCHLIST = 5
 
 
@@ -417,7 +418,7 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
                   '早期转强是已发生的结构变化观察，尚未验证未来2—3日连续上涨或隔日盈利概率。',
                   '研究观察须由D1新鲜盘口、官方状态和涨跌停继续确认；可见卖盘不证明实际成交。',
                   'D1买入后不能当日卖出，风险参考只在D2执行；隔夜跳空可能越过参考止损。',
-                  '最多3个独立预算名额、同板块最多2个；第4—5名只观察，不自动补位。']}
+                  '最多2个独立预算名额、同板块最多1个；第3—5名只观察，不自动补位。']}
     if (not isinstance(opening_plan, dict) or opening_plan.get('base_date') != base
             or opening_plan.get('target_date') != target
             or not _known(opening_plan.get('information_cutoff'), known_at)):
@@ -458,6 +459,7 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
         aligned = [row for row in candidates if isinstance(row, dict)
                    and row.get('symbol') in board_members]
         histories = _history(connection, [row['symbol'] for row in aligned], base, known_at, minimum=61)
+        metadata = load_metadata(connection, [row['symbol'] for row in aligned], base=base, cutoff=cutoff)
         ranked, rejected = [], defaultdict(int)
         def reject(candidate, reason, action=None):
             rejected[reason] += 1
@@ -470,6 +472,11 @@ def generate(db, base: str, target: str, cutoff: str, sector_outlook: dict,
                     'eligible_patterns': action.get('eligible_patterns', []) if action else []})
         for candidate in aligned:
             symbol = candidate['symbol']
+            risk_reasons = rejection_reasons(symbol, metadata.get(symbol), cutoff, base=base)
+            if risk_reasons:
+                for risk_reason in risk_reasons:
+                    reject(candidate, risk_reason)
+                continue
             close = _number(candidate.get('close'))
             features = candidate.get('features', {})
             required = ('close_location', 'ma20_gap', 'ret5', 'amount_ratio20', 'median_amount20')

@@ -40,6 +40,21 @@ def attach_market_outlook(payload, db_path, base, target, input_sha256=None, con
     research['probability_research']=context_data.get('probability_research') or {'status':'unavailable'}
     research['pa_trade_research']=context_data.get('pa_trade_research') or {'status':'unavailable'}
     research['nextday_research']=context_data.get('nextday_research') or {'status':'unavailable'}
+    # Old published research can contain a wider universe.  Recheck its current
+    # lists against this restored DB before presentation or live-evidence review;
+    # leave archived predictions and all historical diagnostics unchanged.
+    from current_selection_scope import filter_current_study, filter_current_rows
+    for key in ('price_action_research', 'probability_research', 'pa_trade_research'):
+        research[key] = filter_current_study(research[key], db_path, base, cutoff)
+    if isinstance(research.get('model_predictions'), dict):
+        research['model_predictions'] = filter_current_study(
+            research['model_predictions'], db_path, base, cutoff, fields=('rows',))
+    if 'price_band_5_10' in research:
+        research['price_band_5_10'], research['price_band_current_selection_scope'] = filter_current_rows(
+            research['price_band_5_10'], db_path, base, cutoff)
+    if isinstance(research.get('gross_swing_strategy'), dict):
+        research['gross_swing_strategy'] = filter_current_study(
+            research['gross_swing_strategy'], db_path, base, cutoff)
     from active_trade_report import compact as compact_active, VERSION as ACTIVE_VERSION
     active=compact_active(context_data.get('active_trade_system'))
     active_current=False

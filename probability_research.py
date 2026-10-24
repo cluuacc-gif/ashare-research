@@ -273,6 +273,9 @@ def run(db,base,output,input_sha256,*,panel_data=None):
               'strategy_definition_sha256':definition,'formal_trade_ready':False,'actual_win_rate':None,
               'execution_win_rate_80_validated':False,'costs_included':False,'historical_fundflow_used':False,
               'validation_origin':PROTOCOL['validation_origin']}
+    from current_selection_scope import filter_current_rows
+    current_watchlist, current_scope = filter_current_rows(
+        [row for row in rows if row['research_eligible']], db, base, generated)
     summary={**metadata,'policy':policy,'protocol':PROTOCOL,'split':{key:describe(q) for key,q in chunks.items()},
              'sampled_fit_blocks':{'train':describe(train),'calibration':describe(calibration)},
              'model_metadata':bundle.get('metadata',{}),'selection':selection,'diagnostic':diagnostic,
@@ -281,7 +284,8 @@ def run(db,base,output,input_sha256,*,panel_data=None):
              'coverage':{'history_rows_scanned':scanned,'wide_universe_history_rows':raw_count,
                          'causal_history_candidates':len(history),'wide_universe_live_rows':raw_live,
                          'causal_live_candidates':len(live),'current_research_eligible':sum(row['research_eligible'] for row in rows)},
-             'current_watchlist':[row for row in rows if row['research_eligible']][:10],
+             'current_watchlist':current_watchlist[:10],
+             'current_selection_scope':current_scope,
              'formal_candidates':[],
              'limitations':[
                  'All old history was already exposed; chronological diagnostics are development evidence, not a new untouched holdout.',

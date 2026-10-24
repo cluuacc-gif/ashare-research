@@ -19,6 +19,7 @@ OBSERVED = '2026-10-18T12:00:00+08:00'
 def fixtures():
     db = sqlite3.connect(':memory:')
     db.execute('PRAGMA application_id=1095977041')
+    db.execute('CREATE TABLE security_master(symbol TEXT PRIMARY KEY,name TEXT,last_seen_at TEXT)')
     db.execute('''CREATE TABLE daily_quotes(symbol TEXT,trade_date TEXT,open REAL,
         high REAL,low REAL,close REAL,volume REAL,amount REAL,conflict INTEGER,
         fetched_at TEXT,source_updated_at TEXT,finality TEXT)''')
@@ -29,13 +30,14 @@ def fixtures():
         for member in range(10):
             index = board * 10 + member
             symbol = f'{index + 1:06}.SZ'
+            db.execute('INSERT INTO security_master VALUES(?,?,?)', (symbol, '股票'+symbol, OBSERVED))
             close = 10 + board
             rate = .0014 + (9-member) * .00008
             for offset in range(61):
                 day = (dt.date.fromisoformat(BASE) - dt.timedelta(days=60-offset)).isoformat()
                 value = close / (1 + rate) ** (60-offset)
                 db.execute('INSERT INTO daily_quotes VALUES(?,?,?,?,?,?,?,?,?,?,?,?)',
-                    (symbol, day, value-.02, value+.03, value-.09, value, 5e6,
+                    (symbol, day, value-.02, value+(.03 if offset == 60 else .005), value-.09, value, 5e6,
                      60e6, 0, OBSERVED, day+'T15:00:00+08:00', 'historical_provider'))
             frozen[name].append({'symbol': symbol, 'base_close': close,
                 'membership_effective_date': BASE, 'membership_observed_at': OBSERVED})
@@ -254,6 +256,7 @@ class ActiveSystemTests(unittest.TestCase):
     def test_STAR_100_share_allocation_is_rejected_without_raising_risk(self):
         symbol = '688001.SH'
         self.db.execute('UPDATE daily_quotes SET symbol=? WHERE symbol=?', (symbol, '000001.SZ'))
+        self.db.execute('UPDATE security_master SET symbol=? WHERE symbol=?', (symbol, '000001.SZ'))
         self.opening['candidate_pool'][0]['symbol'] = symbol
         self.opening['candidate_pool'] = self.opening['candidate_pool'][:1]
         self.outlook['frozen_members']['板块0'][0]['symbol'] = symbol

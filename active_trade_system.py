@@ -14,6 +14,8 @@ import json
 import nextday_cohort as cohort
 import sector_stock_selection as sector
 from price_action_snapshot import price_action_snapshot
+from active_price_action import snapshot as structure_snapshot
+from security_selection import load_metadata, rejection_reasons
 
 SCHEMA = 'active-tplus1-trade-system-v1'
 MAX_CANDIDATES = 300
@@ -92,7 +94,36 @@ PROTOCOL = {
     'empirical_validation_passed': False, 'actual_win_rate': None,
     'execution_win_rate_80_validated': False,
 }
+# Keep the exact prior protocol identity: published decisions and their capital
+# survive this selection-only upgrade. Entry, sizing and exits are unchanged.
+LEGACY_PROTOCOL = deepcopy(PROTOCOL)
+LEGACY_PROTOCOL_SHA256 = cohort._digest(LEGACY_PROTOCOL)
+PROTOCOL['schema'] = 'active-tplus1-manual-protocol-v2'
+PROTOCOL['universe_exclusions'] = 'all_30_prefix_or_ChiNext_board; NFKC_whitespace_removed_ST_and_delisting_names; unknown_or_future_master_metadata_blocks'
+PROTOCOL['price_action']['structure_required'] = 'reduced_volume_pullback_recovery_or_compact_breakout_v2'
+PROTOCOL['price_action']['close_location_gte'] = .65
+PROTOCOL['price_action']['upper_wick_atr_lte'] = .5
+PROTOCOL['price_action']['structure_v2'] = {
+    'recovery_bar': 'Tclose>Topen_and_Tclose>prior_bar_high',
+    'pullback': 'any_red_bar_in_prior3; mean(prior3_volume)<=mean(bars[-14:-4]_volume); '
+                'min(prior3_lows)>=MA20-.25*ATR14',
+    'compact_breakout': 'Tclose>=max(prior5_highs); prior5_vs_prior20_TR_ratio<=1; '
+                        'volume_ratio20_in_[1,2.5]; (Tclose-max(prior5_highs))/ATR14_in_[0,.5]',
+    'resistance_pivot': 'strict_high_above_two_completed_bars_each_side; '
+                        'prominence_above_min_neighbor_low>=.5*ATR14; pivot>Tclose',
+    'resistance_target_buffer_ATR': .1,
+    'no_identified_resistance': 'unknown_future_room_not_guaranteed',
+}
+PROTOCOL['rank']['formula'] = '.35*clip(relative_return5/.05,0,1)+.25*close_location+.15*clip(efficiency20,0,1)+.15*structure_quality+.10*room_quality'
+PROTOCOL['rank']['structure_quality'] = '1_for_pullback_recovery_else_clip(1-max(0,breakout_atr_prior20)/.5,0,1)'
+PROTOCOL['rank']['room_quality'] = '.5_when_no_identified_pivot_else_clip((pivot/cap-1)/.06,0,1)'
+PROTOCOL['overhead_resistance_gate'] = 'nearest_confirmed_last61_pivot_high_above_known_T_close_must_clear_cap*1.03+.1*ATR; no_identified_pivot_is_not_guaranteed_room'
+PROTOCOL['migration'] = 'only_known_v1_selection_upgrade; preserve_first_published_target_decision_and_entire_reference_account; legacy_positions_keep_unchanged_exit_rules'
 PROTOCOL_SHA256 = cohort._digest(PROTOCOL)
+
+
+def compatible_policy_migration(previous_id, next_id):
+    return previous_id == LEGACY_PROTOCOL_SHA256 and next_id == PROTOCOL_SHA256
 
 
 def _decimal(value):
@@ -195,6 +226,8 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         'broker_connected': False, 'live_feed_connected': False, 'score_is_probability': False,
         'base_trade_date': base, 'target_trade_date': target, 'D2_trade_date': frozen['D2_trade_date'],
         'generated_at': frozen['generated_at'], 'information_cutoff': frozen['information_cutoff'],
+        'selection_rule_version': 2, 'maximum_selected_names': 2,
+        'plan_policy_id': PROTOCOL_SHA256, 'new_policy_applies_to_new_frozen_dates_only': True,
         'input_database_sha256': input_sha256, 'protocol': protocol,
         'policy_id': policy_id, 'protocol_sha256': policy_id,
         'status': 'cash_no_qualifying_setup', 'reason': None,
@@ -220,10 +253,12 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
     known_at = sector._instant(cutoff)
     with sector._connection(db) as connection:
         histories = sector._history(connection, [row['symbol'] for row in rows], base, known_at, minimum=61)
+        metadata = load_metadata(connection, [row['symbol'] for row in rows], base=base, cutoff=cutoff)
     rejected, qualifying = Counter(), []
     market = result['market_gate']
     for row in rows:
         reasons = list(row['reasons'])
+        reasons.extend(rejection_reasons(row['symbol'], metadata.get(row['symbol']), cutoff, base=base))
         if not row['flow_known']:
             reasons.append('actual_same_vendor_flow_unknown_observation_only')
         elif not row['flow_credit']:
@@ -251,11 +286,20 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
             'reasons': [], 'rank_score': None}
         if features.get('available'):
             relative = row['relative_return_5d']
-            score = (.5 * max(0, min(1, (relative or 0) / .05))
-                     + .3 * features['close_location'] + .2 * max(0, min(1, features['efficiency20'])))
+            score = None
             atr = features['atr14_pct'] * row['base_close']
             stop = _floor(min(_decimal(bar['low']) for bar in history[-5:]) - Decimal('.15') * _decimal(atr))
             floor, cap, bounds_ok = _bounds(row['base_close'], stop)
+            structure = structure_snapshot(history, features, float(cap))
+            reasons.extend(structure['reasons'])
+            room = structure.get('room_from_entry_cap')
+            structure_quality = (0 if not structure['available'] else
+                                 1 if 'reduced_volume_pullback_recovery' in structure['patterns'] else
+                                 max(0, 1 - max(0, features['breakout_atr']) / .5))
+            score = (.35 * max(0, min(1, (relative or 0) / .05))
+                     + .25 * features['close_location'] + .15 * max(0, min(1, features['efficiency20']))
+                     + .15 * structure_quality + .10 * (.5 if room is None else max(0, min(1, room / .06))))
+            evaluation['price_action_structure'] = structure
             evaluation.update(rank_score=score, atr14=atr, structural_stop=float(stop),
                               frozen_entry_floor=float(floor), frozen_entry_cap=float(cap))
             if not bounds_ok:
@@ -271,6 +315,8 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
                     'leadership_rank': row['leadership_rank'], 'leadership_member_count': row['leadership_member_count'],
                     'leadership_top_count': row['leadership_top_count'],
                     'price_action': deepcopy(evaluation['price_action']),
+                    'price_action_structure': deepcopy(structure),
+                    'security_metadata': deepcopy(metadata.get(row['symbol'])),
                     'prior60_high_descriptive': prior_high,
                     'prior60_high_room_from_cap_descriptive': prior_high / float(cap) - 1,
                 }
