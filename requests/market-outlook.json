@@ -1,9 +1,13 @@
 {
   "enabled": true,
-  "request_id": "lossless-fund-flow-pointer-publication-recovery-20261024-v6.2",
+  "request_id": "two-primary-exclude-chinext-st-price-action-20261024-v7",
   "purpose": "Enable independent fixed rules and conditional manual trade plans, retain a cash-constrained prospective reference account; no orders or email",
   "active_trade_system_enabled": true,
   "active_execution_mode": "conditional_manual_execution",
+  "maximum_primary_names": 2,
+  "exclude_boards": ["ChiNext"],
+  "exclude_ST_and_delisting": true,
+  "selection_protocol": "active-tplus1-manual-protocol-v2",
   "costs_included": false,
   "formal_trade_ready": false
 }

@@ -19,6 +19,8 @@ import sqlite3
 import statistics
 from zoneinfo import ZoneInfo
 
+from security_selection import load_metadata, rejection_reasons, normalized_name
+
 VERSION = 'opening-strength-research-v1'
 TZ = ZoneInfo('Asia/Shanghai')
 APP_ID = 0x41534851
@@ -48,7 +50,7 @@ PROTOCOL = {
     'same_day_exit': False, 'exit_day': 'second_trading_session_after_base',
     'take_profit_references': [.03, .06],
     'initial_capital_cny': 30000, 'position_budget_cny': 10000,
-    'maximum_positions': 3, 'lot_shares': 100,
+    'maximum_positions': 2, 'lot_shares': 100,
     'same_session_budget_reallocation': False,
     'formal_policy_enabled': False, 'win_rate_80_verified': False,
 }
@@ -283,13 +285,17 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
                 for member in sector_rows:
                     if isinstance(member, dict) and isinstance(member.get('symbol'), str):
                         frozen_members[member['symbol']] = (sector, member)
+        metadata = load_metadata(connection, [row['symbol'] for row in candidates], base=base_date, cutoff=information_cutoff)
         pool, rejections = [], {}
         def reject(reason):
             rejections[reason] = rejections.get(reason, 0) + 1
         for row in candidates:
             name = row.get('name') or ''
-            if not name or 'ST' in name.upper() or '退' in name:
-                reject('name_based_risk_or_missing_name'); continue
+            risk_reasons = rejection_reasons(row['symbol'], metadata.get(row['symbol']), information_cutoff, base=base_date)
+            if risk_reasons:
+                for reason in risk_reasons:
+                    reject(reason)
+                continue
             if not _known_by(row.get('fetched_at'), cutoff):
                 reject('base_quote_not_observed_before_cutoff'); continue
             history = _rows(connection, '''SELECT trade_date,open,high,low,close,volume,amount,
@@ -343,10 +349,10 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
     watchlist = copy.deepcopy(pool[:MAXIMUM_WATCHLIST])
     for index, item in enumerate(watchlist, 1):
         item['rank'] = index
-        # Only the first three candidates receive separately reserved research budgets.
-        item['budget_slot'] = index if index <= 3 else None
-        item['is_reserve_only'] = index > 3
-        if index > 3:
+        # Only the first two candidates receive separately reserved research budgets.
+        item['budget_slot'] = index if index <= 2 else None
+        item['is_reserve_only'] = index > 2
+        if index > 2:
             item['frozen_quantity_shares'] = 0
             item['frozen_reserved_cash_cny'] = 0
     result = {
@@ -372,7 +378,7 @@ def build_plan(db_path, base_date, target_session, information_cutoff,
         'limitations': ['研究排序尚未通过隔日真实成交验证，分数不是胜率',
             '名称风险筛查不能替代当日官方状态、涨跌停与复权核验',
             '次日可见卖盘不能证明个人订单已成交，成交与退出需另外记录',
-            '最多3个独立预算名额，第4—5名仅供观察，不自动补位'],
+            '最多2个独立预算名额，第3—5名仅供观察，不自动补位'],
     }
     if include_pool:
         result['candidate_pool'] = copy.deepcopy(pool)
@@ -427,7 +433,9 @@ def confirm_plan(plan, snapshot, information_cutoff):
         symbol = candidate['symbol']
         quote = quotes.get(symbol)
         reason = None
-        if candidate.get('is_reserve_only'):
+        if symbol.startswith('30') or 'ST' in normalized_name(candidate.get('name')) or '退' in normalized_name(candidate.get('name')):
+            reason = 'excluded_chinext_ST_or_delisting_name'
+        elif candidate.get('is_reserve_only'):
             reason = 'reserve_only_no_budget_slot'
         elif quote is None:
             reason = 'symbol_quote_missing'

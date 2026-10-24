@@ -64,6 +64,11 @@ on:
       - outlook_admission.py
       - test_outlook_admission.py
       - active_trade_system.py
+      - active_price_action.py
+      - security_selection.py
+      - current_selection_scope.py
+      - test_selection_upgrade.py
+      - test_current_selection_scope.py
       - active_trade_book.py
       - active_trade_report.py
       - test_active_trade_system.py
@@ -109,7 +114,8 @@ jobs:
           test_nextday_report.py test_nextday_integration.py
           test_outlook_admission.py
           test_active_trade_system.py test_active_trade_book.py
-          test_active_trade_report.py test_active_trade_integration.py
+          test_active_trade_report.py test_active_trade_integration.py test_selection_upgrade.py
+          test_current_selection_scope.py
   freeze:
     needs: verify
     if: >-

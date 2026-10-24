@@ -13,7 +13,7 @@ VERSION = "active-tplus1-trade-system-v1"
 POLICY_NAME = "主线领涨·尾盘确认T+1"
 _STATUSES = {"conditional_plans_ready", "cash_no_qualifying_setup", "waiting_for_valid_source"}
 _TOP_TEXT = ("base_trade_date", "target_trade_date", "D2_trade_date", "generated_at",
-             "information_cutoff", "input_database_sha256", "policy_id", "protocol_sha256", "reason")
+             "information_cutoff", "input_database_sha256", "policy_id", "protocol_sha256", "reason", "plan_policy_id", "selection_upgrade_effective")
 _COVERAGE = ("candidate_pool_count", "valid_pool_count", "base_cohort_count",
              "active_evaluated_count", "active_qualifying_count", "conditional_plan_count",
              "price_action_passed_count")
@@ -81,6 +81,12 @@ def compact(study):
         "broker_connected": False, "live_feed_connected": False, "score_is_probability": False,
     }
     result.update({key: _text(study[key]) for key in _TOP_TEXT if key in study})
+    if study.get('selection_rule_version') == 2:
+        result['selection_rule_version'] = 2
+        result['current_plan_preserved_from_first_publication'] = study.get('current_plan_preserved_from_first_publication') is True
+        result['selection_upgrade_pending_for_frozen_target'] = study.get('selection_upgrade_pending_for_frozen_target') is True
+        result['preview_plan_count'] = (_count(study.get('preview_plan_count')) if 'preview_plan_count' in study else
+            len((study.get('upgrade_preview') or {}).get('plans', [])))
     raw_plans = study.get("plans")
     # Examine at most the two frozen names; never substitute a later candidate.
     result["plans"] = [plan for row in (raw_plans[:2] if isinstance(raw_plans, (list, tuple)) else [])
@@ -164,6 +170,10 @@ def render(study):
              '<p class="at-muted">基础日T：' + _e(study.get("base_trade_date") or "待有效数据")
              + '　买入日D1：' + _e(study.get("target_trade_date") or "待交易日历")
              + '　最早卖出日D2：' + _e(study.get("D2_trade_date") or "待交易日历") + '</p>']
+    if study.get('selection_rule_version') == 2:
+        parts.append('<p class="at-muted">本次升级：正式主选最多2只、每板块1只；剔除创业板全部30开头代码及ST／退市风险名称，名称或时间元数据未知则不进入候选。日线须出现缩量回踩恢复或紧凑突破，收盘承接≥65%、上影≤0.5 ATR，并检查冻结买价至3%目标前的已确认阻力。</p>')
+        if study.get('selection_upgrade_pending_for_frozen_target'):
+            parts.append('<div class="at-state"><strong>本交易日沿用首次发布的冻结决定</strong>新版仅研究预览，不替换本期已冻结计划或空仓决定；从下一尚未冻结的交易日起使用升级规则。预览合格计划 '+str(study.get('preview_plan_count') or 0)+'份，不能据此买入。</div>')
     if plans:
         rows = []
         for plan in plans:
@@ -187,7 +197,7 @@ def render(study):
     parts.append('<h3>固定交易规则</h3>' + _table(["环节", "必须满足的条件"], [
         ["全池筛选", "事前全量候选池最多300只；市场宽度≥50%，市场1日、5日收益均不为负。"],
         ["主线与领涨", "同一数据源的板块资金净流入与占比均为正，板块转强；个股5日相对板块收益为正，位居全板块有效成员前30%。"],
-        ["日线质量", "20日成交额中位数≥5000万元；ATR／收盘价0.8%～4%；20日上涨、处于20日均线上方0～8%；当日涨跌−2%～4%，收盘位置≥60%。"],
+        ["日线质量", ("20日成交额中位数≥5000万元；ATR／收盘价0.8%～4%；20日上涨、处于20日均线上方0～8%；当日涨跌−2%～4%，收盘位置≥65%。满足回踩恢复或紧凑突破；已确认上方阻力须容纳3%目标及0.1 ATR缓冲。" if study.get("selection_rule_version") == 2 else "20日成交额中位数≥5000万元；ATR／收盘价0.8%～4%；20日上涨、处于20日均线上方0～8%；当日涨跌−2%～4%，收盘位置≥60%。")],
         ["D1尾盘入场", "14:40完成分钟确认：收在开盘价及成交量加权收盘代理上方，末根收强，后5分钟低点不低于此前5分钟。只在冻结范围内按冻结整手数量人工买入。"],
         ["资金与风险", "3万元参考资金；持仓及待入场合计最多两只，同一板块最多一只；每只≤1万元。按结构风险加2%跳空压力、每只150元预算取整手，故常低于1万元。"],
         ["目标与结构", "结构止损＝此前5日最低价−0.15 ATR，向下取分；买价与止损风险0.8%～2%，3%目标盈亏比≥1.5。6%仅作辅助观察，不是必须实现的收益。"],

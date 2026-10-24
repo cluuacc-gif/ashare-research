@@ -44,6 +44,10 @@ def review_entry(plan,bars,quote,decision_time):
         'order_execution_enabled':False,'actual_fill_verified':False,'orders_submitted':False,'reasons':[]}
     def reject(reason):
         result['reasons'].append(reason);return result
+    from security_selection import normalized_name
+    name = normalized_name(plan.get('name'))
+    if str(plan.get('symbol','')).startswith('30') or 'ST' in name or '退' in name:
+        return reject('excluded_chinext_ST_or_delisting_name')
     try:
         now=instant(decision_time);frozen=instant(plan['generated_at'])
         day=plan['target_trade_date'];decision=datetime.combine(datetime.fromisoformat(day).date(),time(14,40),TZ)
@@ -237,8 +241,12 @@ def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
         previous=previous_study
     else:
         raise ValueError('previous active study must be an object or absent')
-    if previous and previous.get('protocol_sha256')!=protocol_sha256:
-        raise ValueError('active policy changed; explicit account migration required, balances cannot reset')
+    previous_policy = previous.get('protocol_sha256')
+    migrating = bool(previous) and previous_policy != protocol_sha256
+    if migrating:
+        from active_trade_system import compatible_policy_migration
+        if not compatible_policy_migration(previous_policy, protocol_sha256):
+            raise ValueError('active policy changed; explicit account migration required, balances cannot reset')
     if previous:
         if previous.get('schema')!=ACTIVE_SCHEMA:
             raise ValueError('previous active study schema mismatch')
@@ -246,11 +254,21 @@ def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
     book=deepcopy(previous.get('reference_book',{}))
     if not isinstance(book,dict):
         raise ValueError('previous active reference book must be an object')
-    if book and (book.get('schema')!=SCHEMA or book.get('protocol_sha256')!=protocol_sha256
+    if book and (book.get('schema')!=SCHEMA or book.get('protocol_sha256')!=previous_policy
             or not isinstance(book.get('frozen_plan_dates'),list)
             or not isinstance(book.get('records'),list)):
         raise ValueError('previous active reference book identity or ledger is malformed')
     cohorts=book.get('frozen_plan_dates',[])
+    date_policies=deepcopy(book.get('frozen_date_policy_ids',{}))
+    if not isinstance(date_policies,dict):
+        raise ValueError('active frozen policy identities must be an object')
+    for item in cohorts:
+        date_policies.setdefault(item['target_trade_date'],previous_policy)
+    lineage=list(book.get('policy_lineage',[]))
+    if previous_policy and previous_policy not in lineage:
+        lineage.append(previous_policy)
+    if protocol_sha256 not in lineage:
+        lineage.append(protocol_sha256)
     for cohort in cohorts:
         _validate_frozen_decision(cohort)
     known={item['target_trade_date'] for item in cohorts}
@@ -258,6 +276,12 @@ def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
         target=datetime.fromisoformat(previous['target_trade_date']).date()
         if instant(previous['generated_at'])>=datetime.combine(target,time(9,15),TZ):
             raise ValueError('active admission must precede target session freeze deadline')
+        decision_policy=previous.get('plan_policy_id') or previous_policy
+        if decision_policy != previous_policy:
+            from active_trade_system import compatible_policy_migration
+            if not compatible_policy_migration(decision_policy,previous_policy):
+                raise ValueError('frozen decision policy is not a supported carried legacy policy')
+        date_policies[previous['target_trade_date']]=decision_policy
         cohorts.append({'target_trade_date':previous['target_trade_date'],
             'generated_at':previous['generated_at'],'plans':deepcopy(previous['plans'])})
     if len({item['target_trade_date'] for item in cohorts})!=len(cohorts):
@@ -271,6 +295,11 @@ def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
     active=[row for row in records if row['status'] in OPEN_STATES]
     return {'schema':SCHEMA,'protocol_sha256':protocol_sha256,'updated_at':instant(cutoff).isoformat(),
         'frozen_plan_dates':cohorts,'records':records,'account':summary,
+        'frozen_date_policy_ids':date_policies,'policy_lineage':lineage,
+        'selection_upgrade_migration': ({'from':previous_policy,'to':protocol_sha256,
+            'account_reset':False,'frozen_decisions_preserved':True,
+            'legacy_entry_exit_and_risk_rules_unchanged':True} if migrating else
+            deepcopy(book.get('selection_upgrade_migration'))),
         'occupied_symbols':[row['symbol'] for row in active],
         'occupied_sectors':[row['sector_identity'] for row in active],
         'actual_win_rate':None,'order_execution_enabled':False}

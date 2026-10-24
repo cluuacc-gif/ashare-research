@@ -431,12 +431,15 @@ def run(db_path, base, output, input_sha256):
             'frozen_buy_limit_cap': min(float(row.close)*(1+CAP_GAP), 10),
             'planned_target': .03, 'planned_stop': .02, 'exit_session': 'D2',
             'formal_trade_ready': False, 'score_is_probability': False})
-    watchlist = [row for row in rows if row['eligible_patterns']][:10]
+    from current_selection_scope import filter_current_rows
+    watchlist, current_scope = filter_current_rows(
+        [row for row in rows if row['eligible_patterns']], db_path, base, generated)
     summary = {**metadata, 'protocol': protocol, 'policy': policy,
         'split': {name: _describe(part) for name, part in chunks.items()},
         'selection_rules': selection, 'diagnostic': diagnostic,
         'history_rows_scanned': scanned, 'history_signal_rows': len(history),
-        'prediction_count': len(rows), 'current_watchlist': watchlist,
+        'prediction_count': len(rows), 'current_watchlist': watchlist[:10],
+        'current_selection_scope': current_scope,
         'formal_candidates': [], 'historical_fundflow_used': False,
         'validation_origin': 'previously_exposed_development_diagnostic_not_fresh_holdout',
         'auxiliary_label': PROTOCOL['auxiliary_strength_label'],

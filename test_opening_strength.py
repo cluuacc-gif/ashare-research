@@ -18,7 +18,7 @@ def market():
     db = sqlite3.connect(':memory:')
     db.execute('PRAGMA application_id=1095977041')
     db.executescript('''
-        CREATE TABLE security_master(symbol TEXT PRIMARY KEY,name TEXT);
+        CREATE TABLE security_master(symbol TEXT PRIMARY KEY,name TEXT,last_seen_at TEXT);
         CREATE TABLE daily_quotes(symbol TEXT,trade_date TEXT,open REAL,high REAL,
             low REAL,close REAL,volume REAL,amount REAL,conflict INTEGER,
             fetched_at TEXT,source_updated_at TEXT,finality TEXT,PRIMARY KEY(symbol,trade_date));
@@ -28,7 +28,7 @@ def market():
     start = dt.date.fromisoformat(BASE) - dt.timedelta(days=269)
     for number in range(8):
         symbol = f'{number + 1:06}.SZ'
-        db.execute('INSERT INTO security_master VALUES(?,?)', (symbol, f'研究样本{number + 1}'))
+        db.execute('INSERT INTO security_master VALUES(?,?,?)', (symbol, f'研究样本{number + 1}', OBSERVED))
         for index in range(270):
             close = 6.5 + number * .2 + index * .001
             day = (start + dt.timedelta(days=index)).isoformat()
@@ -163,13 +163,13 @@ class OpeningPlanTests(unittest.TestCase):
 
     def test_only_three_budgets_no_reserve_reallocation(self):
         rows = self.plan()['watchlist']
-        self.assertEqual([row['budget_slot'] for row in rows], [1, 2, 3, None, None])
+        self.assertEqual([row['budget_slot'] for row in rows], [1, 2, None, None, None])
         self.assertLessEqual(sum(row['frozen_reserved_cash_cny'] for row in rows), 30000)
         for row in rows:
             self.assertEqual(row['frozen_quantity_shares'] % 100, 0)
             self.assertLessEqual(row['frozen_reserved_cash_cny'], 10000)
             self.assertLessEqual(row['frozen_buy_cap'], row['close'] * 1.025)
-        self.assertEqual([row['frozen_quantity_shares'] for row in rows[3:]], [0, 0])
+        self.assertEqual([row['frozen_quantity_shares'] for row in rows[2:]], [0, 0, 0])
 
     def test_membership_after_cutoff_is_not_used(self):
         self.db.execute('UPDATE industry_members SET observed_at=?', ('2026-10-19T09:00:00+08:00',))
@@ -234,8 +234,8 @@ class OpeningConfirmationTests(unittest.TestCase):
     def test_fresh_verified_evidence_remains_research_not_fill(self):
         result = self.confirm()
         self.assertEqual(result['status'], 'evidence_verified_research_only')
-        self.assertEqual(len(result['confirmed']), 3)
-        self.assertEqual(len(result['rejected']), 2)
+        self.assertEqual(len(result['confirmed']), 2)
+        self.assertEqual(len(result['rejected']), 3)
         self.assertFalse(result['actual_fill_verified'])
         self.assertFalse(result['formal_trade_eligible'])
         self.assertFalse(result['live_signal'])
@@ -244,7 +244,7 @@ class OpeningConfirmationTests(unittest.TestCase):
         self.db.execute('UPDATE daily_quotes SET open=open*4,high=high*4,low=low*4,close=close*4')
         self.plan = opening.build_plan(self.db, BASE, TARGET, CUTOFF, price_max=100)
         self.snapshot = snapshot(self.plan)
-        self.assertEqual(len(self.confirm()['confirmed']), 3)
+        self.assertEqual(len(self.confirm()['confirmed']), 2)
         self.plan['protocol']['entry_reference_price_range'] = [5, 10]
         self.assertEqual(self.confirm()['confirmed'], [])
 

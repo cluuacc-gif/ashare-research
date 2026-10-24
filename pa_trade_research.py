@@ -216,6 +216,10 @@ def run(db,base,output,input_sha256,*,probability_output=None):
             observations.append({**plan,'quantity_ref':0,'observation_only':True})
     current.sort(key=lambda row:(-row['rank_score'],row['symbol']))
     observations.sort(key=lambda row:(-row['rank_score'],row['symbol']))
+    from current_selection_scope import filter_current_study
+    scoped = filter_current_study({'current_watchlist': current,
+        'setup_observations': observations}, db, base, generated)
+    current, observations = scoped['current_watchlist'], scoped['setup_observations']
     policy={'active':bool(chosen),'selected_setup':selected,'scope':'research_only',
             'selection_frozen_before_diagnostic':True,'formal_activation':False}
     definition=hashlib.sha256(json.dumps(PROTOCOL,sort_keys=True,separators=(',',':')).encode()).hexdigest()
@@ -226,6 +230,7 @@ def run(db,base,output,input_sha256,*,probability_output=None):
         'policy':policy,'protocol':PROTOCOL,'split':{key:probability.describe(q) for key,q in chunks.items()},
         'selection':selection,'diagnostic':diagnostic,'current_watchlist':current[:10],
         'setup_observations':observations[:6],'formal_candidates':[],
+        'current_selection_scope':scoped['current_selection_scope'],
         'coverage':{'scanned':scanned,'history_candidates':len(history),'live_candidates':len(live),
                     'eligible_plans':len(observations),'current_selected':len(current)},
         'creator_reference_posture':'verified_official_video_topics_and_descriptions_no_complete_video_transcript',
@@ -244,7 +249,8 @@ def run(db,base,output,input_sha256,*,probability_output=None):
     out=Path(output);out.mkdir(parents=True,exist_ok=False)
     _write(out/'summary.json',summary);_write(out/'protocol.json',PROTOCOL)
     pd.DataFrame([dict(row,variant=key) for key,records in variants.items() for row in records]).to_csv(out/'diagnostic_trades.csv.gz',index=False,compression={'method':'gzip','mtime':0})
-    _write(out/'current_plans.json',{'policy':policy,'rows':current,'observations':observations})
+    _write(out/'current_plans.json',{'policy':policy,'rows':current,'observations':observations,
+        'current_selection_scope':scoped['current_selection_scope']})
     print(json.dumps({'pa_trade_stage':'complete','policy':policy,'coverage':summary['coverage'],
                       'diagnostic':{key:{name:value.get(name) for name in ('n_attempts','n_closed','n_unresolved','win_rate','ge3_rate','ge6_rate','mean_closed_gross_return')} for key,value in diagnostic.items()}},ensure_ascii=False),flush=True)
     return summary

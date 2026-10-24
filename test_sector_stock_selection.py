@@ -17,11 +17,13 @@ OBSERVED = '2026-10-18T12:00:00+08:00'
 def fixtures():
     db = sqlite3.connect(':memory:')
     db.execute('PRAGMA application_id=1095977041')
+    db.execute('CREATE TABLE security_master(symbol TEXT PRIMARY KEY,name TEXT,last_seen_at TEXT)')
     db.execute('''CREATE TABLE daily_quotes(symbol TEXT,trade_date TEXT,open REAL,
         high REAL,low REAL,close REAL,volume REAL,amount REAL,conflict INTEGER,
         fetched_at TEXT,source_updated_at TEXT,finality TEXT)''')
     symbols = [f'{index + 1:06}.SZ' for index in range(16)]
     for index, symbol in enumerate(symbols):
+        db.execute('INSERT INTO security_master VALUES(?,?,?)', (symbol, '样本'+symbol, OBSERVED))
         for offset in range(90):
             day = (dt.date.fromisoformat(BASE) - dt.timedelta(days=89 - offset)).isoformat()
             close = 6.3 + index * .1 + offset * .006
@@ -90,7 +92,7 @@ class SectorStockSelectionTests(unittest.TestCase):
     def test_primary_stocks_are_members_of_strong_sector_not_old_top_five(self):
         result = self.generate()
         self.assertEqual(result['status'], 'conditional_research_only')
-        self.assertEqual(len(result['primary']), 3)
+        self.assertEqual(len(result['primary']), 2)
         self.assertNotIn('000016.SZ', [row['symbol'] for row in result['watchlist']])
         self.assertTrue(all(row['sector'] in ('强板块甲', '强板块乙') for row in result['watchlist']))
         self.assertFalse(result['flow_integrated'])
@@ -110,7 +112,7 @@ class SectorStockSelectionTests(unittest.TestCase):
                 row['base_close'] *= 4
         self.outlook['constituents_sha256'] = screen._digest(self.outlook['frozen_members'])
         result = self.generate()
-        self.assertEqual(len(result['primary']), 3)
+        self.assertEqual(len(result['primary']), 2)
         self.assertEqual(result['entry_reference_price_range'], [5, 100])
         for row in result['primary']:
             self.assertGreater(row['close'], 10)

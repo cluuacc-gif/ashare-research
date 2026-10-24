@@ -89,7 +89,7 @@ def compact_pointer(manifest):
     return value
 
 
-def validate(value, source):
+def validate(value, source, *, allow_legacy_active=False):
     if value.get('schema') != 'market-outlook-v1':
         raise ValueError('unknown outlook schema')
     if (value.get('snapshot_release') != source['release_tag'] or
@@ -114,8 +114,9 @@ def validate(value, source):
         raise ValueError('unvalidated execution win rate')
     if value.get('active_trade_system'):
         study=value['active_trade_system'];known=dt.datetime.fromisoformat(study['generated_at'])
-        from active_trade_system import SCHEMA, PROTOCOL_SHA256
-        if (study.get('schema')!=SCHEMA or study.get('protocol_sha256')!=PROTOCOL_SHA256
+        from active_trade_system import SCHEMA, PROTOCOL_SHA256, LEGACY_PROTOCOL_SHA256
+        accepted = {PROTOCOL_SHA256, LEGACY_PROTOCOL_SHA256} if allow_legacy_active else {PROTOCOL_SHA256}
+        if (study.get('schema')!=SCHEMA or study.get('protocol_sha256') not in accepted
                 or study.get('base_trade_date')!=source['base_trade_date']
                 or study.get('target_trade_date')!=source['next_trade_date']
                 or study.get('input_database_sha256')!=source['database']['sha256']
@@ -173,6 +174,27 @@ def validate(value, source):
             if part.get(field) != expected:
                 raise ValueError('research section identity differs: '+key+'/'+field)
     return value
+
+
+def _preserve_first_published_active_decision(active,book,target):
+    """Keep the first decision, including an old-policy empty decision, immutable."""
+    frozen=next((item for item in book['frozen_plan_dates']
+        if item['target_trade_date']==target),None)
+    if frozen is not None:
+        frozen_policy=book['frozen_date_policy_ids'][target]
+        if frozen_policy != active.get('protocol_sha256'):
+            active['upgrade_preview']={'selection_rule_version':active['selection_rule_version'],
+                'status':'research_preview_only_first_published_decision_preserved',
+                'plans':copy.deepcopy(active['plans']), 'eligible_for_execution':False}
+            active['selection_upgrade_pending_for_frozen_target']=True
+            active['selection_upgrade_effective']='next_unfrozen_target_session'
+        active['plans']=copy.deepcopy(frozen['plans'])
+        active['plan_policy_id']=frozen_policy
+        active['coverage']['conditional_plan_count']=len(active['plans'])
+        active['first_published_plan_generated_at']=frozen['generated_at']
+        active['status']='conditional_plans_ready' if active['plans'] else 'cash_no_qualifying_setup'
+        active['current_plan_preserved_from_first_publication']=True
+    return frozen
 
 
 def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, probability_dir=None,pa_trade_dir=None,
@@ -240,13 +262,7 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
         occupied_symbols=book['occupied_symbols'],occupied_sectors=book['occupied_sectors'])
     # A verified first publication owns the day's allocation. A rerun cannot
     # replace its prices, quantities, or empty decision with a different list.
-    frozen=next((item for item in book['frozen_plan_dates']
-        if item['target_trade_date']==source['next_trade_date']),None)
-    if frozen is not None:
-        active['plans']=copy.deepcopy(frozen['plans'])
-        active['first_published_plan_generated_at']=frozen['generated_at']
-        active['status']='conditional_plans_ready' if active['plans'] else 'cash_no_qualifying_setup'
-        active['current_plan_preserved_from_first_publication']=True
+    frozen=_preserve_first_published_active_decision(active,book,source['next_trade_date'])
     active['reference_book']=book
     if frozen is not None:
         active['reference_account']=book['account']
@@ -476,7 +492,7 @@ def verify_bundle(out, manifest):
         state.verify_file(out/name, manifest['files'][name])
     value = json.loads((out/'outlook.json').read_text(encoding='utf-8'))
     source = json.loads((out/'source_manifest.json').read_text(encoding='utf-8'))
-    validate(value, source)
+    validate(value, source, allow_legacy_active=True)
     if manifest['outlook'] != value:
         raise ValueError('published outlook differs from frozen assets')
     from market_outlook_report import render
