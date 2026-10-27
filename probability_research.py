@@ -31,6 +31,7 @@ EVIDENCE_COLUMNS = ['date','symbol','entry_date','outcome_date','reference_buy_p
                     'day2_close_up','day2_touch3','day2_touch6','day3_date',
                     'policy_label_status']+list(TARGETS.values())
 MODELS = ('logistic','hgb','equal_ensemble')
+NO_CURRENT_INPUTS = 'no_qualifying_current_inputs'
 GATES = {'balanced': {'win':.55,'ge3':.25,'disagreement':.15},
          'selective': {'win':.70,'ge3':.35,'disagreement':.10}}
 POLICIES = tuple({'id':model+'_'+gate,'model':model,'gate':gate}
@@ -77,12 +78,100 @@ def finite(value):
         return None
 
 
+def _causal_entry_checks(frame):
+    """The original seven fixed checks, with labels for auditable counts."""
+    yield 'median_amount20_ge_20000000', frame.median_amount20>=20_000_000
+    yield 'volatility20_le_0.05', frame.volatility20<=.05
+    yield 'ret1_between_-0.04_0.06', frame.ret1.between(-.04,.06)
+    yield 'ma20_gap_between_-0.06_0.15', frame.ma20_gap.between(-.06,.15)
+    yield 'close_location_between_0.25_0.95', frame.close_location.between(.25,.95)
+    yield 'market_breadth_ge_0.30', frame.market_breadth>=.30
+    yield 'market_mean_return_ge_-0.02', frame.market_mean_return>=-.02
+
+
 def causal_entry_filter(frame):
     """Uses T-only evidence; future cancellation/labels never select candidates."""
-    return ((frame.median_amount20>=20_000_000)&(frame.volatility20<=.05)
-            &frame.ret1.between(-.04,.06)&frame.ma20_gap.between(-.06,.15)
-            &frame.close_location.between(.25,.95)&(frame.market_breadth>=.30)
-            &(frame.market_mean_return>=-.02))
+    keep=pd.Series(True,index=frame.index)
+    for _,condition in _causal_entry_checks(frame):keep &= condition
+    return keep
+
+
+def input_funnel(frame):
+    """Individual and ordered cumulative counts; no future label is inspected."""
+    keep=pd.Series(True,index=frame.index);steps=[]
+    for name,condition in _causal_entry_checks(frame):
+        before=int(keep.sum());keep &= condition
+        remaining=int(keep.sum());passed=int(condition.sum())
+        steps.append({'condition':name,'individual_pass':passed,
+                      'individual_fail':len(frame)-passed,'cumulative_pass':remaining,
+                      'rejected_at_step':before-remaining})
+    context={}
+    for key in ('market_breadth','market_mean_return'):
+        values=frame[key]
+        context[key]={'min':finite(values.min()),'max':finite(values.max()),
+                      'finite_rows':int(np.isfinite(values).sum())}
+    return {'input_rows':len(frame),'qualifying_rows':int(keep.sum()),
+            'steps':steps,'market_context':context}
+
+
+def _validate_panel_inputs(history,live,base):
+    # panel() enforces these invariants. The shared-panel caller must retain the
+    # same hard failures, rather than disguising bad inputs as a quiet market.
+    if history.empty or live.empty:
+        raise ValueError('no historical or live wide-universe probability inputs')
+    for name,frame in (('history',history),('live',live)):
+        if any(not isinstance(symbol,str) or not symbol.strip() for symbol in frame.symbol.unique()):
+            raise ValueError('invalid probability '+name+' symbols')
+        for day in frame.date.unique():
+            if not isinstance(day,str) or dt.date.fromisoformat(day).isoformat()!=day:
+                raise ValueError('invalid probability '+name+' dates')
+        wrong_boundary=(frame.date>=base).any() if name=='history' else (frame.date!=base).any()
+        if wrong_boundary:
+            raise ValueError('probability '+name+' dates differ from base boundary')
+        # Check one column at a time to avoid duplicating a multi-million-row
+        # feature matrix on the bounded-memory runner. Missing labels are valid.
+        for key in FEATURES:
+            if not np.isfinite(frame[key].to_numpy(dtype=float)).all():
+                raise ValueError('nonfinite probability '+name+' feature '+key)
+
+
+def _metadata(base,input_sha256):
+    generated=c.stamp()
+    definition=hashlib.sha256(json.dumps(PROTOCOL,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    return {'schema':VERSION,'generated_at':generated,'base_trade_date':base,
+            **prediction_timing(base,generated),'input_database_sha256':input_sha256,
+            'strategy_definition_sha256':definition,'formal_trade_ready':False,'actual_win_rate':None,
+            'execution_win_rate_80_validated':False,'costs_included':False,'historical_fundflow_used':False,
+            'validation_origin':PROTOCOL['validation_origin']}
+
+
+def _no_current_inputs(db,base,output,input_sha256,chunks,coverage,funnel):
+    metadata=_metadata(base,input_sha256)
+    policy={'active':False,'chosen':None,'scope':'research_only','formal_activation':False,
+            'selection_frozen_before_diagnostic':True,'inactive_reason':NO_CURRENT_INPUTS}
+    summary={**metadata,'status':NO_CURRENT_INPUTS,'status_message':'旧模型当期不可用',
+             'policy':policy,'protocol':PROTOCOL,
+             'training_performed':False,'selection_performed':False,
+             'current_probability_status':'unknown_no_qualifying_current_inputs',
+             'split':{key:describe(frame) for key,frame in chunks.items()},
+             'selection':[],'diagnostic':{},'probability_diagnostics':{},
+             'endpoint_availability':{model:{key:False for key in TARGETS} for model in MODELS},
+             'coverage':coverage,'input_funnel':funnel,'current_watchlist':[],'formal_candidates':[],
+             'limitations':[
+                 'The old probability model has no qualifying current inputs; all current probabilities are unknown.',
+                 'No model was fitted, no policy selected, and no prior prediction or fabricated probability is substituted.',
+                 'This module state does not veto the independent active trading system.',
+                 'The original historical protocol and causal entry thresholds are unchanged; no 80 percent win rate is validated.'
+             ]}
+    if gross._hash(db)!=input_sha256:raise ValueError('database changed during experiment')
+    out=Path(output);out.mkdir(parents=True,exist_ok=False)
+    write(out/'summary.json',summary);write(out/'protocol.json',PROTOCOL)
+    write(out/'input_funnel.json',{**metadata,'study_schema':VERSION,**funnel})
+    write(out/'predictions.json',{**metadata,'status':NO_CURRENT_INPUTS,
+                                  'status_message':'旧模型当期不可用','policy':policy,'rows':[]})
+    print(json.dumps({'probability_stage':NO_CURRENT_INPUTS,'policy':policy,
+                      'coverage':coverage,'current_input_funnel':funnel['current']},ensure_ascii=False),flush=True)
+    return summary
 
 
 def chronological_split(history):
@@ -210,14 +299,21 @@ def run(db,base,output,input_sha256,*,panel_data=None):
     history,live,names,scanned=panel(db,base) if panel_data is None else panel_data
     columns=list(dict.fromkeys(FEATURES+EVIDENCE_COLUMNS))
     history=history[columns].copy();live=live[columns].copy()
+    _validate_panel_inputs(history,live,base)
     # All supervised endpoints share the declared entry/execution conditioning.
     # The execution replay still retains unknown/cancelled candidates themselves.
     history.loc[history.policy_label_status!='closed','strength3_label']=np.nan
     raw_count=len(history);raw_live=len(live)
+    funnel={'schema':'causal-entry-input-funnel-v1','causal_features_only':True,
+            'history':input_funnel(history),'current':input_funnel(live)}
     history=history[causal_entry_filter(history)].reset_index(drop=True)
     live=live[causal_entry_filter(live)].reset_index(drop=True)
-    if live.empty:raise ValueError('no causal live probability inputs')
     chunks=chronological_split(history)
+    coverage={'history_rows_scanned':scanned,'wide_universe_history_rows':raw_count,
+              'causal_history_candidates':len(history),'wide_universe_live_rows':raw_live,
+              'causal_live_candidates':len(live),'current_research_eligible':0}
+    if live.empty:
+        return _no_current_inputs(db,base,output,input_sha256,chunks,coverage,funnel)
     train=date_cap(chunks['train']);calibration=date_cap(chunks['calibration'])
     bundle=fit_bundle(train,calibration,FEATURES,TARGETS,date_column='date')
     print(json.dumps({'probability_stage':'models_fitted','train':describe(train),'calibration':describe(calibration)}),flush=True)
@@ -263,27 +359,21 @@ def run(db,base,output,input_sha256,*,panel_data=None):
                      'frozen_buy_limit_cap':frozen_cap(row.close),
                      'research_eligible':bool(chosen and policy_mask(pd.DataFrame([row._asdict()]),chosen_policy).iloc[0]),
                      'probabilities_are_conditional_daily_reference_events':True,'formal_trade_ready':False})
-    generated=c.stamp()
-    definition=hashlib.sha256(json.dumps(PROTOCOL,sort_keys=True,separators=(',',':')).encode()).hexdigest()
+    metadata=_metadata(base,input_sha256);generated=metadata['generated_at']
     policy={'active':bool(chosen),'chosen':chosen_policy,'scope':'research_only',
             'selection_frozen_before_diagnostic':True,'formal_activation':False,
             'inactive_reason':None if chosen else 'none_passed_fixed_selection_evidence_and_positive_lower_expectancy'}
-    metadata={'schema':VERSION,'generated_at':generated,'base_trade_date':base,
-              **prediction_timing(base,generated),'input_database_sha256':input_sha256,
-              'strategy_definition_sha256':definition,'formal_trade_ready':False,'actual_win_rate':None,
-              'execution_win_rate_80_validated':False,'costs_included':False,'historical_fundflow_used':False,
-              'validation_origin':PROTOCOL['validation_origin']}
     from current_selection_scope import filter_current_rows
     current_watchlist, current_scope = filter_current_rows(
         [row for row in rows if row['research_eligible']], db, base, generated)
+    coverage['current_research_eligible']=sum(row['research_eligible'] for row in rows)
     summary={**metadata,'policy':policy,'protocol':PROTOCOL,'split':{key:describe(q) for key,q in chunks.items()},
+             'training_performed':True,'selection_performed':True,'input_funnel':funnel,
              'sampled_fit_blocks':{'train':describe(train),'calibration':describe(calibration)},
              'model_metadata':bundle.get('metadata',{}),'selection':selection,'diagnostic':diagnostic,
              'endpoint_availability':live_predictions['available'],
              'probability_diagnostics':calibration_diagnostics,'selected_stability':stability,
-             'coverage':{'history_rows_scanned':scanned,'wide_universe_history_rows':raw_count,
-                         'causal_history_candidates':len(history),'wide_universe_live_rows':raw_live,
-                         'causal_live_candidates':len(live),'current_research_eligible':sum(row['research_eligible'] for row in rows)},
+             'coverage':coverage,
              'current_watchlist':current_watchlist[:10],
              'current_selection_scope':current_scope,
              'formal_candidates':[],
@@ -302,6 +392,7 @@ def run(db,base,output,input_sha256,*,panel_data=None):
     if gross._hash(db)!=input_sha256:raise ValueError('database changed during experiment')
     out=Path(output);out.mkdir(parents=True,exist_ok=False)
     write(out/'summary.json',summary);write(out/'protocol.json',PROTOCOL)
+    write(out/'input_funnel.json',{**metadata,'study_schema':VERSION,**funnel})
     write(out/'predictions.json',{**metadata,'policy':policy,'rows':rows})
     joblib.dump(bundle,out/'models.joblib',compress=3)
     live[['date','symbol']+FEATURES].to_csv(out/'prediction_inputs.csv.gz',index=False,compression={'method':'gzip','mtime':0})

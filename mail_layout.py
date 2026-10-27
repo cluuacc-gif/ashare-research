@@ -418,13 +418,18 @@ def render_text(payload):
 
 def render_html(payload):
     c=content(payload); esc=lambda v:html.escape(str(v),quote=True)
+    # The wide active tables scroll inside their own container.  A fixed mail
+    # frame prevents their intrinsic minimum width from widening the phone page.
+    frame_style='width:100%;max-width:680px;background:#ffffff;border-collapse:collapse'
+    if any('authoritative_html' in section for section in c['sections']):
+        frame_style += ';table-layout:fixed'
     # Table layout and inline CSS work in Outlook; media queries improve phone layout.
     chunks=['<!doctype html><html lang="zh-CN"><head><meta charset="utf-8">',
         '<meta name="viewport" content="width=device-width, initial-scale=1">',
         '<style>@media(max-width:600px){.pad{padding:20px 12px!important}.data td,.data th{padding:9px 4px!important;font-size:11px!important}.heading{font-size:25px!important}}</style>',
         '</head><body style="margin:0;background:#edf2f7;color:#1c2b3d;font-family:Arial,Microsoft YaHei,PingFang SC,sans-serif">',
         '<table role="presentation" width="100%" cellspacing="0" cellpadding="0"><tr><td align="center" style="padding:24px 8px">',
-        '<table role="presentation" width="680" cellspacing="0" cellpadding="0" style="width:100%;max-width:680px;background:#ffffff;border-collapse:collapse">',
+        f'<table role="presentation" width="680" cellspacing="0" cellpadding="0" style="{frame_style}">',
         '<tr><td class="pad" style="background:#102b46;padding:32px;color:#ffffff">',
         '<div style="font-size:11px;letter-spacing:2px;color:#81d5d0">A-SHARE RESEARCH</div>',
         f'<h1 class="heading" style="font-size:32px;line-height:1.3;margin:12px 0 8px">{esc(c["title"])}</h1>',

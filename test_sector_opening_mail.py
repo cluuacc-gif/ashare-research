@@ -123,6 +123,16 @@ class RenderingBoundaries(unittest.TestCase):
                 self.assertNotIn('.active-trade{', text)
                 self.assertNotIn('<style>', text)
 
+    def test_only_a_current_v3_authority_section_uses_a_fixed_mail_frame(self):
+        value = self.v3_payload()
+        self.assertIn('border-collapse:collapse;table-layout:fixed', mail_layout.render_html(value))
+        for version in (1, 2):
+            legacy = self.v3_payload()
+            legacy['research']['active_trade_system']['selection_rule_version'] = version
+            self.assertNotIn('table-layout:fixed', mail_layout.render_html(legacy))
+        value['research']['active_trade_system']['generated_at'] = '2026-10-18T18:00:01+08:00'
+        self.assertNotIn('table-layout:fixed', mail_layout.render_html(value))
+
     def test_unrevised_v3_mail_corrects_wording_without_changing_archived_html(self):
         from active_trade_report import render
         value = self.v3_payload(revision=None)

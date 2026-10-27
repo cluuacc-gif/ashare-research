@@ -97,7 +97,9 @@ def mathematical_section(value):
         risks.append([label,pct(metric.get('mean_win_return')),pct(metric.get('mean_loss_return')),num(metric.get('profit_factor'),2),(pct(ci[0])+'～'+pct(ci[1])) if len(ci)==2 else '—',pct(metric.get('realized_closed_trade_max_drawdown'))])
     if risks:
         result+='<details><summary>各规则的盈亏、区间与已闭合风险</summary>'+table(['规则','平均盈利','平均亏损','盈利因子','盈利比例95%区间','已闭合回撤'],risks)+'<p class="note">按入场日期分组抽样；区间反映旧诊断样本的不确定性，不能证明未来有效。回撤未包含未知头寸盯市，不等于完整实盘最大回撤。</p></details>'
-    result+='<p><b>T+1主目标：</b>D1买入、D2退出，默认研究3%目标与2%风险参考；D1不止损卖出，D2跳空可能越过风险价。6%单列观察，不能为了等第3天上涨而自动延长持仓。</p><p><b>持续走强辅助目标：</b>分别跟踪D1、D2、D3逐日收高；缺少D3行情不删除已知的D2结果，也不把3日上涨率当成T+1盈利胜率。</p>'
+    legacy_scope = ('<p class="note">以下为旧T+1研究口径，只描述历史对照，不覆盖主系统预先冻结的买后1至2个交易日退出期限。</p>'
+                    if (value.get('active_trade_system') or {}).get('selection_rule_version') == 3 else '')
+    result+=legacy_scope+'<p><b>'+('旧T+1研究目标：' if legacy_scope else 'T+1主目标：')+'</b>D1买入、D2退出，默认研究3%目标与2%风险参考；D1不止损卖出，D2跳空可能越过风险价。6%单列观察，不能为了等第3天上涨而自动延长持仓。</p><p><b>持续走强辅助目标：</b>分别跟踪D1、D2、D3逐日收高；缺少D3行情不删除已知的D2结果，也不把3日上涨率当成T+1盈利胜率。</p>'
     result+='<p class="note">期望收益＝盈利比例×平均盈利＋亏损比例×平均亏损。80%胜率仍可能因少数大亏而亏钱，因此同时检查盈亏比、正期望和按日期分组的不确定区间。海外资料仅提供可量化的研究思路：<a href="https://www.nber.org/papers/w7613">Lo、Mamaysky、Wang（2000）</a>，<a href="https://www.cmegroup.com/education/courses/trading-and-analysis/support-and-resistance">CME支撑与阻力课程</a>；不据此推定A股短线有效。</p></section>'
     return result
 
@@ -162,6 +164,11 @@ def render(value):
     plan_note=items(plan.get('entry_rules') or plan.get('conditions') or plan.get('notes') or [])
     if plan_note=='—':
         plan_note='最多3个独立预算名额；第4—5名只观察，不自动补位。板块缺少匹配时，个股排序仅采用价量特征。'
+    holding_v3 = (value.get('active_trade_system') or {}).get('selection_rule_version') == 3
+    research_title = '买入与冻结期限内退出的研究顺序' if holding_v3 else '买入与次日退出的研究顺序'
+    review_label = '③ 按冻结路线退出' if holding_v3 else '③ 次日检验'
+    objective_note = ('主系统买后1至2个交易日按冻结路线退出：反弹／过热防守最迟买后第1交易日退出，趋势延续最迟买后第2交易日退出；首个可卖日不够强即退出，不因亏损延长。目标是提高毛盈利胜率，争取3%～6%，不扣交易费用。'
+                      if holding_v3 else '目标仍是提高第1天买入、第2天卖出的毛盈利胜率，争取3%～6%，不扣交易费用。')
     return '''<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>次日板块展望与开盘观察</title><style>
 *{box-sizing:border-box}body{margin:0;background:#f4f5f2;color:#172722;font:16px/1.7 "Microsoft YaHei","Noto Sans CJK SC",sans-serif}main{max-width:1180px;margin:auto;padding:42px 34px 70px}.eyebrow{font-size:13px;letter-spacing:2px;color:#537367}h1{font-size:36px;line-height:1.3;margin:12px 0}h2{font-size:23px;margin:0 0 12px}p{margin:8px 0 16px}.lead{max-width:910px;font-size:18px}.muted,small{color:#66766e}.ribbon{display:flex;gap:18px;margin:26px 0}.tile{background:#fff;border:1px solid #dce3dc;border-radius:12px;padding:18px 22px;flex:1}.tile b{display:block;font-size:27px}.tile span{font-size:13px;color:#66766e}section{background:white;border:1px solid #dde4dc;border-radius:14px;margin-top:22px;padding:25px}.scroll{overflow:auto}table{border-collapse:collapse;width:100%;font-size:14px}th{text-align:left;background:#edf2ee;color:#486150;font-size:13px}th,td{padding:13px 12px;vertical-align:top;border-bottom:1px solid #e7ece6}th:first-child{width:46px}td:nth-child(2){min-width:125px}a{color:#216f55}.callout{border-left:4px solid #a07636;background:#fbf6ec;padding:15px 19px;margin-top:20px}.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}.step{background:#f5f7f2;padding:17px;border-radius:9px}.step b{display:block;color:#28664b}.note{font-size:13px;color:#65736b;margin-top:15px}.pill{font-size:12px;background:#e9eee7;padding:4px 9px;border-radius:20px}.provenance{font-size:12px;overflow-wrap:anywhere}details{margin-top:15px}summary{cursor:pointer;font-weight:bold}@media(max-width:650px){main{padding:25px 15px}h1{font-size:27px}.ribbon{gap:9px}.tile{padding:13px 10px}.tile b{font-size:21px}section{padding:18px 13px}.steps{grid-template-columns:1fr}table{min-width:720px}.lead{font-size:16px}}
@@ -174,8 +181,8 @@ def render(value):
 <section><h2>开盘转强观察名单</h2><p>不要求买入当天收涨，也不以已经封死涨停的股票作为可买入机会。名单在开盘前冻结，当日需再核对价格、交易状态和及时行情。</p>'''+selection_funnel(value)+table(['序号','股票','行业','前收盘','研究分','依据与开盘条件'],watch_rows)+'''
 <div class="callout"><strong>开盘前是观察计划。</strong> 09:25报告提供条件清单；实际开盘后，只有及时行情、交易状态和限价等核验齐全，才可研究是否满足转强条件。触发条件不等于实际成交。</div>
 <p class="note">'''+plan_note+'''</p></section>
-'''+mathematical_section(value)+'''<section><h2>买入与次日退出的研究顺序</h2><div class="steps"><div class="step"><b>① 前收盘准备</b>冻结板块和个股观察池，价格上限提前确定；高开超过上限即放弃。</div><div class="step"><b>② 开盘核验</b>核对当天行情和可交易状态。无及时数据、封板或条件不足时不确认信号。</div><div class="step"><b>③ 次日检验</b>按预定退出规则记录毛盈利、达到3%和6%的比例；亏损和未解决退出全部保留。</div></div>
-<p class="note">目标仍是提高第1天买入、第2天卖出的毛盈利胜率，争取3%～6%，不扣交易费用。现有策略尚未验证80%以上胜率；本次新增信息不会自动改变这一结论。</p></section>
+'''+mathematical_section(value)+'''<section><h2>'''+research_title+'''</h2><div class="steps"><div class="step"><b>① 前收盘准备</b>冻结板块和个股观察池，价格上限提前确定；高开超过上限即放弃。</div><div class="step"><b>② 开盘核验</b>核对当天行情和可交易状态。无及时数据、封板或条件不足时不确认信号。</div><div class="step"><b>'''+review_label+'''</b>按预定退出规则记录毛盈利、达到3%和6%的比例；亏损和未解决退出全部保留。</div></div>
+<p class="note">'''+objective_note+'''现有策略尚未验证80%以上胜率；本次新增信息不会自动改变这一结论。</p></section>
 <section><h2>证据范围与自动运行</h2><p>板块预测与开盘计划已纳入报告准备流程。每天盘后冻结研究输出，结果按交易日留档；下一交易日结果出现前不计算命中率。</p><p>'''+e(tracking_text)+''' 缺失行情的预测保留为未解决，不计作命中；每天只以最早冻结的一版统计。</p><p>邮件时点继续沿用北京时间09:00、09:25、18:00。独立云主机尚未部署；GitHub调度仍可能排队，严格准点发送依赖此前准备的独立运行方案。</p>
 <details><summary>数据与来源</summary><p class="note">'''+coverage_text+'''</p><p class="note">'''+evidence+'''</p><p class="provenance">行情版本：<a href="https://github.com/cluuacc-gif/ashare-research/releases/tag/'''+e(value.get('snapshot_release',''))+'''">'''+e(value.get('snapshot_release','—'))+'''</a><br>行情校验值：'''+e(value.get('input_database_sha256','—'))+'''</p><p class="note">行业分类仅用于其已知时间之后的研究，不回填历史成分来制造回测命中率。当前排序不包含已验证的消息催化或资金流预测。</p><p class="note">交易时段与规则参考：<a href="https://www.sse.com.cn/lawandrules/sselawsrules2025/fund/trading/c/c_20260424_10817739.shtml">上交所2026年交易规则</a>。本次研究不发送邮件或交易指令。</p></details></section>
 <p class="note">本页为选股研究与观察计划。冻结时间与行情日期分别列示，周末生成的预览不计作上一交易日下午的事前预测。</p></main></body></html>'''

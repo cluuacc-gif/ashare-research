@@ -26,6 +26,43 @@ def fixture():
 
 
 class PublicationTests(unittest.TestCase):
+    def test_legacy_holding_wording_keeps_exact_rendered_bytes(self):
+        from test_active_trade_report import study
+        expected = {None: 'f898f92397bdb210571f8a4d1ccf0275f20ba9c2f89f095d5c320513bc2e3dc7',
+                    1: 'c7a629947febb2ae5181d1b52be5567650db28dbb0389b87ba4395e2fdfa7ba6',
+                    2: 'c01b4144cd8c60fbec2973edfdfb7876842a74045a1c55f2e1f3a9db1760ac5d'}
+        for version, digest in expected.items():
+            with self.subTest(version=version):
+                value, _ = fixture()
+                if version is not None:
+                    value['active_trade_system'] = study()
+                    value['active_trade_system']['selection_rule_version'] = version
+                self.assertEqual(hashlib.sha256(render(value).encode()).hexdigest(), digest)
+
+    def test_v3_overview_keeps_route_deadlines_and_labels_old_research(self):
+        from test_active_trade_report import study
+        for route, sessions, deadline in (('trend_continuation', 2, '2026-10-21'),
+                                         ('weak_to_strong_rebound', 1, '2026-10-20')):
+            with self.subTest(route=route):
+                value, _ = fixture()
+                active = value['active_trade_system'] = study()
+                active.update(selection_rule_version=3, presentation_revision=2,
+                    market_context={'route': route})
+                active['plans'][0].update(holding_policy_version=3, setup_route=route,
+                    max_hold_after_entry_sessions=sessions, D2_trade_date='2026-10-20',
+                    planned_exit_trade_date=deadline)
+                body = render(value)
+                self.assertIn('买后1至2个交易日按冻结路线退出', body)
+                self.assertIn('反弹／过热防守最迟买后第1交易日退出', body)
+                self.assertIn('趋势延续最迟买后第2交易日退出', body)
+                self.assertIn('旧T+1研究口径，只描述历史对照', body)
+                self.assertIn('旧T+1研究目标：', body)
+                self.assertIn(deadline, body)
+                self.assertNotIn('T+1主目标：', body)
+                self.assertNotIn('目标仍是提高第1天买入、第2天卖出', body)
+                self.assertNotIn('买入与次日退出的研究顺序', body)
+                self.assertEqual(render(m.compact_pointer({'outlook': value})['outlook']), body)
+
     def test_weekend_prediction_targets_next_verified_session(self):
         value,source=fixture()
         self.assertIs(m.validate(value,source),value)

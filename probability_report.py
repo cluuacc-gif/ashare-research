@@ -4,6 +4,7 @@ import html
 import math
 
 VERSION='calibrated-tplus1-probability-v1'
+NO_CURRENT_INPUTS='no_qualifying_current_inputs'
 METRICS=('n_attempts','n_closed','n_unresolved','n_cancelled','independent_entry_dates',
          'win_rate','ge3_rate','ge6_rate','mean_closed_gross_return','strength3_rate',
          'realized_closed_trade_max_drawdown','mean_win_return','mean_loss_return','profit_factor')
@@ -15,7 +16,8 @@ def compact(study):
     if study.get('schema')!=VERSION:return {}
     keys=('schema','generated_at','base_trade_date','target_trade_date','input_database_sha256',
           'strategy_definition_sha256','formal_trade_ready','actual_win_rate','execution_win_rate_80_validated',
-          'costs_included','validation_origin','policy','split','coverage','current_watchlist','endpoint_availability')
+          'costs_included','validation_origin','policy','split','coverage','current_watchlist','endpoint_availability',
+          'status','status_message','training_performed','selection_performed','current_probability_status','input_funnel')
     value={key:copy.deepcopy(study[key]) for key in keys if key in study}
     value['diagnostic']={}
     for key,metric in (study.get('diagnostic') or {}).items():
@@ -34,6 +36,14 @@ def compact(study):
                   'observed_frequency','mean_probability','training_only_baseline_scores',
                   'equal_date_weighted','brier_skill_vs_training_baseline')
             value['probability_diagnostics'][model]['endpoints'][key]={name:copy.deepcopy(metric[name]) for name in keep if name in metric}
+    if value.get('status')==NO_CURRENT_INPUTS:
+        value['status_message']='旧模型当期不可用'
+        value['policy']={**(value.get('policy') or {}),'active':False,'chosen':None,
+                         'formal_activation':False,'inactive_reason':NO_CURRENT_INPUTS}
+        value['current_watchlist']=[]
+        value['current_probability_status']='unknown_no_qualifying_current_inputs'
+        value['endpoint_availability']={model:{key:False for key in endpoints}
+                                       for model,endpoints in (value.get('endpoint_availability') or {}).items()}
     return value
 
 
@@ -50,9 +60,37 @@ def label(value):
     return value.replace('equal_ensemble','等权组合').replace('logistic','逻辑回归').replace('hgb','梯度提升').replace('_balanced',' · 常规门槛').replace('_selective',' · 高门槛')
 
 
+def _render_no_current_inputs(study):
+    coverage=study.get('coverage') or {};funnel=(study.get('input_funnel') or {}).get('current') or {}
+    result='<section><h2>校准概率：旧模型当期不可用</h2>'
+    result+='<div class="callout"><strong>原始当期输入存在，但没有股票通过旧概率模型的全部事前条件。</strong> 本模块保持未启用，当期概率未知；没有沿用旧预测，也没有填入替代概率。本轮未训练模型、未选择概率规则。</div>'
+    result+='<p>数据日 '+e(study.get('base_trade_date','—'))+'，目标交易日 '+e(study.get('target_trade_date','—'))+'。当期原始输入 '+number(coverage.get('wide_universe_live_rows'))+' 只，全部条件后 '+number(coverage.get('causal_live_candidates'))+' 只。本状态只说明旧概率模块不可用，独立交易系统仍按自己的板块、行情和入场证据判定。</p>'
+    names={'median_amount20_ge_20000000':'20日成交额中位数 ≥ 2000万元',
+           'volatility20_le_0.05':'20日波动率 ≤ 5%',
+           'ret1_between_-0.04_0.06':'当日涨跌幅 -4%～6%',
+           'ma20_gap_between_-0.06_0.15':'距20日均线 -6%～15%',
+           'close_location_between_0.25_0.95':'收盘位置 0.25～0.95',
+           'market_breadth_ge_0.30':'市场上涨比例 ≥ 30%',
+           'market_mean_return_ge_-0.02':'市场平均涨跌幅 ≥ -2%'}
+    rows=[[e(names.get(row.get('condition'),row.get('condition','—'))),
+           number(row.get('individual_pass')),number(row.get('individual_fail')),
+           number(row.get('cumulative_pass')),number(row.get('rejected_at_step'))]
+          for row in funnel.get('steps',[])]
+    if rows:result+=table(['固定事前条件','单项通过','单项未过','依次累计通过','本步剔除'],rows)
+    context=funnel.get('market_context') or {}
+    if context:
+        result+=table(['当期市场输入','最小值','最大值'],[
+            [e(name),pct((context.get(key) or {}).get('min')),pct((context.get(key) or {}).get('max'))]
+            for key,name in (('market_breadth','市场上涨比例'),('market_mean_return','市场平均涨跌幅'))])
+    result+='<p class="note">单项通过独立计数；累计通过按表中顺序计算。所有条件只使用数据日及以前的信息，阈值与历史研究协议保持不变；未来涨跌标签不参与筛选。数据异常、输入哈希不符和训练错误仍会使任务失败。</p>'
+    result+='<p><b>当期没有可报告的模型概率，80%以上实际胜率尚未验证。</b></p></section>'
+    return result
+
+
 def render(study):
     study=compact(study)
     if not study:return ''
+    if study.get('status')==NO_CURRENT_INPUTS:return _render_no_current_inputs(study)
     policy=study.get('policy') or {};active=bool(policy.get('active'))
     coverage=study.get('coverage') or {};diagnostic=study['diagnostic']
     chosen=(policy.get('chosen') or {}).get('id')
