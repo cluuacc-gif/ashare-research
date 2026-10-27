@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0",
   "kind": "verified_public_quote_transport",
-  "base_trade_date": "2026-10-26",
-  "github_run_id": "40349111072",
-  "github_commit": "1a0f0af591da616ee9d8308eb5389eb069d78ef3",
-  "archive_sha256": "13501fd1fccea4d44b9c1ef0d22e6619caa0512e40d8b2081e2fa42afadb90c7",
-  "archive_bytes": 3432479,
+  "base_trade_date": "2026-10-27",
+  "github_run_id": "40508442684",
+  "github_commit": "cedb8ce97c3a30de3fe8eae44e4243ed2c9e001d",
+  "archive_sha256": "f674a4750a766017eea842e5d0508a7f9ec53012544a25c9044c8e30aac13149",
+  "archive_bytes": 3434348,
   "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
-  "original_finished_at": "2026-10-26T23:27:53.212140+08:00",
-  "published_at": "2026-10-26T15:28:09.615533+00:00",
+  "original_finished_at": "2026-10-27T21:04:45.097324+08:00",
+  "published_at": "2026-10-27T13:05:03.909020+00:00",
   "raw_replay_verified": true,
   "securities": 5577,
   "quotes": 5570,
@@ -20,5 +20,5 @@
   "data_status": "DATA NOT READY",
   "model_ready": false,
   "canonical_database_imported": false,
-  "index_path": "bundles/2026-10-26/40349111072-13501fd1fccea4d4/index.json"
+  "index_path": "bundles/2026-10-27/40508442684-f674a4750a766017/index.json"
 }
