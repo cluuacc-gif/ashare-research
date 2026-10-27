@@ -1,64 +1,64 @@
 {
-  "model_id": "price-volume-production-v1-2026-10-26-22421a8635c1b5ca",
+  "model_id": "price-volume-production-v1-2026-10-27-91a5c55abc41c5a9",
   "model_version": "price-volume-production-v1",
-  "base_trade_date": "2026-10-26",
-  "target_trade_date": "2026-10-27",
-  "snapshot_release": "prepared-2026-10-26-40349111072-1",
-  "input_database_sha256": "b747d6be83321f0dc875f33739bdd6fc2bd29b1e04202f1e31e9129e0e93d48c",
-  "prediction_count": 1268,
-  "generated_at": "2026-10-26T23:36:52.056267+08:00",
+  "base_trade_date": "2026-10-27",
+  "target_trade_date": "2026-10-28",
+  "snapshot_release": "prepared-2026-10-27-40508442684-1",
+  "input_database_sha256": "8b7366adef117d74ec941c5ae1c6d248704e592fdc454c8ad4e7b0343073b9f6",
+  "prediction_count": 1309,
+  "generated_at": "2026-10-27T21:13:01.202842+08:00",
   "model_ready": true,
   "formal_trade_ready": false,
   "win_rate_gate": "active_gross_swing_forward_validation_required",
   "schema_version": "1.0",
-  "release_tag": "model-2026-10-26-40349111072-1",
-  "github_run_id": "40349111072",
-  "github_commit": "1a0f0af591da616ee9d8308eb5389eb069d78ef3",
+  "release_tag": "model-2026-10-27-40508442684-1",
+  "github_run_id": "40508442684",
+  "github_commit": "cedb8ce97c3a30de3fe8eae44e4243ed2c9e001d",
   "files": {
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 184263,
-      "sha256": "22421a8635c1b5ca615c6e7eb6cfd81e7431007e17d0ed3b527065b4a1d0271b"
+      "bytes": 184829,
+      "sha256": "91a5c55abc41c5a958a796ac456e51b491b0d8cd405d5a9c8edd926cce101050"
     },
     "validation.json": {
       "name": "validation.json",
-      "bytes": 6110,
-      "sha256": "5475d62e8754868394f7250227e848b66ab2f4cd4fc6944829c39a3fb3eec1f0"
+      "bytes": 5942,
+      "sha256": "0a7a35337bc4727a0a3efb61caad1fb6bdb12207f8a528b6ad432f77f2edf7fb"
     },
     "predictions.json": {
       "name": "predictions.json",
-      "bytes": 259376,
-      "sha256": "509884b3f58fb1207b6a2c74fb0117f6f48d5127c84e8b589a79d22c33bde05b"
+      "bytes": 267117,
+      "sha256": "2e011084997339fc19c729c94bd781728b943aac748f72933d34db2bcb23277d"
     },
     "predictions.sqlite3": {
       "name": "predictions.sqlite3",
-      "bytes": 364544,
-      "sha256": "1d780395c3cf0defa6359ff7586839bafbe9df0f773a8c2bc9c78d74b900e9c3"
+      "bytes": 372736,
+      "sha256": "e4e5199deec0a521fe5720208427eddee7e65b24aff283011dcb6c0e72d8ac75"
     },
     "input_manifest.json": {
       "name": "input_manifest.json",
       "bytes": 1654,
-      "sha256": "764df6f6fe67d6f22c94a02df827e1e51025a683c683c4af34084ab315f36455"
+      "sha256": "ff3c7f9fec54e7032429781347e0210b57037b7563332878cf489a6013a78cc0"
     },
     "model_handoff.json": {
       "name": "model_handoff.json",
-      "bytes": 81836,
-      "sha256": "0bb437cd41c5c6a70c318e2f28a5941326441e1d20f0031e6fca34823d610186"
+      "bytes": 84139,
+      "sha256": "2fc5f7b873a8f2ba1e2022bd087dc7e0871b217ec0b1f962a780426bac3e868a"
     },
     "historical_holdout.csv.gz": {
       "name": "historical_holdout.csv.gz",
-      "bytes": 1282867,
-      "sha256": "585c009fa5f31c10f6365ca2b4c753e25b2a65445d76e110137cae1a5f5dee4a"
+      "bytes": 1278681,
+      "sha256": "63e4451cd44454fdd03116d8049b9d5c18fda35f8f0d680a3a0c17d2c70f41f6"
     },
     "prediction_inputs.csv.gz": {
       "name": "prediction_inputs.csv.gz",
-      "bytes": 170681,
-      "sha256": "f9a3b438c6b572f2b5f3696bf96919d9fd51db7ed36947528c8e926062eca39e"
+      "bytes": 175645,
+      "sha256": "bacafe4c0650c57686c518cff69191f06880dd65223166d3bbd8ca474e3d56a3"
     }
   },
-  "parent_pointer_blob_sha": "4619480b2c800b5703fb469f5bb4687a4734750a",
-  "data_pointer_blob_sha": "e22ec767eb725ff352a832a93fdfa2a6e4bc24e6",
-  "publication_started_at": "2026-10-26T23:36:54.083587+08:00",
-  "assets_readback_verified_at": "2026-10-26T23:36:57.866567+08:00",
+  "parent_pointer_blob_sha": "3df7c1ea28c3aecb8aeafc3ae5d973dfdb9d3472",
+  "data_pointer_blob_sha": "d8de387a8847fab4a78972bd76ec737ef1c3d360",
+  "publication_started_at": "2026-10-27T21:13:03.112988+08:00",
+  "assets_readback_verified_at": "2026-10-27T21:13:06.780390+08:00",
   "forward_eligible": true
 }
