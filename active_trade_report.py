@@ -92,6 +92,9 @@ def compact(study):
         result['preview_plan_count'] = (_count(study.get('preview_plan_count')) if 'preview_plan_count' in study else
             len((study.get('upgrade_preview') or {}).get('plans', [])))
     if study.get('selection_rule_version') == 3:
+        revision = _count(study.get('presentation_revision'))
+        if revision is not None:
+            result['presentation_revision'] = revision
         result['policy_name'] = '顺势延续／弱转强·1—2日'
         context = study.get('market_context') or {}
         result['market_context'] = {'route':_text(context.get('route')), 'state':_text(context.get('state')),
@@ -198,7 +201,8 @@ def render(study):
     if study.get('selection_rule_version') == 3:
         context=study.get('market_context') or {}
         route_label=('过热背景防守回踩（半额1日）' if context.get('state')=='overheated_defensive' else {'trend_continuation':'趋势延续候选','weak_to_strong_rebound':'弱转强反弹候选'}.get(context.get('route'),'未知或极端压力，仅观察'))
-        parts.append('<p class="at-muted">v3状态：'+_e(route_label)+'。前一日大盘涨跌只提供背景，不是未来上涨预测。反弹／过热防守候选最多1只，单票风险及现金上限减半；买入日必须以已完成分钟收复T日收盘，反弹还须越过开盘前30分钟高位；过热背景只允许缩量回踩恢复，禁止追突破。这里只确认个股条件，不宣称大盘已反转。</p>')
+        opening_high = '开盘后首30根已完成分钟高位' if study.get('presentation_revision', 0) >= 2 else '开盘前30分钟高位'
+        parts.append('<p class="at-muted">v3状态：'+_e(route_label)+'。前一日大盘涨跌只提供背景，不是未来上涨预测。反弹／过热防守候选最多1只，单票风险及现金上限减半；买入日必须以已完成分钟收复T日收盘，反弹还须越过'+opening_high+'；过热背景只允许缩量回踩恢复，禁止追突破。这里只确认个股条件，不宣称大盘已反转。</p>')
         if study.get('selection_upgrade_pending_for_frozen_target'):
             parts.append('<div class="at-state"><strong>本目标日保留首次发布的原计划</strong>新规则只作不可执行预览；旧计划和旧退出日不改，新规则从下一尚未冻结目标日起使用。</div>')
     if plans:

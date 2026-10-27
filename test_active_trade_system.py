@@ -301,6 +301,13 @@ class ActiveSystemTests(unittest.TestCase):
         self.assertEqual(before['policy_id'], after['policy_id'])
         self.assertNotEqual(before['input_database_sha256'], after['input_database_sha256'])
 
+    def test_new_presentation_revision_does_not_change_the_frozen_v3_policy(self):
+        value = self.build()
+        self.assertEqual(value['presentation_revision'], 2)
+        self.assertEqual(value['protocol_sha256'], '8cef62d49ede8364c44ca102d123adb87bb88194462b5b4f064b1aafb3fde1f4')
+        self.assertNotIn('presentation_revision', value['protocol'])
+        self.assertTrue(all('presentation_revision' not in plan for plan in value['plans']))
+
     def test_explicit_entry_and_D2_next_bar_exit_never_exact_target_fill(self):
         protocol = self.build()['protocol']
         self.assertEqual(protocol['entry']['decision_time'], '14:40')

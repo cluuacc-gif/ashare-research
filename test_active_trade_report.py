@@ -1,6 +1,7 @@
 import copy
 import json
 import math
+import hashlib
 import unittest
 from unittest.mock import patch
 
@@ -42,6 +43,28 @@ def study():
 
 
 class ActiveTradeReportTests(unittest.TestCase):
+    def test_old_v3_archive_stays_exact_and_new_revision_corrects_opening_wording(self):
+        raw = study()
+        raw.update(selection_rule_version=3,
+            market_context={'route': 'trend_continuation', 'state': 'trend'},
+            information_cutoff='2026-10-18T20:10:00+08:00')
+        raw['plans'][0].update(holding_policy_version=3, setup_route='trend_continuation',
+            max_hold_after_entry_sessions=2, D2_trade_date='2026-10-20',
+            planned_exit_trade_date='2026-10-21')
+        old = report.render(raw)
+        self.assertEqual(hashlib.sha256(old.encode()).hexdigest(),
+            'a19e4bd7324f2c7f6f0868cda2e67f9450c3d942438f97f6ed5ac87e5a8cf91d')
+        self.assertIn('开盘前30分钟高位', old)
+        self.assertNotIn('presentation_revision', report.compact(raw))
+        updated = copy.deepcopy(raw)
+        updated['presentation_revision'] = 2
+        slim = report.compact(updated)
+        self.assertEqual(slim['presentation_revision'], 2)
+        self.assertEqual(slim, report.compact(slim))
+        self.assertEqual(report.render(updated), report.render(slim))
+        self.assertIn('开盘后首30根已完成分钟高位', report.render(updated))
+        self.assertNotIn('开盘前30分钟高位', report.render(updated))
+
     def test_compaction_is_idempotent_and_render_has_full_input_parity(self):
         raw = study()
         slim = report.compact(raw)
