@@ -83,7 +83,7 @@ class RenderingBoundaries(unittest.TestCase):
             target_trade_date='2026-10-19', D2_trade_date='2026-10-20',
             planned_exit_trade_date='2026-10-21', max_hold_after_entry_sessions=2)
         rebound = copy.deepcopy(trend)
-        rebound.update(active_plan_id='active-plan-002', symbol='600001.SH', name='�޸�����',
+        rebound.update(active_plan_id='active-plan-002', symbol='600001.SH', name='修复样例',
             holding_policy_version=3, setup_route='weak_to_strong_rebound',
             planned_exit_trade_date='2026-10-20', max_hold_after_entry_sessions=1,
             frozen_quantity_shares=100, frozen_reserved_cash_cny=1000,
@@ -111,15 +111,15 @@ class RenderingBoundaries(unittest.TestCase):
                 text = mail_layout.render_text(value)
                 self.assertIn(authority, rendered)
                 for output in (text, rendered):
-                    for required in ('˳����������תǿ��1��2��', '2026-10-20', '2026-10-21',
-                                     '�������2�������˳�', '����������1�������˳�',
-                                     '��Ʊ���ռ��ֽ����޼���', 'v3������֤', '�ɹ����ײ�����',
-                                     'Ϊ�������', '�۸����������ͨ��',
-                                     '�ƻ���Ϣ��ֹ��2026-10-18T17:50:00+08:00',
-                                     '�ɶ���ƻ��;ɳֲ��˳����ޱ���ԭֵ', '��ʵ�ɽ�ʤ��'):
+                    for required in ('顺势延续／弱转强·1—2日', '2026-10-20', '2026-10-21',
+                                     '最多买后第2交易日退出', '反弹：买后第1交易日退出',
+                                     '单票风险及现金上限减半', 'v3独立验证', '旧规则交易不混入',
+                                     '为何买或不买', '价格与风险区间通过',
+                                     '计划信息截止：2026-10-18T17:50:00+08:00',
+                                     '旧冻结计划和旧持仓退出期限保持原值', '真实成交胜率'):
                         self.assertIn(required, output)
-                    self.assertNotIn('D2���ṹֹ��3%Ŀ�괥���˳�����ٹ̶�14:50', output)
-                    self.assertNotIn('����ǰ30���Ӹ�λ', output)
+                    self.assertNotIn('D2按结构止损／3%目标触发退出，最迟固定14:50', output)
+                    self.assertNotIn('开盘前30分钟高位', output)
                 self.assertNotIn('.active-trade{', text)
                 self.assertNotIn('<style>', text)
 
@@ -137,11 +137,11 @@ class RenderingBoundaries(unittest.TestCase):
         from active_trade_report import render
         value = self.v3_payload(revision=None)
         raw = value['research']['active_trade_system']
-        self.assertIn('����ǰ30���Ӹ�λ', render(raw))
+        self.assertIn('开盘前30分钟高位', render(raw))
         for output in (mail_layout.render_text(value), mail_layout.render_html(value)):
-            self.assertIn('���̺���30������ɷ��Ӹ�λ', output)
-            self.assertNotIn('����ǰ30���Ӹ�λ', output)
-        self.assertIn('����ǰ30���Ӹ�λ', render(raw))
+            self.assertIn('开盘后首30根已完成分钟高位', output)
+            self.assertNotIn('开盘前30分钟高位', output)
+        self.assertIn('开盘前30分钟高位', render(raw))
 
     def test_v3_mail_keeps_preview_and_unknown_boundaries_and_escapes_names(self):
         value = self.v3_payload()
@@ -150,25 +150,25 @@ class RenderingBoundaries(unittest.TestCase):
                       current_plan_preserved_from_first_publication=True)
         active['plans'][0]['name'] = '<img src=x onerror=alert(1)>'
         text, rendered = mail_layout.render_text(value), mail_layout.render_html(value)
-        self.assertIn('�¹���ֻ������ִ��Ԥ��', text)
-        self.assertIn('�ɼƻ��;��˳��ղ���', rendered)
+        self.assertIn('新规则只作不可执行预览', text)
+        self.assertIn('旧计划和旧退出日不改', rendered)
         self.assertIn('&lt;img', rendered)
         self.assertNotIn('<img src=x', rendered)
         # Source no longer current: neither route nor its dated stock plan leaks.
         active['generated_at'] = '2026-10-18T18:00:01+08:00'
         stale = mail_layout.render_text(value)
-        self.assertIn('�ȴ���Ч������', stale)
-        self.assertNotIn('�޸�����', stale)
+        self.assertIn('等待有效新数据', stale)
+        self.assertNotIn('修复样例', stale)
         self.assertNotIn('2026-10-21', stale)
 
     def test_evening_reports_relative_sector_forecast_and_forward_limit(self):
         value=report_payload(); value['research']['sector_outlook']=sector()
         content=mail_layout.content(value)
-        section=next(s for s in content['sections'] if s['title']=='���հ��ǿ��չ��')
+        section=next(s for s in content['sections'] if s['title']=='次日板块强弱展望')
         self.assertEqual(len(section['rows']),1)
         self.assertEqual(section['rows'][0][2],'82.4')
-        self.assertIn('�������Ǹ��ʻ���ʤ��',section['note'])
-        self.assertIn('��һ�����տ�ʼ����',section['note'])
+        self.assertIn('不是上涨概率或交易胜率',section['note'])
+        self.assertIn('下一交易日开始跟踪',section['note'])
         self.assertIn('2026-10-19',section['note'])
         self.assertNotIn('82.4%',mail_layout.render_text(value))
         html=mail_layout.render_html(value)
@@ -185,13 +185,13 @@ class RenderingBoundaries(unittest.TestCase):
                 value['research']['sector_outlook']=forecast
                 text=mail_layout.render_text(value)
                 self.assertNotIn('FIXTURE<sector>',text)
-                self.assertIn('�ݲ��г�����ǿ������',text)
+                self.assertIn('暂不列出次日强势排名',text)
 
     def test_missing_forecast_keeps_regular_report_available(self):
         value=report_payload()
-        self.assertIn('���հ��ǿ��չ��',mail_layout.render_text(value))
-        self.assertIn('����ë�������',mail_layout.render_text(value))
-        self.assertIn('�ݲ��г�',mail_layout.render_html(value))
+        self.assertIn('次日板块强弱展望',mail_layout.render_text(value))
+        self.assertIn('隔日毛收益策略',mail_layout.render_text(value))
+        self.assertIn('暂不列出',mail_layout.render_html(value))
 
     def test_opening_watch_pool_is_not_an_execution_or_probability_claim(self):
         for stage in ['morning','auction']:
@@ -199,11 +199,11 @@ class RenderingBoundaries(unittest.TestCase):
             value['research']['sector_outlook']=sector()
             text=mail_layout.render_text(value)
             self.assertIn('FIXTURE.SH',text)
-            self.assertIn('����תǿ�����۲�',text)
-            self.assertIn('�����ɿ�ִ������ָ��',text)
+            self.assertIn('开盘转强条件观察',text)
+            self.assertIn('不生成可执行买入指令',text)
             self.assertIn('locked limit-up',text)
             self.assertNotIn('99%',text)
-            self.assertNotIn('���հ��ǿ��չ��',text)
+            self.assertNotIn('次日板块强弱展望',text)
             self.assertIn('FIXTURE&lt;stock&gt;',mail_layout.render_html(value))
 
     def test_future_opening_input_hides_entire_watch_pool(self):
@@ -233,9 +233,9 @@ class SnapshotIntegration(unittest.TestCase):
                 start=dt.date(2026,10,16)-dt.timedelta(days=269)
                 for index in range(15):
                     symbol=f'{index+1:06}.SZ'
-                    db.execute('INSERT INTO security_master VALUES(?,?)',(symbol,f'�о�����{index+1}'))
+                    db.execute('INSERT INTO security_master VALUES(?,?)',(symbol,f'研究样本{index+1}'))
                     db.execute('INSERT INTO industry_members VALUES(?,?,?,?,?,?)',
-                        (symbol,'sina_industry',f'�˹����{index//5}','2026-10-17',
+                        (symbol,'sina_industry',f'人工板块{index//5}','2026-10-17',
                          '2026-10-17T12:00:00+08:00','https://example.invalid/fixture'))
                     for day in range(270):
                         close=6+index*.1+day*.001
@@ -251,7 +251,7 @@ class SnapshotIntegration(unittest.TestCase):
             self.assertLessEqual(len(value['research']['opening_strength']['watchlist']),5)
             self.assertTrue(value['research']['opening_strength']['sector_overlay']['available'])
             self.assertEqual(value['research']['opening_strength']['input_sha256'],'fixture-hash')
-            self.assertIn('����תǿ�����۲�',mail_layout.render_text(value))
+            self.assertIn('开盘转强条件观察',mail_layout.render_text(value))
             self.assertFalse(value['research']['sector_stock_selection']['formal_trade_eligible'])
             self.assertFalse(value['research']['formal_trade_ready'])
 
@@ -299,7 +299,7 @@ class SnapshotIntegration(unittest.TestCase):
                 snapshot_mail.attach_market_outlook(value,path,'2026-10-16','2026-10-19')
             self.assertEqual(value['research']['sector_outlook']['status'],'unavailable')
             self.assertFalse(value['research']['opening_strength']['formal_trade_eligible'])
-            self.assertIn('�ݲ��г�����ǿ������',mail_layout.render_text(value))
+            self.assertIn('暂不列出次日强势排名',mail_layout.render_text(value))
 
     def test_evening_allows_timely_context_while_prices_stay_frozen_and_morning_never_uses_future_time(self):
         cases=[('evening','2026-10-16','2026-10-16T17:00:00+08:00','2026-10-16T17:00:00+08:00'),
@@ -316,7 +316,7 @@ class SnapshotIntegration(unittest.TestCase):
                 (store/'restore.json').write_text(json.dumps({'manifest':saved}),encoding='utf-8')
                 with closing(sqlite3.connect(store/'fixture.sqlite')): pass
                 value=report_payload(stage)
-                value.update(disclaimer='����ʽ���ʣ�fixture', information_cutoff=day+'T09:00:00+08:00')
+                value.update(disclaimer='无正式概率，fixture', information_cutoff=day+'T09:00:00+08:00')
                 value['research']['inventory']={}
                 with (patch('mail_reports.build',return_value=value),
                       patch('gross_swing_store.attach'),

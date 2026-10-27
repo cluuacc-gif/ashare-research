@@ -149,7 +149,7 @@ def _no_current_inputs(db,base,output,input_sha256,chunks,coverage,funnel):
     metadata=_metadata(base,input_sha256)
     policy={'active':False,'chosen':None,'scope':'research_only','formal_activation':False,
             'selection_frozen_before_diagnostic':True,'inactive_reason':NO_CURRENT_INPUTS}
-    summary={**metadata,'status':NO_CURRENT_INPUTS,'status_message':'��ģ�͵��ڲ�����',
+    summary={**metadata,'status':NO_CURRENT_INPUTS,'status_message':'旧模型当期不可用',
              'policy':policy,'protocol':PROTOCOL,
              'training_performed':False,'selection_performed':False,
              'current_probability_status':'unknown_no_qualifying_current_inputs',
@@ -168,7 +168,7 @@ def _no_current_inputs(db,base,output,input_sha256,chunks,coverage,funnel):
     write(out/'summary.json',summary);write(out/'protocol.json',PROTOCOL)
     write(out/'input_funnel.json',{**metadata,'study_schema':VERSION,**funnel})
     write(out/'predictions.json',{**metadata,'status':NO_CURRENT_INPUTS,
-                                  'status_message':'��ģ�͵��ڲ�����','policy':policy,'rows':[]})
+                                  'status_message':'旧模型当期不可用','policy':policy,'rows':[]})
     print(json.dumps({'probability_stage':NO_CURRENT_INPUTS,'policy':policy,
                       'coverage':coverage,'current_input_funnel':funnel['current']},ensure_ascii=False),flush=True)
     return summary

@@ -6,30 +6,30 @@ from html.parser import HTMLParser
 from urllib.parse import quote
 
 VERSION = 'research-email-v8-versioned-active-holding'
-STAGES = {'evening':('����','18:00 �̺�'), 'morning':('����','09:00 ��ǰ'), 'auction':('09:25�۲�','����ʱ��')}
+STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
 
 def number(value, digits=2):
-    if not isinstance(value,(int,float)) or not math.isfinite(value): return '��'
+    if not isinstance(value,(int,float)) or not math.isfinite(value): return '—'
     return f'{value:,.{digits}f}'
 
 
 def pct(value):
-    if not isinstance(value,(int,float)) or not math.isfinite(value): return '��'
+    if not isinstance(value,(int,float)) or not math.isfinite(value): return '—'
     return f'{value:.1%}'
 
 
 def money(value):
-    if not isinstance(value,(int,float)) or not math.isfinite(value): return '��'
-    if abs(value)>=100000000: return f'{value/100000000:.2f}��'
-    return f'{value/10000:,.0f}��'
+    if not isinstance(value,(int,float)) or not math.isfinite(value): return '—'
+    if abs(value)>=100000000: return f'{value/100000000:.2f}亿'
+    return f'{value/10000:,.0f}万'
 
 
 def _phrases(value, limit=3):
     if isinstance(value, str): return value
     if not isinstance(value, (list, tuple)): return ''
-    return '��'.join(str(item) for item in value[:limit] if isinstance(item, (str, int, float)))
+    return '；'.join(str(item) for item in value[:limit] if isinstance(item, (str, int, float)))
 
 
 def _outlook_current(payload, value, schema, base, target):
@@ -52,28 +52,28 @@ def _sector_section(payload, value, base, target):
     risks = []
     for row in rows[:5]:
         if not isinstance(row, dict): continue
-        rendered.append([str(row.get('rank', len(rendered)+1)), str(row.get('sector') or '��'),
+        rendered.append([str(row.get('rank', len(rendered)+1)), str(row.get('sector') or '—'),
                          number(row.get('score'), 1),
-                         number(row.get('member_count'), 0)+'ֻ��'+pct(row.get('coverage')),
-                         _phrases(row.get('drivers'), 2) or '�ȴ��������'])
+                         number(row.get('member_count'), 0)+'只／'+pct(row.get('coverage')),
+                         _phrases(row.get('drivers'), 2) or '等待充分依据'])
         risk = _phrases(row.get('risks'), 1)
-        if risk: risks.append(str(row.get('sector') or '���')+'��'+risk)
+        if risk: risks.append(str(row.get('sector') or '板块')+'：'+risk)
     if rendered:
         sources=value.get('sources') if isinstance(value.get('sources'), dict) else {}
         coverage=value.get('coverage') if isinstance(value.get('coverage'), dict) else {}
-        classification={'sina_industry':'������ҵ����', 'exchange_industry':'֤ȯ������ҵ�ֶ�'}.get(value.get('classification'), '��Ӧ����ҵ����')
-        note = (f"Ԥ�� {target} ��Ա��θ����г���ǿ�����򣻻������� {base}����֪��Ϣ���� {value.get('information_cutoff')}��"
-                f"�������{classification}������{number(coverage.get('covered_sectors'), 0)}����顢{number(coverage.get('covered_stocks'), 0)}ֻ��Ʊ��"
-                f"��ҵ�ɷ��������ʱ��{sources.get('membership_latest_observed_at') or 'δ��¼'}��"
-                '����������ʽ������򣬲������Ǹ��ʻ���ʤ�ʣ�ͬһ���Ҳ���ܸ�������µ���'
-                '��ʷʱ��ɷ�֤�ݲ��㣬��ǰ�Ӷ�������һ�����տ�ʼ���ټ��顣')
+        classification={'sina_industry':'新浪行业分类', 'exchange_industry':'证券资料行业字段'}.get(value.get('classification'), '供应商行业分类')
+        note = (f"预测 {target} 相对本次覆盖市场的强弱排序；基础行情 {base}，已知信息截至 {value.get('information_cutoff')}。"
+                f"分类采用{classification}；覆盖{number(coverage.get('covered_sectors'), 0)}个板块、{number(coverage.get('covered_stocks'), 0)}只股票，"
+                f"行业成分最新入库时间{sources.get('membership_latest_observed_at') or '未记录'}。"
+                '分数是启发式相对排序，不是上涨概率或交易胜率；同一板块也可能跟随大盘下跌。'
+                '历史时点成分证据不足，当前从冻结后的下一交易日开始跟踪检验。')
         if sources.get('membership_effective_after_price_base'):
-            note += ' ���β��û���������֮�󲹳����ҵ�ɷ֣�ֻ������ǰ��ֹʱ���֪����Ϣ��'
-        if risks: note += ' ���գ�'+'��'.join(risks[:3])+'��'
+            note += ' 本次采用基础行情日之后补充的行业成分，只代表当前截止时间可知的信息。'
+        if risks: note += ' 风险：'+'；'.join(risks[:3])+'。'
     else:
-        note = (f'Ŀ�꽻���� {target or "��"}������û�����������ں���Ϣ��ֹƥ��ĳ�ְ��֤�ݣ��ݲ��г�����ǿ��������'
-                '����ѵ����Ƿ���ֱ�ӳ�������Ԥ�⡣')
-    return {'title':'���հ��ǿ��չ��', 'columns':['����','���','ǿ����','����������','��Ҫ����'],
+        note = (f'目标交易日 {target or "—"}。本期没有与行情日期和信息截止匹配的充分板块证据，暂不列出次日强势排名；'
+                '不会把当天涨幅榜直接称作次日预测。')
+    return {'title':'次日板块强弱展望', 'columns':['排序','板块','强弱分','样本／覆盖','主要依据'],
             'rows':rendered, 'note':note}
 
 
@@ -85,27 +85,27 @@ def _opening_section(payload, value, base, target):
     cancellations = []
     for row in rows[:5]:
         if not isinstance(row, dict): continue
-        name=str(row.get('name') or '��')+('�����۲죩' if row.get('is_reserve_only') else '')
-        rendered.append([str(row.get('symbol') or '��'), name,
-                         str(row.get('sector') or 'δƥ��'), number(row.get('close')),
-                         _phrases(row.get('entry_conditions'), 3) or '�ȴ���������ȷ��'])
+        name=str(row.get('name') or '—')+('（仅观察）' if row.get('is_reserve_only') else '')
+        rendered.append([str(row.get('symbol') or '—'), name,
+                         str(row.get('sector') or '未匹配'), number(row.get('close')),
+                         _phrases(row.get('entry_conditions'), 3) or '等待开盘行情确认'])
         cancel = row.get('cancel_conditions')
         for condition in cancel if isinstance(cancel, list) else []:
             if isinstance(condition, str) and condition not in cancellations: cancellations.append(condition)
     confirmed = current and bool(value.get('live_signal'))
     if rendered:
-        note = (f'�۲� {target} ���̿���תǿ�Ĺ�Ʊ���������� {base}����֪��Ϣ���� {value.get("information_cutoff")}��'
-                '�˱�Ϊ�����۲�أ�ǰ���̷��������ڿ��������źš�')
-        note += ('��ȡ������ʱЧҪ��Ŀ���ȷ�����룬������ֻ����ɽ�������' if confirmed else
-                 '��ǰû��ͨ������ļ�ʱ����ȷ�ϣ������ɿ�ִ������ָ�')
-        if cancellations: note += ' ȡ��������'+'��'.join(cancellations[:3])+'��'
+        note = (f'观察 {target} 开盘可能转强的股票；基础行情 {base}，已知信息截至 {value.get("information_cutoff")}。'
+                '此表为条件观察池，前收盘分数不等于开盘买入信号。')
+        note += ('已取得满足时效要求的开盘确认输入，仍需逐只核验成交条件。' if confirmed else
+                 '当前没有通过核验的即时开盘确认，不生成可执行买入指令。')
+        if cancellations: note += ' 取消条件：'+'；'.join(cancellations[:3])+'。'
         if any(isinstance(row,dict) and row.get('is_reserve_only') for row in rows[:5]):
-            note += '���3���̶��ʽ������4��5�����۲죬���Զ���λ��'
-        note += '��1������󣬵�2�찴Ԥ���˳������о�������3%��6%��Ŀ�꣬��δ֤ʵʤ�ʸ���80%��'
+            note += '最多3个固定资金名额，第4—5名仅观察，不自动补位。'
+        note += '第1天买入后，第2天按预定退出规则研究卖出；3%～6%是目标，尚未证实胜率高于80%。'
     else:
-        note = (f'Ŀ�꽻���� {target or "��"}������û�����������ںͽ�ֹʱ��ƥ��Ŀ��̹۲�أ�'
-                'ȱ�����ʡ��ɺ���Ŀ��̱���ʱ����������ָ�')
-    return {'title':'����תǿ�����۲�', 'columns':['����','����','���','ǰ����','��Ҫȷ�ϵ�����'],
+        note = (f'目标交易日 {target or "—"}。本期没有与行情日期和截止时间匹配的开盘观察池；'
+                '缺少新鲜、可核验的开盘报价时不生成买入指令。')
+    return {'title':'开盘转强条件观察', 'columns':['代码','名称','板块','前收盘','需要确认的条件'],
             'rows':rendered, 'note':note}
 
 
@@ -115,44 +115,44 @@ def _flow_section(payload, value, selection, base):
     phases={row.get('sector_code'):row.get('phase_label') for row in selection.get('sector_board',[])}
     rows=[]
     for row in sorted(flow.get('sectors',[]),key=lambda x:x.get('main_net_inflow_yuan') or 0,reverse=True)[:5]:
-        rows.append([str(row.get('name') or '��'),money(row.get('main_net_inflow_yuan')),
+        rows.append([str(row.get('name') or '—'),money(row.get('main_net_inflow_yuan')),
                      number(row.get('main_net_ratio_pct'))+'%',money(row.get('main_net_3d_yuan')),
-                     money(row.get('main_net_5d_yuan')),str(phases.get(row.get('code')) or '���˶�����')])
-    note=('�������� '+str(base)+'�����ջ����ͳ�������ֱ��жϣ��ʽ���Ʋ�����δ�����ǡ�'
-          '������������Ϊ��Ӧ�̳ɽ�����ͳ�ƣ���ҵ���ܺ�B�ɣ������ڻ����˻�ʵ�����֣��۲��ƱֻɸA�ɡ�'
-          'ֻ��ͬԴ�ɷִ���ƥ����ܽ�������ѡ�ɣ�������ҵ����Ӳƴ��ȱ����ʵ�ʽ����������۹��������')
-    if not rows:note+=' ����ȱ�����ں���֪ʱ��һ�µ��ʽ�����������ȱ��'
-    return {'title':'����ʽ�����Ǳ��תǿ','columns':['���','���վ���','��ռ��','3�վ���','5�վ���','�׶�'],
+                     money(row.get('main_net_5d_yuan')),str(phases.get(row.get('code')) or '待核对走势')])
+    note=('数据日期 '+str(base)+'；今日回流和持续流入分别判断，资金改善不等于未来上涨。'
+          '东财主力净额为供应商成交分类统计，行业可能含B股，不等于机构账户实际增持；观察股票只筛A股。'
+          '只有同源成分代码匹配才能进入板块内选股，不按行业名称硬拼；缺少真实资金流不以量价估算替代。')
+    if not rows:note+=' 本期缺少日期和已知时间一致的资金流，保留空缺。'
+    return {'title':'板块资金流与潜在转强','columns':['板块','今日净额','净占比','3日净额','5日净额','阶段'],
             'rows':rows,'note':note}
 
 
 def _math_section(study):
-    labels={'unfiltered_price_action_ranking_baseline':'���������׼','selected_policy':'ѡ�����о�����',
-            'fixed_compression_breakout':'������ͻ��','fixed_trend_pullback':'�����ز�','fixed_higher_lows':'�ߵ͵�̧��'}
+    labels={'unfiltered_price_action_ranking_baseline':'价量排序基准','selected_policy':'选择期研究规则',
+            'fixed_compression_breakout':'收缩后突破','fixed_trend_pullback':'缩量回踩','fixed_higher_lows':'高低点抬升'}
     rows=[]
     for key,label in labels.items():
         metric=(study.get('diagnostic') or {}).get(key) or {}
         if metric.get('n_attempts'):
-            rows.append([label,number(metric.get('n_attempts'),0)+'��'+number(metric.get('n_unresolved'),0),
+            rows.append([label,number(metric.get('n_attempts'),0)+'／'+number(metric.get('n_unresolved'),0),
                          pct(metric.get('win_rate')),pct(metric.get('ge3_rate')),
                          pct(metric.get('mean_closed_gross_return')),pct(metric.get('strength3_rate'))])
-    return {'title':'�۸���Ϊ��T+1��ʷ���','columns':['����','�볡��δ���','ëӯ��','�ﵽ3%','ƽ���ѱպ�����','����3���ո�'],
-        'rows':rows,'note':'ATR����������������ͻ�ƻزȺ͸ߵ͵�ṹ����Ԥ����ѧ������㣬�������Ǹ��ʡ�'
-        '��������ԭ5��10Ԫ�ص���ʷ���գ��°�5��100ԪԤ���о��ؼ��ʽ����д�ǰ����顣����ʷ�����ڿ��������߲ο��ɽ���֤����ִ�гɽ����Ҹ����δʹ����ʵ��ʷ�ʽ�����ʱ����ҵ�ɷ֣����ܴ��������ʽ������ʤ�ʡ�'
-        'D1��D2�˳�������2��3��ǿ�ȵ����˶ԣ����ݴ��ӳ��ֲ֡���ǰ���۷ѡ�Ĭ��3%Ŀ���2%���ղο������տɳ������ռۣ�6%ֻ��������ǿĿ�ꡣ'}
+    return {'title':'价格行为与T+1历史诊断','columns':['规则','入场／未解决','毛盈利','达到3%','平均已闭合收益','连续3日收高'],
+        'rows':rows,'note':'ATR波动、区间收缩、突破回踩和高低点结构均按预定数学规则计算，分数不是概率。'
+        '本表仍是原5～10元池的历史对照；新版5～100元预算研究池及资金共振尚待前向检验。旧历史已用于开发；日线参考成交不证明可执行成交，且该诊断未使用真实历史资金流或时点行业成分，不能代表整套资金板块策略胜率。'
+        'D1买、D2退出；连续2～3日强度单独核对，不据此延长持仓。当前不扣费、默认3%目标和2%风险参考，跳空可超出风险价，6%只作独立增强目标。'}
 
 
 def _confluence_section(selection):
     rows=[]
     for board in selection.get('sector_board',[]):
         if board.get('eligible_for_stock_selection') is not True:continue
-        rows.append([str(board.get('sector') or '��'),str(board.get('phase_label') or '��'),number(board.get('score'),1),
-                     '�ʽ𣫼۸���' if board.get('flow_integrated') else '������֤��',number(board.get('member_count'),0)+'ֻ'])
+        rows.append([str(board.get('sector') or '—'),str(board.get('phase_label') or '—'),number(board.get('score'),1),
+                     '资金＋价格共振' if board.get('flow_integrated') else '仅技术证据',number(board.get('member_count'),0)+'只'])
         if len(rows)==5:break
-    return {'title':'��ǿ����ڵ�ѡ�ɷ�Χ','columns':['���','�ṹ�׶�','�����','����','�ɷ���'],
-        'rows':rows,'note':'������ǿ�ȡ���ɢ�����ߺ�ͬԴ�����룬��������ǿ������תǿ��'
-        '����תǿ����ʾ��ǰ���ָ��ƣ�δ֤��δ�����ǣ���Ҫ��Ʊ������ƥ�䱾���ɷֺͼ۸���Ϊ��'
-        '�ʽ����и���ͬ�վ��ֵ��δ֪���������۲죻�������������ʱ������������'}
+    return {'title':'增强板块内的选股范围','columns':['板块','结构阶段','共振分','依据','成分数'],
+        'rows':rows,'note':'结合相对强度、扩散、均线和同源净流入，区分已增强和早期转强。'
+        '早期转强仅表示当前出现改善，未证明未来上涨；主要股票名单需匹配本板块成分和价格行为。'
+        '资金板块中个股同日净额负值或未知仅作储备观察；无满足条件板块时保留空名单。'}
 
 
 class _ActivePlainText(HTMLParser):
@@ -168,7 +168,7 @@ class _ActivePlainText(HTMLParser):
             if tag == 'br':
                 self.parts.append('\n')
             elif tag == 'small':
-                self.parts.append('��')
+                self.parts.append('；')
 
     def handle_endtag(self, tag):
         if tag in ('style', 'script'):
@@ -185,7 +185,7 @@ class _ActivePlainText(HTMLParser):
 
     def text(self):
         return '\n'.join(line for raw in ''.join(self.parts).splitlines()
-                         if (line := ' '.join(raw.split()).strip(' |��')))
+                         if (line := ' '.join(raw.split()).strip(' |；')))
 
 
 def _active_sections(payload, research, base, target):
@@ -207,49 +207,49 @@ def _active_sections(payload, research, base, target):
         from active_trade_report import render
         # One authority for route, risk, dates, funnel and versioned statistics.
         # Only the email corrects the old v3 wording: archived HTML is immutable.
-        authoritative = render(active).replace('����ǰ30���Ӹ�λ', '���̺���30������ɷ��Ӹ�λ')
+        authoritative = render(active).replace('开盘前30分钟高位', '开盘后首30根已完成分钟高位')
         plain = _ActivePlainText()
         plain.feed(authoritative)
         plain.close()
-        return [{'title': '�ҵĽ���ϵͳ��' + active['policy_name'],
+        return [{'title': '我的交易系统｜' + active['policy_name'],
             'columns': [], 'rows': [],
             'authoritative_html': authoritative, 'authoritative_text': plain.text(),
-            'note': '�ƻ���Ϣ��ֹ��' + str(active.get('information_cutoff') or 'δ֪')
-                + '���ɶ���ƻ��;ɳֲ��˳����ޱ���ԭֵ�����򱾴������ӳ���'}]
-    state={'conditional_plans_ready':'�����ƻ������ɣ�D1 14:40����ȷ�ϴ��˹��˶�',
-           'cash_no_qualifying_setup':'����ղ֣�û������ȫ���������¼ƻ�',
-           'waiting_for_valid_source':'�ȴ���Ч�����ݣ�ϵͳ��������'}[active['status']]
-    sections=[{'title':'�ҵĽ���ϵͳ��'+POLICY_NAME,'columns':['��Ŀ','���ڰ���'],
-        'rows':[['����״̬','�����ã�����ʽ�˹�ִ�У�δ����ȯ��'],
-                ['����״̬',state],
-                ['�̶���Χ','ȫ����ѡ�����300ֻ����������롢תǿ�Ҹ���������ȣ�ȱ��ͬԴ֤������'],
-                ['�볡������','D1 14:40ʹ�ô�ǰ��������ȷ�ϣ��˹��˶�ȯ���±����ڶ��᷶Χ�ڣ�����������������ִ��'],
-                ['�ʽ����˳�','3��Ԫ�ο��ʽ𣻳ֲ�����볡�ϼ������ֻ����ͬ��飻D1������D2���ṹֹ��3%Ŀ�괥���˳�����ٹ̶�14:50�ο��˳�'],
-                ['ʵ�ʳɽ�ʤ��','δ֪��80%����ʵ��ʤ����δ��֤']],
-        'note':'�������ö����ھ��о��������ǰû��ʵʱ�����ȯ�����ӣ�δȷ�������źš�δ�ύ�������ƻ���Ҫ�˹��˶��������ӡ��ٷ�״̬���ɳɽ����ۡ�150Ԫ��2%����ѹ��Ԥ�㲻�������ʧ��֤��'}]
+            'note': '计划信息截止：' + str(active.get('information_cutoff') or '未知')
+                + '；旧冻结计划和旧持仓退出期限保持原值，不因本次升级延长。'}]
+    state={'conditional_plans_ready':'条件计划已生成；D1 14:40盘中确认待人工核对',
+           'cash_no_qualifying_setup':'当天空仓；没有满足全部条件的新计划',
+           'waiting_for_valid_source':'等待有效新数据；系统持续运行'}[active['status']]
+    sections=[{'title':'我的交易系统｜'+POLICY_NAME,'columns':['项目','本期安排'],
+        'rows':[['运行状态','已启用；条件式人工执行，未连接券商'],
+                ['本期状态',state],
+                ['固定范围','全量候选池最多300只；板块正流入、转强且个股相对领先，缺少同源证据则不买'],
+                ['入场与数量','D1 14:40使用此前完整分钟确认，人工核对券商新报价在冻结范围内；仅按冻结整手数量执行'],
+                ['资金与退出','3万元参考资金；持仓与待入场合计最多两只，不同板块；D1不卖，D2按结构止损／3%目标触发退出，最迟固定14:50参考退出'],
+                ['实际成交胜率','未知；80%以上实际胜率尚未验证']],
+        'note':'规则启用独立于旧研究结果。当前没有实时行情或券商连接，未确认盘中信号、未提交订单；计划需要人工核对完整分钟、官方状态及可成交报价。150元含2%跳空压力预算不是最大损失保证。'}]
     plans=active['plans']
     if plans:
         sectors=[]
         for row in plans:
             identity=row.get('sector_identity') or {}
-            sectors.append(identity.get('sector') or '��' if isinstance(identity,dict) else str(identity))
-        sections.append({'title':'����ϵͳ���������ƻ�','columns':['��Ʊ�����','��۷�Χ','�ṹֹ��','ֹӯ����','���������ռ��'],
-            'rows':[[str(row.get('name') or row['symbol'])+' '+row['symbol']+'��'+sector,
-                     number(row.get('frozen_entry_floor'))+'��'+number(row.get('frozen_entry_cap')),
-                     number(row.get('structural_stop')),'ʵ����ۡ�1.03',
-                     number(row.get('frozen_quantity_shares'),0)+'�ɣ�'+number(row.get('frozen_reserved_cash_cny'))+'Ԫ']
+            sectors.append(identity.get('sector') or '—' if isinstance(identity,dict) else str(identity))
+        sections.append({'title':'主动系统冻结条件计划','columns':['股票／板块','买价范围','结构止损','止盈触发','冻结股数／占款'],
+            'rows':[[str(row.get('name') or row['symbol'])+' '+row['symbol']+'／'+sector,
+                     number(row.get('frozen_entry_floor'))+'～'+number(row.get('frozen_entry_cap')),
+                     number(row.get('structural_stop')),'实际买价×1.03',
+                     number(row.get('frozen_quantity_shares'),0)+'股／'+number(row.get('frozen_reserved_cash_cny'))+'元']
                     for row,sector in zip(plans,sectors)],
-            'note':'���������� '+str(active.get('base_trade_date') or '��')+'��D1 '+str(active.get('target_trade_date') or '��')
-                +'��D2 '+str(active.get('D2_trade_date') or '����������')+'������ʵ����ۣ�������ǰ���̵��ɽ��ۡ����ۡ�ȱ����ȷ�����򣬲�׷�ۡ������䣻�����˳�����һ���ӿɽ��׿������ο���ͬ����ֹӯֹ�𲢴�ʱֹ�����ȡ�'})
+            'note':'基础行情日 '+str(active.get('base_trade_date') or '—')+'；D1 '+str(active.get('target_trade_date') or '—')
+                +'；D2 '+str(active.get('D2_trade_date') or '待交易日历')+'。尚无实际买价，不能以前收盘当成交价。超价、缺数或不确认则不买，不追价、不补配；触发退出以下一分钟可交易开盘作参考，同分钟止盈止损并存时止损优先。'})
     account=active.get('reference_account') or {}
     if account:
-        reference_rate=pct(account.get('reference_profit_rate')) if account.get('reference_profit_rate') is not None else 'δ֪'
-        sections.append({'title':'����ϵͳ���Ӳο��˻�','columns':['��Ŀ','�ο��˱�'],
-            'rows':[['��ʼ�����ã������ʽ�',number(account.get('initial_capital_cny'))+'��'+number(account.get('available_cash_cny'))+'��'+number(account.get('reserved_cash_cny'))+'Ԫ'],
-                    ['��ʵ�ֲο�ӯ������ƽ��ʤ��',number(account.get('realized_reference_pnl_cny'))+'Ԫ��'+reference_rate],
-                    ['�ֲ֣���ƽ�֣�δ֪',number(account.get('open_positions'),0)+'��'+number(account.get('reference_closed'),0)+'��'+number(account.get('unknown_positions'),0)],
-                    ['��ʵ�ֲ���ӯ��','������ȯ�̳ɽ���ִ�˶ԣ���ǰδ֪']],
-            'note':'���Ƿ��Ӳο��ɽ��˱���������ʵ��ȯ�ֲ̳֡��ɽ���ӯ����δ֪�˳�����ռ���ʽ��������òο��˱��ھ���ʵ�ʷ�����ӯ�����ɻ�ִȷ�ϡ�'})
+        reference_rate=pct(account.get('reference_profit_rate')) if account.get('reference_profit_rate') is not None else '未知'
+        sections.append({'title':'主动系统分钟参考账户','columns':['项目','参考账本'],
+            'rows':[['初始／可用／冻结资金',number(account.get('initial_capital_cny'))+'／'+number(account.get('available_cash_cny'))+'／'+number(account.get('reserved_cash_cny'))+'元'],
+                    ['已实现参考盈亏／已平仓胜率',number(account.get('realized_reference_pnl_cny'))+'元／'+reference_rate],
+                    ['持仓／已平仓／未知',number(account.get('open_positions'),0)+'／'+number(account.get('reference_closed'),0)+'／'+number(account.get('unknown_positions'),0)],
+                    ['真实持仓与盈利','待个人券商成交回执核对，当前未知']],
+            'note':'这是分钟参考成交账本，不代表实际券商持仓、成交或盈利；未知退出继续占用资金，收益沿用参考账本口径，实际费用与盈亏须由回执确认。'})
     return sections
 
 
@@ -263,59 +263,59 @@ def content(payload):
     if not target:
         target=(payload.get('calendar') or {}).get('next_session') if stage=='evening' else payload.get('target_date')
     base=payload.get('base_trade_date') or research.get('as_of') or inventory.get('latest_date')
-    mode='Ԥ��' if payload.get('preview') else ('�ٵ��ع�' if payload.get('late') else clock)
-    subtitle=f"{payload['target_date']} �� {mode}"
-    subject=f"A��{title}��{payload['target_date']}��{'Ԥ��' if payload.get('preview') else ('�ٵ��ع�' if payload.get('late') else 'ģ�͹۲�')}"
+    mode='预览' if payload.get('preview') else ('迟到回顾' if payload.get('late') else clock)
+    subtitle=f"{payload['target_date']} · {mode}"
+    subject=f"A股{title}｜{payload['target_date']}｜{'预览' if payload.get('preview') else ('迟到回顾' if payload.get('late') else '模型观察')}"
     band=research.get('price_band_5_10') or []
     amounts={r['symbol']:r.get('amount') for r in band}
     rows=[]
     for rank,r in enumerate(predictions.get('rows',[])[:10],1):
-        rows.append([str(r.get('rank',rank)),r['symbol'],r.get('name') or '��',number(r.get('close')),
+        rows.append([str(r.get('rank',rank)),r['symbol'],r.get('name') or '—',number(r.get('close')),
                      pct(r.get('P1')),pct(r.get('P2')),money(amounts.get(r['symbol']))])
     ready=bool(research.get('model_ready') and rows)
-    summary=f"��������ϵͳ�����ã�ÿ�հ��̶��������ɼƻ�����ʵʤ��δ֪������ {base or '��'} ���̼��������й۲� {target or '��'} ģ�ͼ۸��¼������� {predictions.get('prediction_count',0):,} ֻ��"
+    summary=f"主动规则系统已启用，每日按固定条件生成计划；真实胜率未知。基于 {base or '—'} 收盘价量，另行观察 {target or '—'} 模型价格事件，覆盖 {predictions.get('prediction_count',0):,} 只。"
     warnings=[]
-    if not ready: warnings.append('ģ��Ԥ����δ����������ֻչʾ���������۲졣')
-    if not research.get('formal_trade_ready'): warnings.append('����ǰ���˹����飺�ٷ�ST��ͣ��״̬����Ȩ���޼ۼ������¼���������ȱ�ڡ�ϵͳ���ò����ڳɽ���ʤ������֤��')
+    if not ready: warnings.append('模型预测尚未就绪，本期只展示已入库行情观察。')
+    if not research.get('formal_trade_ready'): warnings.append('买入前须人工核验：官方ST／停牌状态、复权、限价及风险事件数据仍有缺口。系统启用不等于成交与胜率已验证。')
     if stage=='auction' and not payload.get('auction_verified'):
-        warnings.append('����09:25�۲�����ǰ����ģ�ͣ���ǰ��������δ���飬�ݲ��ṩ���۹ҵ��۸�')
+        warnings.append('本期09:25观察沿用前收盘模型；当前竞价输入未核验，暂不提供竞价挂单价格。')
     if payload.get('late') and not payload.get('preview'):
-        warnings.append('����Ϊ�ٵ��عˣ���������ǰԤ��ɼ���')
-    stats=[('��������ϵͳ','������'),('ʵ�ʳɽ�ʤ��','δ֪'),
-           ('Ԥ�⽻����',str(target or '��')),('����������',str(base or '��')),
-           ('���ձ���',number(inventory.get('base_quotes'),0)+'ֻ'),
-           ('ģ��״̬','ѵ����Ԥ���Ѿ���' if ready else '�ȴ�ģ��'),
-           ('�˹�����״̬','�����������ٷ�״̬���˶�'),
-           ('5��10Ԫ�۲�',f'{len(band):,}ֻ')]
+        warnings.append('本期为迟到回顾，不计入事前预测成绩。')
+    stats=[('主动规则系统','已启用'),('实际成交胜率','未知'),
+           ('预测交易日',str(target or '—')),('基础行情日',str(base or '—')),
+           ('当日报价',number(inventory.get('base_quotes'),0)+'只'),
+           ('模型状态','训练与预测已就绪' if ready else '等待模型'),
+           ('人工交易状态','盘中条件及官方状态待核对'),
+           ('5～10元观察',f'{len(band):,}只')]
     active_target=(payload.get('calendar') or {}).get('next_session') or target if stage=='evening' else payload.get('target_date')
     sections=_active_sections(payload,research,base,active_target)
     nextday=research.get('nextday_research') or {}
     if nextday.get('schema')=='nextday-forward-research-v1':
         cohort=nextday.get('current_cohort') or {};coverage=cohort.get('coverage') or {}
         primary=(nextday.get('summary') or {}).get('confluence_opening_retest') or {}
-        sections.append({'title':'����ӯ��ǰ���о�','columns':['�۲���Ŀ','����״̬'],
-            'rows':[['��Ҫ����','D1�ο����룬D2�̶�14:50�ο��˳����ֱ��¼ëӯ����׬��3%��6%�ı���'],
-                    ['�г�����','����ǰ������г���ȡ�������ǿ���Ͱ�������ȳ̶�ɸѡ���ʽ���಻���'],
-                    ['ͬ����Ʊ����','09:40��14:40�ֱ�۲죬�����������̻ز⡢β��ȷ�ϣ����������ǰ�̶�'],
-                    ['���ڹ۲��',str(coverage.get('base_cohort_count',0))+'ֻ�о�����������'+str(coverage.get('confluence_count',0))+'ֻ���㹲������'],
-                    ['���о���',str(primary.get('reference_closed',0))+'�������۸��¼������۲�'+str(primary.get('pending',0))+'��δ֪'+str(primary.get('unknown',0))]],
-            'note':'�о�������������������ͬһ�˻��ֲ֡����������̺�ȡ�ã�δ��֤ʵʱ�������ٷ��޼ۻ���ʵ�ɽ��������о����ֶ������ա���������ϵͳ�����ã�ʵ��ʤ��δ֪���о����ݲ�������ʱ�����źš�'})
+        sections.append({'title':'隔日盈利前向研究','columns':['观察项目','本期状态'],
+            'rows':[['主要验收','D1参考买入，D2固定14:50参考退出；分别记录毛盈利、赚到3%和6%的比例'],
+                    ['市场与板块','按事前冻结的市场广度、板块相对强弱和板块内领先程度筛选；资金分类不混接'],
+                    ['同批股票对照','09:40与14:40分别观察，并另核验早盘回测、尾盘确认；六组规则提前固定'],
+                    ['本期观察池',str(coverage.get('base_cohort_count',0))+'只研究样本；其中'+str(coverage.get('confluence_count',0))+'只满足共振条件'],
+                    ['主研究组',str(primary.get('reference_closed',0))+'笔完整价格事件；待观察'+str(primary.get('pending',0))+'，未知'+str(primary.get('unknown',0))]],
+            'note':'研究样本不是买入名单或同一账户持仓。分钟数据盘后取得，未验证实时看到、官方限价或真实成交；六组研究保持独立对照。主动规则系统已启用，实际胜率未知，研究数据不代表即时买入信号。'})
     pa_trade=research.get('pa_trade_research') or {}
     if pa_trade.get('schema')=='pa-context-trade-research-v1':
         active=bool((pa_trade.get('policy') or {}).get('active'))
-        sections.append({'title':'�۸���Ϊ�����߼�����','columns':['����','�о�����'],
-            'rows':[['�ȿ�����','��������������ͻزȣ�����ֻ�۲����ؼٵ����ջأ������ʱ����'],
-                    ['�ٿ�λ��','����ǰǰ�ߡ�����߽�ͽṹ�͵�����Ϸ��ռ䡢ʧЧ�ۺ�������������'],
-                    ['��λ����ѧ','�о��˻�ÿ�������1��Ԫ������150Ԫ�ο����պͶ���2%����ѹ������������'],
-                    ['T+1�˳�','D1��������D1���̽ṹʧ����D2�����˳�������Ԥ���ṹ�ۡ�3%��6%Ŀ�꼰D2�����о��˳�'],
-                    ['����̬�о�״̬','��ѡ����ͨ�����о���̬�����ı������õĶ���ϵͳ' if active else '���о�û��ͨ��ѡ���ڵ���̬����������ϵͳ��������']],
-            'note':'�ο�������PriceAction������Ƶ������Brooksһ�����ۣ�������Ƶ��Ļ��δȡ�ã�������ֵ���ڱ���Ŀ���䡣ӯ��ƽ������ʤ�ʲ���Ԥ��ʤ�ʣ����߿��̲ο����ܴ���ͻ�ƻ�ز��ķ��ӳɽ���֤��'})
+        sections.append({'title':'价格行为交易逻辑升级','columns':['环节','研究规则'],
+            'rows':[['先看背景','上涨趋势做跟随和回踩；区间只观察下沿假跌破收回；不清楚时放弃'],
+                    ['再看位置','用事前前高、区间边界和结构低点计算上方空间、失效价和允许买入上限'],
+                    ['仓位与数学','研究账户每名额最多1万元，并按150元参考风险和额外2%跳空压力限制整数手'],
+                    ['T+1退出','D1不能卖；D1收盘结构失败则D2开盘退出，否则按预定结构价、3%或6%目标及D2收盘研究退出'],
+                    ['旧形态研究状态','有选择期通过的研究形态；不改变已启用的独立系统' if active else '旧研究没有通过选择期的形态；独立主动系统仍已启用']],
+            'note':'参考方方土PriceAction公开视频主题与Brooks一手理论；完整视频字幕尚未取得，量化阈值属于本项目适配。盈亏平衡所需胜率不是预测胜率；日线开盘参考不能代替突破或回测后的分钟成交验证。'})
         if active:
             watch=pa_trade.get('current_watchlist') or []
-            sections.append({'title':'�۸���Ϊ�о��۲�','columns':['��Ʊ','��������','�ṹʧЧ�ο�','Ŀ��','ӯ����'],
+            sections.append({'title':'价格行为研究观察','columns':['股票','买入上限','结构失效参考','目标','盈亏比'],
                 'rows':[[row.get('name') or row['symbol'],number(row.get('entry_cap')),number(row.get('structural_stop')),
                          pct(row.get('target_pct')),number(row.get('reward_risk'))] for row in watch[:3]],
-                'note':'�����⸴�˰���ʽ𡢹ٷ�״̬����ʱ�̿ڣ�δ���ӷ�������ʱ������ͻ�ƺͻز�ȷ�ϱ���δ�������ο�ʧЧ���޷���֤ʵ��ֹ��'})
+                'note':'须另外复核板块资金、官方状态及及时盘口；未连接分钟行情时，开盘突破和回测确认保持未就绪。参考失效价无法保证实际止损。'})
     if stage == 'evening':
         sector_target=(payload.get('calendar') or {}).get('next_session') or target
         sections.append(_flow_section(payload,research.get('fund_flow') or {},research.get('sector_stock_selection') or {},base))
@@ -324,21 +324,21 @@ def content(payload):
     else:
         sections.append(_opening_section(payload, research.get('opening_strength') or {}, base, payload.get('target_date')))
     gross = research.get('gross_swing_strategy') or {}
-    sections.append({'title':'����ë������ԣ����о���', 'columns':['������Ŀ','���о�״̬'],
-        'rows':[['Ŀ��','ëӯ��ʤ���ϸ����80%����ȡÿ��3%��6%'],
-                ['ͳ�ƿھ�','���۽��׷��ã�ӯ��������׬��3%��6%�ı����ֱ�ͳ��'],
-                ['����˼·','������ͨ���ƺͿ�������᣻�߿�����ȡ������׷������ͣ'],
-                ['ʵ�ʳɽ�ʤ��','����ͨ����˵���ʵ�ɽ�����'],
-                ['���о����׺�ѡ','�ղ֣��ȴ�ǰ��ɽ�������֤�ݣ�������ϵͳ�ֿ�'],
-                ['�²����о�','�������о��汾' if gross.get('schema') == 'gross-swing-research-v2' else '�ȴ��뱾������ƥ����о����']],
-        'note':'���ڱ������о����տھ�����������������ϵͳ�Ƿ����á���1�����롢��2�찴Ԥ��Ŀ����˳������о���������Ҫ�����뵱�����ǡ�����200�ʡ�60���볡���ڣ������ڷ��������½����80%��ë����Ϊ�����Ž���Ŀ�����ա�ȫ���볡������δ����˳����������ߴ��۲�����ʵ�ʳɽ���'})
+    sections.append({'title':'隔日毛收益策略（旧研究）', 'columns':['验收项目','旧研究状态'],
+        'rows':[['目标','毛盈利胜率严格高于80%，争取每笔3%～6%'],
+                ['统计口径','不扣交易费用；盈利比例、赚到3%和6%的比例分别统计'],
+                ['买入思路','优先普通走势和可买入机会；高开超限取消，不追封死涨停'],
+                ['实际成交胜率','尚无通过审核的真实成交样本'],
+                ['旧研究交易候选','空仓，等待前向成交与数据证据；与主动系统分开'],
+                ['新策略研究','已生成研究版本' if gross.get('schema') == 'gross-swing-research-v2' else '等待与本期行情匹配的研究结果']],
+        'note':'本节保留旧研究验收口径，不决定主动规则系统是否启用。第1天买入、第2天按预定目标或退出规则研究卖出，不要求买入当天上涨。至少200笔、60个入场日期，且日期分组置信下界高于80%、毛期望为正，才进入目标验收。全部入场交易与未解决退出保留；日线触价不代表实际成交。'})
     diagnostic = gross.get('diagnostic') or {}
     shown = diagnostic.get('selected_policy' if (gross.get('policy') or {}).get('active') else 'fixed_reference') or {}
     if shown:
-        sections.append({'title':'���ڸ��ղ�����ʷ���', 'columns':['�볡����','�ѱպ�','δ���','ëӯ������','׬��3%','׬��6%'],
+        sections.append({'title':'本期隔日策略历史诊断', 'columns':['入场尝试','已闭合','未解决','毛盈利比例','赚到3%','赚到6%'],
             'rows':[[number(shown.get('n_attempts'),0),number(shown.get('n_closed'),0),number(shown.get('n_unresolved'),0),
                      pct(shown.get('win_rate')),pct(shown.get('ge3_rate')),pct(shown.get('ge6_rate'))]],
-            'note':'����ʷ�����ڿ������������о���ϡ�ȫ�����볡���׾����룬�����������ǵ�ɾ�����𣻴ﵽĿ�����������ܷ�ɽ���'})
+            'note':'旧历史已用于开发，本表是研究诊断。全部已入场交易均计入，不按买入后的涨跌删除亏损；达到目标价仍须核验能否成交。'})
     if stage=='evening':
         probability=research.get('probability_research') or {}
         if probability.get('schema')=='calibrated-tplus1-probability-v1':
@@ -346,37 +346,37 @@ def content(payload):
             selected=diagnostic.get('selected_policy') or {}
             baseline=diagnostic.get('same_universe_price_action_baseline') or {}
             active=bool((probability.get('policy') or {}).get('active'))
-            sections.append({'title':'У׼��������ղ��Լ���','columns':['�о�����','�볡����','ëӯ������','׬��3%','ƽ���ѱպ�����'],
-                'rows':[['ͬ����5��100Ԫ�����׼',number(baseline.get('n_attempts'),0),pct(baseline.get('win_rate')),pct(baseline.get('ge3_rate')),pct(baseline.get('mean_closed_gross_return'))],
-                        ['ѡ����ȷ���ĸ��ʹ���' if active else '���ʹ���δͨ��ѡ����',number(selected.get('n_attempts'),0),pct(selected.get('win_rate')),pct(selected.get('ge3_rate')),pct(selected.get('mean_closed_gross_return'))]],
-                'note':'�Ƚ��߼��ع顢�ݶ��������Ȩ��ϣ�ʹ�ú��ø���У׼��ģ�ͷ�����ˣ�����̶���ѡ��������'
-                'ѵ����У׼��ѡ������ϰ����ڸ����������½�����������������տ鸴�ˡ�'
-                '����ʷ��ϲ���������������˳ɽ�ʤ�ʣ�δͨ��ʱ���ֿղ֡�3%��6%ʹ�ò�ͬԤ������������������ǿ�����ơ�'})
+            sections.append({'title':'校准概率与隔日策略检验','columns':['研究对象','入场尝试','毛盈利比例','赚到3%','平均已闭合收益'],
+                'rows':[['同条件5～100元排序基准',number(baseline.get('n_attempts'),0),pct(baseline.get('win_rate')),pct(baseline.get('ge3_rate')),pct(baseline.get('mean_closed_gross_return'))],
+                        ['选择期确定的概率规则' if active else '概率规则未通过选择期',number(selected.get('n_attempts'),0),pct(selected.get('win_rate')),pct(selected.get('ge3_rate')),pct(selected.get('mean_closed_gross_return'))]],
+                'note':'比较逻辑回归、梯度提升与等权组合，使用后置概率校准和模型分歧过滤；六项固定候选均保留。'
+                '训练、校准、选择与诊断按日期隔开，收益下界加入日期与连续五日块复核。'
+                '旧历史诊断不等于新样本或个人成交胜率；未通过时保持空仓。3%和6%使用不同预定卖出规则，连续三日强度另计。'})
         sections.append(_math_section(research.get('price_action_research') or {}))
     if rows:
-        sections.append({'title':'ģ�͹۲� Top10','columns':['����','����','����','����','P1 ����','P2 ��5%','�ɽ���'],
-            'rows':rows,'note':'��P2����P1����һ���������̸��ڻ��������̣�P2�������Ƿ���5%�����߾�Ϊԭʼδ��Ȩ�۸��¼����ʣ�������������ëӯ��ʤ�ʻ�׬��3%�ı�����'})
+        sections.append({'title':'模型观察 Top10','columns':['排名','代码','名称','收盘','P1 上涨','P2 ≥5%','成交额'],
+            'rows':rows,'note':'按P2排序。P1＝下一交易日收盘高于基础日收盘；P2＝收盘涨幅≥5%。两者均为原始未复权价格事件概率，不等于买入后的毛盈利胜率或赚到3%的比例。'})
     elif band:
-        sections.append({'title':'�ɽ���ǰ�Ź۲�','columns':['����','����','����','�ɽ���','ST����'],
-            'rows':[[r['symbol'],r.get('name') or '��',number(r.get('close')),money(r.get('amount')),
-                     'δ֪' if r.get('is_st') is None else ('��' if r['is_st'] else '��')] for r in band[:10]],
-            'note':'�۸�Χ��ɽ���Ϊ�����Թ۲죻�����ʸ��д����顣'})
+        sections.append({'title':'成交额前排观察','columns':['代码','名称','收盘','成交额','ST核验'],
+            'rows':[[r['symbol'],r.get('name') or '—',number(r.get('close')),money(r.get('amount')),
+                     '未知' if r.get('is_st') is None else ('是' if r['is_st'] else '否')] for r in band[:10]],
+            'note':'价格范围与成交额为描述性观察；交易资格尚待核验。'})
     endpoints=validation.get('endpoints') or {}
     if endpoints:
         t=validation.get('split',{}).get('test',{})
-        sections.append({'title':'��ʷʱ������֤','columns':['�۸��¼�','������','Top10�¼���','ģ��Brier','��׼Brier'],
+        sections.append({'title':'历史时间外验证','columns':['价格事件','样本数','Top10事件率','模型Brier','基准Brier'],
             'rows':[[label,number(m.get('n'),0),pct(m.get('top10_event_frequency')),number(m.get('brier'),5),
                      number(m.get('calibration_block_constant_baseline_brier'),5)] for label,m in endpoints.items()],
-            'note':f"���Ը��� {t.get('independent_dates','��')} �����ڣ�{t.get('first_input_date','��')}��{t.get('last_input_date','��')}����BrierԽ��Խ�ã���׼ΪУ׼�ڳ������ʡ��۸��¼��ʲ��ܴ���ɽ�ʤ�ʣ���ǰ�����۷�ë����ھ������о���"})
+            'note':f"测试覆盖 {t.get('independent_dates','—')} 个日期（{t.get('first_input_date','—')}至{t.get('last_input_date','—')}）。Brier越低越好；基准为校准期常数概率。价格事件率不能代替成交胜率；当前按不扣费毛收益口径单独研究。"})
     if stage=='evening':
         us=payload.get('us_overnight_linkage') or {}
-        source='��������' if us.get('source')=='cached' else '��������'
+        source='缓存行情' if us.get('source')=='cached' else '公开行情'
         def market_time(value):
             try: return dt.datetime.fromisoformat(value).strftime('%m-%d %H:%M')
-            except (TypeError,ValueError): return 'δ֪'
-        sections.append({'title':'�����г�����','columns':['ָ�������','���¼۸�','���ǵ�','����ʱ��'],
-            'rows':[[r.get('label') or r.get('symbol') or '��',number(r.get('last')),pct(r.get('change_1d')),market_time(r.get('quoted_at'))] for r in us.get('quotes',[])[:5]],
-            'note':(source+'������ʱ��Ϊ����ʱ�䡣���������������뵱ǰ����ģ�͡�') if us.get('quotes') else '����δȡ�ÿ��ú������飬ģ�ͼ���Ԥ���ѵ������㡣'})
+            except (TypeError,ValueError): return '未知'
+        sections.append({'title':'海外市场背景','columns':['指数／标的','最新价格','日涨跌','报价时间'],
+            'rows':[[r.get('label') or r.get('symbol') or '—',number(r.get('last')),pct(r.get('change_1d')),market_time(r.get('quoted_at'))] for r in us.get('quotes',[])[:5]],
+            'note':(source+'；报价时间为北京时间。仅作背景，不进入当前价量模型。') if us.get('quotes') else '本次未取得可用海外行情，模型价量预测已单独计算。'})
     else:
         news=payload.get('public_news_until_0925') if stage=='auction' else payload.get('public_news_until_0900')
         news=news or []
@@ -384,24 +384,24 @@ def content(payload):
             try: return dt.datetime.fromisoformat(row.get('published_at') or row.get('time')).timestamp()
             except (AttributeError,TypeError,ValueError): return float('-inf')
         news=sorted(news,key=news_time,reverse=True)
-        sections.append({'title':'����⹫����Ϣ','columns':['����ʱ��','��Ϣ'],
-            'rows':[[r.get('published_at') or r.get('time') or '��',r.get('title') or '��'] for r in news[:5] if isinstance(r,dict)],
-            'note':f"������ʱ�������ʱ��˫�ؽض��� {payload.get('information_cutoff','��')}�������뵱ǰ����ģ�͡�" if news else '����û�з��Ͻ�ֹʱ����������Ϣ���������г�û����Ϣ��'})
+        sections.append({'title':'已入库公开消息','columns':['发布时间','消息'],
+            'rows':[[r.get('published_at') or r.get('time') or '—',r.get('title') or '—'] for r in news[:5] if isinstance(r,dict)],
+            'note':f"按发布时间与入库时间双重截断至 {payload.get('information_cutoff','—')}；不进入当前价量模型。" if news else '本期没有符合截止时间的已入库消息，不代表市场没有消息。'})
     links=[]
-    for label,tag in [('����汾',payload.get('snapshot_release')),('ģ�Ͱ汾',research.get('model_release'))]:
+    for label,tag in [('行情版本',payload.get('snapshot_release')),('模型版本',research.get('model_release'))]:
         if tag: links.append((label,REPO_URL+'/releases/tag/'+quote(str(tag),safe='')))
     if validation.get('github_run_id'):
-        links.append(('���м�¼',REPO_URL+'/actions/runs/'+quote(str(validation['github_run_id']),safe='')))
-    return {'title':'A��'+title,'subtitle':subtitle,'subject':subject,'summary':summary,'stats':stats,
+        links.append(('运行记录',REPO_URL+'/actions/runs/'+quote(str(validation['github_run_id']),safe='')))
+    return {'title':'A股'+title,'subtitle':subtitle,'subject':subject,'summary':summary,'stats':stats,
             'warnings':warnings,'sections':sections,'links':links,'ready':ready,
-            'generated_at':payload.get('generated_at') or '��', 'cutoff':payload.get('information_cutoff') or '��',
-            'footer':'�о��۲죬���Զ��µ�����ǰ�о������۷�ë����ͳ�ƣ�80%Ŀ����3%��6%����Ŀ����δ��֤�����ۺ�ģ�͸��ʲ��ܵ����ɽ���֤��'}
+            'generated_at':payload.get('generated_at') or '—', 'cutoff':payload.get('information_cutoff') or '—',
+            'footer':'研究观察，不自动下单。当前研究按不扣费毛收益统计，80%目标与3%～6%收益目标尚未验证；触价和模型概率不能当作成交保证。'}
 
 
 def render_text(payload):
     c=content(payload)
     lines=[c['title'],c['subtitle'],'',c['summary'],'']
-    lines += [key+'��'+value for key,value in c['stats']]
+    lines += [key+'：'+value for key,value in c['stats']]
     lines += ['']+[value for value in c['warnings']]+['']
     for section in c['sections']:
         if 'authoritative_text' in section:
@@ -411,8 +411,8 @@ def render_text(payload):
         if section['rows']:
             lines += [' | '.join(section['columns'])]+[' | '.join(row) for row in section['rows']]
         lines += [section['note'],'']
-    lines += ['��Ϣ��ֹ��'+c['cutoff'],'����ʱ�䣺'+c['generated_at'],c['footer'],'']
-    lines += [label+'��'+url for label,url in c['links']]
+    lines += ['信息截止：'+c['cutoff'],'生成时间：'+c['generated_at'],c['footer'],'']
+    lines += [label+'：'+url for label,url in c['links']]
     return '\n'.join(lines)+'\n'
 
 
@@ -462,14 +462,14 @@ def render_html(payload):
             chunks += [f'<th scope="col" style="text-align:left;padding:10px 7px;background:#edf3f8;color:#5b6f83;font-weight:normal;border-bottom:1px solid #d8e2eb">{esc(v)}</th>' for v in section['columns']]
             chunks.append('</tr></thead><tbody>')
             for i,row in enumerate(section['rows']):
-                background='#f0fbf9' if section['title']=='ģ�͹۲� Top10' and i<3 else ('#fafcff' if i%2 else '#ffffff')
+                background='#f0fbf9' if section['title']=='模型观察 Top10' and i<3 else ('#fafcff' if i%2 else '#ffffff')
                 chunks.append(f'<tr style="background:{background}">')
                 chunks += [f'<td style="padding:11px 7px;line-height:1.5;border-bottom:1px solid #e7edf3;word-break:break-word">{esc(v)}</td>' for v in row]
                 chunks.append('</tr>')
             chunks.append('</tbody></table>')
         chunks += [f'<p style="margin:10px 0 0;font-size:11px;color:#6c7c90;line-height:1.8">{esc(section["note"])}</p>','</td></tr>']
     chunks += ['<tr><td class="pad" style="padding:22px 28px;background:#f6f9fc;color:#728399;font-size:11px;line-height:1.8">',
-        f'<div>��Ϣ��ֹ {esc(c["cutoff"])}<br>����ʱ�� {esc(c["generated_at"])}</div>',
+        f'<div>信息截止 {esc(c["cutoff"])}<br>生成时间 {esc(c["generated_at"])}</div>',
         f'<p style="margin:10px 0">{esc(c["footer"])}</p>']
     chunks += [f'<a href="{esc(url)}" style="color:#27776f;text-decoration:none;margin-right:14px">{esc(label)}</a>' for label,url in c['links']]
     chunks.append('</td></tr></table></td></tr></table></body></html>')

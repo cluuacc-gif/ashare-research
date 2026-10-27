@@ -35,15 +35,15 @@ class ProbabilityReportTests(unittest.TestCase):
         compact=p.compact(study);rendered=p.render(study)
         self.assertEqual(rendered,p.render(compact));self.assertEqual(compact,p.compact(compact))
         self.assertFalse(compact['policy']['active']);self.assertIsNone(compact['policy']['chosen'])
-        self.assertEqual(compact['status_message'],'��ģ�͵��ڲ�����')
+        self.assertEqual(compact['status_message'],'旧模型当期不可用')
         self.assertEqual(compact['current_watchlist'],[])
         self.assertFalse(compact['endpoint_availability']['hgb']['p_win3'])
         self.assertEqual(compact['input_funnel'],study['input_funnel'])
-        for expected in ('��ģ�͵��ڲ�����','���ڸ���δ֪','2026-10-27','2026-10-28',
-                         '��������ϵͳ','����δ��','�����ۼ�ͨ��','�г����Ǳ���','20.00%'):
+        for expected in ('旧模型当期不可用','当期概率未知','2026-10-27','2026-10-28',
+                         '独立交易系统','单项未过','依次累计通过','市场上涨比例','20.00%'):
             self.assertIn(expected,rendered)
         self.assertNotIn('STALE_SHOULD_NOT_SHOW',rendered);self.assertNotIn('99.00%',rendered)
-        self.assertNotIn('��һ����ѧģ�ͼ���',rendered)
+        self.assertNotIn('新一轮数学模型检验',rendered)
 
     def test_full_and_compact_same_html_and_compaction_idempotent(self):
         study=fixture();compact=p.compact(study)
@@ -56,8 +56,8 @@ class ProbabilityReportTests(unittest.TestCase):
         study=fixture();study['current_watchlist']=[{'name':'SHOULD_NOT_SHOW'}]
         rendered=p.render(study)
         self.assertNotIn('SHOULD_NOT_SHOW',rendered)
-        self.assertIn('û������',rendered)
-        self.assertIn('80%����ʵ��ʤ����δ��֤',rendered)
+        self.assertIn('没有启用',rendered)
+        self.assertIn('80%以上实际胜率尚未验证',rendered)
 
     def test_active_watchlist_escaped_and_six_percent_distinct(self):
         study=fixture();study['policy']={'active':True,'chosen':{'id':'hgb_balanced'}}
@@ -65,7 +65,7 @@ class ProbabilityReportTests(unittest.TestCase):
         rendered=p.render(study)
         self.assertNotIn('<script>',rendered)
         self.assertIn('&lt;script&gt;',rendered)
-        self.assertIn('6%�˳�����',rendered)
+        self.assertIn('6%退出另列',rendered)
 
     def test_missing_study_does_not_change_old_report(self):
         self.assertEqual(p.render({}), '')

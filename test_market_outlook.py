@@ -52,15 +52,15 @@ class PublicationTests(unittest.TestCase):
                     max_hold_after_entry_sessions=sessions, D2_trade_date='2026-10-20',
                     planned_exit_trade_date=deadline)
                 body = render(value)
-                self.assertIn('���1��2�������հ�����·���˳�', body)
-                self.assertIn('���������ȷ����������1�������˳�', body)
-                self.assertIn('���������������2�������˳�', body)
-                self.assertIn('��T+1�о��ھ���ֻ������ʷ����', body)
-                self.assertIn('��T+1�о�Ŀ�꣺', body)
+                self.assertIn('买后1至2个交易日按冻结路线退出', body)
+                self.assertIn('反弹／过热防守最迟买后第1交易日退出', body)
+                self.assertIn('趋势延续最迟买后第2交易日退出', body)
+                self.assertIn('旧T+1研究口径，只描述历史对照', body)
+                self.assertIn('旧T+1研究目标：', body)
                 self.assertIn(deadline, body)
-                self.assertNotIn('T+1��Ŀ�꣺', body)
-                self.assertNotIn('Ŀ��������ߵ�1�����롢��2������', body)
-                self.assertNotIn('����������˳����о�˳��', body)
+                self.assertNotIn('T+1主目标：', body)
+                self.assertNotIn('目标仍是提高第1天买入、第2天卖出', body)
+                self.assertNotIn('买入与次日退出的研究顺序', body)
                 self.assertEqual(render(m.compact_pointer({'outlook': value})['outlook']), body)
 
     def test_weekend_prediction_targets_next_verified_session(self):
@@ -165,8 +165,8 @@ class PublicationTests(unittest.TestCase):
         body=render(value)
         self.assertNotIn('<script>',body)
         self.assertIn('&lt;script&gt;sector',body)
-        self.assertIn('�������Ǹ���',body)
-        self.assertIn('������������δ����',body)
+        self.assertIn('不是上涨概率',body)
+        self.assertIn('独立云主机尚未部署',body)
 
     def tracking_case(self,status='resolved', previous=None):
         value,source=fixture()
@@ -220,7 +220,7 @@ def large_flow():
     value['sectors'] = []
     for board_index in range(128):
         board = copy.deepcopy(template)
-        board.update(code=f'BK{board_index:04d}', name=f'��ҵ{board_index}',
+        board.update(code=f'BK{board_index:04d}', name=f'行业{board_index}',
                      main_net_inflow_yuan=128_000_000-board_index*1_000_000,
                      main_net_ratio_pct=1, main_net_3d_yuan=200_000_000,
                      main_net_5d_yuan=300_000_000, membership_status='complete')
@@ -228,7 +228,7 @@ def large_flow():
         if board_index < 12:
             for index in range(250):
                 board['members'].append({
-                    'symbol': f'{board_index*250+index:06d}.SZ', 'name': f'��Ʊ{index}',
+                    'symbol': f'{board_index*250+index:06d}.SZ', 'name': f'股票{index}',
                     'effective_date': '2026-10-18',
                     'observed_at': '2026-10-18T15:59:00+08:00',
                     'flow_status': 'verified_current_date', 'flow_trade_date': '2026-10-16',
