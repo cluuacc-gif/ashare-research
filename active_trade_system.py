@@ -16,6 +16,8 @@ import sector_stock_selection as sector
 from price_action_snapshot import price_action_snapshot
 from active_price_action import snapshot as structure_snapshot
 from security_selection import load_metadata, rejection_reasons
+import active_regime as regime
+from trade_calendar import adjacent
 
 SCHEMA = 'active-tplus1-trade-system-v1'
 MAX_CANDIDATES = 300
@@ -119,11 +121,45 @@ PROTOCOL['rank']['structure_quality'] = '1_for_pullback_recovery_else_clip(1-max
 PROTOCOL['rank']['room_quality'] = '.5_when_no_identified_pivot_else_clip((pivot/cap-1)/.06,0,1)'
 PROTOCOL['overhead_resistance_gate'] = 'nearest_confirmed_last61_pivot_high_above_known_T_close_must_clear_cap*1.03+.1*ATR; no_identified_pivot_is_not_guaranteed_room'
 PROTOCOL['migration'] = 'only_known_v1_selection_upgrade; preserve_first_published_target_decision_and_entire_reference_account; legacy_positions_keep_unchanged_exit_rules'
+PREVIOUS_PROTOCOL = deepcopy(PROTOCOL)
+PREVIOUS_PROTOCOL_SHA256 = cohort._digest(PREVIOUS_PROTOCOL)
+PROTOCOL['schema'] = 'active-tplus1-manual-protocol-v3'
+PROTOCOL['market_gate'] = {
+    'identity': 'finite_known_frozen_market_context_not_a_next_day_forecast',
+    'valid_context': 'breadth_in_[0,1]; daily_return_in_[-.3,.3]; five_day_return_in_[-.8,1]',
+    'extreme_stress_watch_only': 'breadth<.2_or_return1<-.04_or_return5<-.10',
+    'trend_route': 'breadth>=.45_and_return1>=-.01_and_return5>=-.03',
+    'rebound_route': 'other_known_non_extreme_context; not_an_automatic_buy',
+    'overheated_defensive_route':'breadth>=.8_and_return1>.02_and_return5>.06; half_risk_1_session_pullback_recovery_only_no_breakout_chase',
+    'rebound_sector': 'existing_verified_flow_and_leadership; breadth>=.4; return1>=-.02; '
+                      'relative_return5>0; >=5_members_and_coverage>=.65',
+}
+PROTOCOL['price_action']['anti_extension_v3'] = 'stock_return5<=.10_and_MA20_gap<=.06'
+PROTOCOL['account']['rebound'] = {'risk_budget_cny':75,'cash_per_name_limit_cny':5000,
+    'maximum_simultaneous_rebound_names':1,'risk_may_not_exceed_prior_policy':True}
+PROTOCOL['entry']['v3_confirmation'] = 'entry_floor=max(legacy_floor,ceil_cent(Tclose)); completed_14:40_close>=Tclose_and<=Tclose*1.035; '
+PROTOCOL['entry']['v3_confirmation'] += 'rebound_also_close>=first30_completed_high_and_close_location>=.7; '
+PROTOCOL['entry']['v3_confirmation'] += 'fresh_manual_last>=Tclose; individual_stock_confirmation_not_market_reversal'
+PROTOCOL['exit']['holding_v3'] = {
+    'frozen_before_buy':True,'rebound_sessions_after_entry':1,'trend_maximum_sessions_after_entry':2,
+    'first_sell_day_1450_continuation':'latest_completed_close>=buy_and>=volume_weighted_completed_close_proxy; '
+                                   'last5_low>=previous5_low; only_prefix_ending_14:50',
+    'weak_first_sell_day':'exit_at_14:50_reference_open; never_extend_because_losing',
+    'strong_first_sell_day':'monitor_stops_and_3percent_target_through_close; carry_to_frozen_final_day',
+    'final_deadline':'planned_exit_trade_date_14:50_open; missing_or_untradable_remains_unknown',
+    'earliest_exit':'first_session_after_entry; no_same_day_sale',
+    'continued_close_failure':'held_session_daily_close<=stop_or_last_completed_minute_stop_or_target_exits_next_session_first_tradable_open',
+    'continuation_record':'freeze_14:50_completed_prefix_hash_and_boolean; changed_prefix_is_unknown_not_a_new_extension',
+    'entry_evidence_deadline':'first_session_after_entry_09:15_even_for_two_session_holds',
+}
+PROTOCOL['migration'] = 'exact_known_v1_or_v2_to_v3; preserve_every_frozen_decision_and_old_exit_dates; no_account_reset'
 PROTOCOL_SHA256 = cohort._digest(PROTOCOL)
+KNOWN_PROTOCOL_SHA256S = (LEGACY_PROTOCOL_SHA256, PREVIOUS_PROTOCOL_SHA256, PROTOCOL_SHA256)
 
 
 def compatible_policy_migration(previous_id, next_id):
-    return previous_id == LEGACY_PROTOCOL_SHA256 and next_id == PROTOCOL_SHA256
+    return (previous_id in KNOWN_PROTOCOL_SHA256S and next_id in KNOWN_PROTOCOL_SHA256S
+            and KNOWN_PROTOCOL_SHA256S.index(previous_id) < KNOWN_PROTOCOL_SHA256S.index(next_id))
 
 
 def _decimal(value):
@@ -151,12 +187,12 @@ def _bounds(close, stop):
     return floor, cap, valid
 
 
-def _quantity(cap, stop, cash):
-    limit = min(Decimal('10000'), cash)
+def _quantity(cap, stop, cash, risk_budget=150, cash_limit=10000):
+    limit = min(_decimal(cash_limit), cash)
     stressed_per_share = cap - stop + cap * Decimal('.02')
     if cap <= 0 or stressed_per_share <= 0 or limit <= 0:
         return 0
-    shares = min(limit / cap, Decimal('150') / stressed_per_share)
+    shares = min(limit / cap, _decimal(risk_budget) / stressed_per_share)
     return int((shares / 100).to_integral_value(rounding=ROUND_FLOOR)) * 100
 
 
@@ -195,11 +231,14 @@ def _plan_id(plan, policy_id):
         'base_close', 'frozen_entry_floor', 'frozen_entry_cap', 'structural_stop', 'target_pct',
         'frozen_quantity_shares', 'frozen_reserved_cash_cny', 'frozen_reserved_risk_cny',
         'atr14', 'rank_score', 'evidence')}
+    if plan.get('holding_policy_version') == 3:
+        identity.update({key:plan[key] for key in ('holding_policy_version','setup_route',
+            'max_hold_after_entry_sessions','planned_exit_trade_date')})
     return 'active-' + cohort._digest({'policy_id': policy_id, 'T_known_plan': identity})[:24]
 
 
 def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None, *,
-          input_sha256=None, available_cash=30000, occupied_symbols=(), occupied_sectors=()):
+          input_sha256=None, available_cash=30000, occupied_symbols=(), occupied_sectors=(), occupied_routes=()):
     """Build up to two frozen conditional plans; an empty set leaves us enabled.
 
     ``available_cash`` is unreserved cash supplied by the caller. Existing names
@@ -226,7 +265,7 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         'broker_connected': False, 'live_feed_connected': False, 'score_is_probability': False,
         'base_trade_date': base, 'target_trade_date': target, 'D2_trade_date': frozen['D2_trade_date'],
         'generated_at': frozen['generated_at'], 'information_cutoff': frozen['information_cutoff'],
-        'selection_rule_version': 2, 'maximum_selected_names': 2,
+        'selection_rule_version': 3, 'maximum_selected_names': 2,
         'plan_policy_id': PROTOCOL_SHA256, 'new_policy_applies_to_new_frozen_dates_only': True,
         'input_database_sha256': input_sha256, 'protocol': protocol,
         'policy_id': policy_id, 'protocol_sha256': policy_id,
@@ -256,13 +295,23 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         metadata = load_metadata(connection, [row['symbol'] for row in rows], base=base, cutoff=cutoff)
     rejected, qualifying = Counter(), []
     market = result['market_gate']
+    board_map = {item['board_id']:item for item in frozen['sector_boards']}
+    result['market_context'] = regime.classify(market)
+    result['legacy_market_gate'] = deepcopy(market)
+    result['market_gate'] = {**deepcopy(market), 'eligible':result['market_context']['route'] is not None,
+        'reasons':list(result['market_context']['reasons']), 'policy':'regime_v3_not_direction_forecast'}
+    funnel = Counter()
     for row in rows:
-        reasons = list(row['reasons'])
+        context, reasons = regime.candidate_reasons(row, board_map, market)
+        route = context['route']
+        if route is not None: funnel['regime_context_passed'] += 1
         reasons.extend(rejection_reasons(row['symbol'], metadata.get(row['symbol']), cutoff, base=base))
         if not row['flow_known']:
             reasons.append('actual_same_vendor_flow_unknown_observation_only')
         elif not row['flow_credit']:
             reasons.append('actual_same_vendor_net_and_ratio_must_both_be_positive')
+        sector_passed = not reasons
+        if sector_passed: funnel['sector_and_leadership_passed'] += 1
         history = histories.get(row['symbol'], [])
         try:
             features = price_action_snapshot(history, market_return5=market.get('base_return_5d') or 0,
@@ -270,6 +319,8 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         except ValueError:
             features = {'available': False, 'reason': 'invalid_or_duplicate_price_action_history'}
         pa_reasons = _price_action_reasons(features)
+        if features.get('available') and (features['ret5'] > .10 or features['ma20_gap'] > .06):
+            pa_reasons.append('v3_overextended_return5_or_MA20_gap')
         reasons.extend(pa_reasons)
         if not pa_reasons:
             result['coverage']['price_action_passed_count'] += 1
@@ -277,7 +328,7 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
             reasons.append('source_window_or_required_source_invalid')
         evaluation = {'symbol': row['symbol'], 'name': row['name'],
             'sector_identity': deepcopy(row['sector_identity']), 'base_close': row['base_close'],
-            'status': 'observation_only', 'eligible': False, 'frozen_quantity_shares': 0,
+            'status': 'observation_only', 'eligible': False, 'frozen_quantity_shares': 0, 'setup_route': route,
             'flow_known': row['flow_known'], 'flow_credit': row['flow_credit'],
             'leadership_rank': row['leadership_rank'], 'leadership_member_count': row['leadership_member_count'],
             'leadership_top_count': row['leadership_top_count'], 'relative_return_5d': row['relative_return_5d'],
@@ -290,8 +341,13 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
             atr = features['atr14_pct'] * row['base_close']
             stop = _floor(min(_decimal(bar['low']) for bar in history[-5:]) - Decimal('.15') * _decimal(atr))
             floor, cap, bounds_ok = _bounds(row['base_close'], stop)
+            # V3 requires a T-close reclaim; a cap below Tclose cannot make a usable plan.
+            floor = max(floor,_ceil(_decimal(row['base_close'])))
+            bounds_ok = bounds_ok and floor <= cap
             structure = structure_snapshot(history, features, float(cap))
             reasons.extend(structure['reasons'])
+            if context.get('state')=='overheated_defensive' and 'reduced_volume_pullback_recovery' not in structure.get('patterns',[]):
+                reasons.append('overheated_market_requires_pullback_recovery_no_breakout_chase')
             room = structure.get('room_from_entry_cap')
             structure_quality = (0 if not structure['available'] else
                                  1 if 'reduced_volume_pullback_recovery' in structure['patterns'] else
@@ -304,6 +360,17 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
                               frozen_entry_floor=float(floor), frozen_entry_cap=float(cap))
             if not bounds_ok:
                 reasons.append('no_joint_3percent_target_rr1.5_cent_price_envelope')
+            if sector_passed and not pa_reasons and structure['available'] and not structure['reasons']:
+                funnel['price_action_structure_passed'] += 1
+            if sector_passed and not pa_reasons and structure['available'] and not structure['reasons'] and bounds_ok:
+                funnel['entry_envelope_passed'] += 1
+            try:
+                first_sell = frozen['D2_trade_date']
+                planned_exit = first_sell if route == regime.REBOUND else adjacent(first_sell, 1)
+            except (TypeError,ValueError):
+                planned_exit = None
+                reasons.append('planned_holding_exit_calendar_unverified')
+            evaluation['planned_exit_trade_date'] = planned_exit
             if not reasons:
                 evaluation['eligible'] = True
                 evaluation['status'] = 'qualifying_frozen_setup'
@@ -312,6 +379,8 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
                     'history61_sha256': cohort._digest([cohort._pick(bar, cohort.BAR_FIELDS) for bar in history[-61:]]),
                     'board_id': row['board_id'], 'membership_snapshot_sha256': row['membership_snapshot_sha256'],
                     'flow_evidence_tier': row['evidence_tier'], 'relative_return_5d': relative,
+                    'market_context':{**{key:market.get(key) for key in ('base_breadth','base_return_1d','base_return_5d')},
+                        'state':context.get('state'),'route':route},
                     'leadership_rank': row['leadership_rank'], 'leadership_member_count': row['leadership_member_count'],
                     'leadership_top_count': row['leadership_top_count'],
                     'price_action': deepcopy(evaluation['price_action']),
@@ -326,6 +395,7 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         result['candidate_evaluations'].append(evaluation)
     qualifying.sort(key=lambda item: (-item[0]['rank_score'], item[0]['symbol']))
     remaining_cash = cash
+    rebound_names = sum(value == regime.REBOUND for value in occupied_routes)
     free_slots = result['free_position_slots']
     for evaluation, floor, cap, stop, evidence in qualifying:
         symbol = evaluation['symbol']
@@ -333,7 +403,11 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         reason = ('symbol_already_occupied' if symbol in occupied else
                   'exact_sector_already_occupied_or_planned' if identity_key in used_sectors else
                   'two_name_limit_including_existing_positions' if len(result['plans']) >= free_slots else None)
-        quantity = _quantity(cap, stop, remaining_cash) if reason is None else 0
+        route = evaluation['setup_route']
+        risk_budget, cash_limit = (75,5000) if route == regime.REBOUND else (150,10000)
+        if reason is None and route == regime.REBOUND and rebound_names >= 1:
+            reason = 'one_rebound_name_limit_including_existing_positions'
+        quantity = _quantity(cap, stop, remaining_cash, risk_budget, cash_limit) if reason is None else 0
         if reason is None and quantity < 100:
             reason = 'cash_or_stressed_risk_budget_below_one_board_lot'
         if reason is None and symbol.startswith(('688', '689')) and quantity < 200:
@@ -352,9 +426,13 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
             'frozen_entry_floor': float(floor), 'frozen_entry_cap': float(cap),
             'structural_stop': float(stop), 'target_pct': .03,
             'frozen_quantity_shares': quantity, 'frozen_reserved_cash_cny': float(reserved_cash),
-            'frozen_reserved_risk_cny': float(reserved_risk), 'risk_budget_cny': 150,
+            'frozen_reserved_risk_cny': float(reserved_risk), 'risk_budget_cny': risk_budget,
             'gap_stress_pct': .02, 'atr14': evaluation['atr14'], 'rank_score': evaluation['rank_score'],
             'entry_arm_id': 'confluence_late_confirmation', 'entry_decision_time': '14:40',
+            'holding_policy_version':3, 'setup_route':route, 'market_context_state':context.get('state'),
+            'max_hold_after_entry_sessions':1 if route == regime.REBOUND else 2,
+            'planned_exit_trade_date':evaluation['planned_exit_trade_date'],
+            'early_exit_rule':'first_sell_day_14:50_exit_unless_frozen_continuation_passes',
             'entry_confirmed': False, 'status': 'conditional_manual_plan',
             'actual_fill': None, 'formal_trade_ready': False, 'actual_win_rate': None,
             'execution_win_rate_80_validated': False, 'score_is_probability': False,
@@ -365,8 +443,12 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
                           frozen_quantity_shares=quantity)
         used_sectors.add(identity_key)
         remaining_cash -= reserved_cash
+        if route == regime.REBOUND: rebound_names += 1
     result['coverage'].update(active_evaluated_count=len(rows), active_qualifying_count=len(qualifying),
         conditional_plan_count=len(result['plans']), active_rejections=dict(sorted(rejected.items())))
+    funnel['all_selection_conditions_passed'] = len(qualifying)
+    funnel['cash_and_lot_allocated'] = len(result['plans'])
+    result['coverage']['decision_funnel'] = dict(funnel)
     result['unreserved_cash_cny'] = float(remaining_cash)
     if source_ok:
         result['status'] = 'conditional_plans_ready' if result['plans'] else 'cash_no_qualifying_setup'

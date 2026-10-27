@@ -163,8 +163,8 @@ class ActiveSystemTests(unittest.TestCase):
                 self.assertFalse(self.build(fund_flow=flow)['plans'])
 
     def test_market_gates_fail_without_deactivating_rule(self):
-        for key, value in (('base_breadth', .49), ('base_breadth', None),
-                           ('base_return_1d', -.001), ('base_return_5d', -.001)):
+        for key, value in (('base_breadth', .1), ('base_breadth', None),
+                           ('base_return_1d', -.05), ('base_return_5d', -.11)):
             old = self.outlook['benchmark'][key]
             self.outlook['benchmark'][key] = value
             result = self.build()

@@ -69,7 +69,13 @@ def review_entry(plan,bars,quote,decision_time):
         ends=expected_ends(day,decision)
         if not all(stamp in index for stamp in ends):return reject('continuous_completed_prefix_missing')
         prefix=[index[stamp] for stamp in ends]
-        if not trigger(prefix,'confluence_late_confirmation',plan['base_close']):return reject('late_confirmation_false')
+        if plan.get('holding_policy_version') == 3:
+            from active_regime import entry_confirmation, schedule
+            schedule(plan)
+            if not entry_confirmation(prefix,plan['base_close'],plan['setup_route']):
+                return reject('v3_individual_reclaim_or_route_confirmation_false')
+        elif not trigger(prefix,'confluence_late_confirmation',plan['base_close']):
+            return reject('late_confirmation_false')
         if not isinstance(quote,dict):return reject('fresh_broker_quote_missing')
         exchange,received=instant(quote['exchange_timestamp']),instant(quote['received_at'])
         if (quote.get('symbol')!=plan['symbol'] or not decision<=exchange<=received<=now
@@ -85,6 +91,8 @@ def review_entry(plan,bars,quote,decision_time):
             limits.get('limit_up'),limits.get('limit_down'))]
         if any(value is None or value<=0 for value in (last,ask,volume,previous,upper,lower)):
             return reject('invalid_visible_quote')
+        if plan.get('holding_policy_version') == 3 and last is not None and last < plan['base_close']:
+            return reject('v3_fresh_quote_lost_T_close_reclaim')
         quantity=number(plan.get('frozen_quantity_shares'))
         if (quantity is None or quantity<=0 or quantity%100 or
                 (str(plan['symbol']).startswith(('688','689')) and quantity<200) or
@@ -104,6 +112,16 @@ def review_entry(plan,bars,quote,decision_time):
 
 
 def evaluate(plan,evidence,db,cutoff,previous=None):
+    version=plan.get('holding_policy_version')
+    if version == 3:
+        from active_holding import evaluate as evaluate_v3
+        return evaluate_v3(plan,evidence,db,cutoff,previous)
+    if version is not None:
+        raise ValueError('unrecognized active holding policy')
+    return _evaluate_legacy(plan,evidence,db,cutoff,previous)
+
+
+def _evaluate_legacy(plan,evidence,db,cutoff,previous=None):
     """Reference buys/next-minute exits. User orders are never inferred."""
     now=instant(cutoff)
     row={'active_plan_id':plan['active_plan_id'],'symbol':plan['symbol'],
@@ -231,6 +249,23 @@ def account(records,initial=30000):
         'actual_user_positions_known':False,'actual_win_rate':None,'is_actual_broker_account':False}
 
 
+def v3_validation_stats(records):
+    """Separate new-rule evidence from a preserved cross-version cash account."""
+    from active_regime import ROUTES
+    result={'schema':'active-v3-reference-validation-v1','actual_win_rate':None,
+        'historical_legacy_results_included':False,'real_execution_verified':False,'routes':{}}
+    for route in ROUTES:
+        current=[row for row in records if row.get('holding_policy_version')==3 and row.get('setup_route')==route]
+        closed=[row for row in current if row['status']=='reference_closed']
+        unknown=[row for row in current if row['status'].startswith('unknown_')]
+        result['routes'][route]={'n_records':len(current),'n_closed':len(closed),'n_unknown':len(unknown),
+            'n_pending':sum(row['status'] in ('pending_entry','pending_exit') for row in current),
+            'reference_gross_profit_rate':sum(row['gross_return']>0 for row in closed)/len(closed) if closed else None,
+            'reference_exit_ge3_rate':sum(row['gross_return']>=.03-1e-12 for row in closed)/len(closed) if closed else None,
+            'reference_exit_ge6_rate':sum(row['gross_return']>=.06-1e-12 for row in closed)/len(closed) if closed else None}
+    return result
+
+
 def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
     """Admit first actually published plans; preserve their prices and budget."""
     # A verified legacy publication can predate the active system entirely.
@@ -302,6 +337,7 @@ def roll(previous_study,admitted,evidence,db,cutoff,protocol_sha256):
             deepcopy(book.get('selection_upgrade_migration'))),
         'occupied_symbols':[row['symbol'] for row in active],
         'occupied_sectors':[row['sector_identity'] for row in active],
+        'occupied_routes':[row.get('setup_route') for row in active],
         'actual_win_rate':None,'order_execution_enabled':False}
 
 
