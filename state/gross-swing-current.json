@@ -1,14 +1,14 @@
 {
   "schema_version": "gross-swing-research-store-v2",
-  "release_tag": "gross-swing-research-2026-10-27-40510241667-1",
+  "release_tag": "gross-swing-research-2026-10-27-40527336390-1",
   "base_trade_date": "2026-10-27",
   "target_trade_date": "2026-10-28",
-  "snapshot_release": "prepared-2026-10-27-40508442684-1",
-  "input_database_sha256": "8b7366adef117d74ec941c5ae1c6d248704e592fdc454c8ad4e7b0343073b9f6",
-  "github_run_id": "40510241667",
-  "github_commit": "cedb8ce97c3a30de3fe8eae44e4243ed2c9e001d",
-  "github_run_url": "https://github.com/cluuacc-gif/ashare-research/actions/runs/40510241667",
-  "generated_at": "2026-10-27T21:16:52.405343+08:00",
+  "snapshot_release": "prepared-2026-10-27-40525248474-1",
+  "input_database_sha256": "3a990779a1a7a81e3da3b54fd661a2d3b06bfb05d2ef8ee9d429eb0f608d5486",
+  "github_run_id": "40527336390",
+  "github_commit": "dfdbb9736bc53c33d8c9a906059f5e1d831a0f6c",
+  "github_run_url": "https://github.com/cluuacc-gif/ashare-research/actions/runs/40527336390",
+  "generated_at": "2026-10-27T23:07:52.952519+08:00",
   "formal_trade_ready": false,
   "formal_prediction_allowed": false,
   "execution_win_rate_80_validated": false,
@@ -30,17 +30,17 @@
     },
     "costs_included": false,
     "base_trade_date": "2026-10-27",
-    "generated_at": "2026-10-27T21:16:48.907531+08:00",
+    "generated_at": "2026-10-27T23:07:49.258776+08:00",
     "target_trade_date": "2026-10-28",
     "generated_before_target_open": true,
-    "input_database_sha256": "8b7366adef117d74ec941c5ae1c6d248704e592fdc454c8ad4e7b0343073b9f6",
+    "input_database_sha256": "3a990779a1a7a81e3da3b54fd661a2d3b06bfb05d2ef8ee9d429eb0f608d5486",
     "research_ready": true,
     "formal_trade_ready": false,
     "formal_prediction_allowed": false,
     "actual_win_rate": null,
     "real_execution_win_rate": null,
     "execution_win_rate_80_validated": false,
-    "protocol_sha256": "8009543c18c175ca2cbea8f6f46dba0ee57d9067ff518b9be0df8bc4d2150233",
+    "protocol_sha256": "1e7879372a615c557124fff63f5bfb9d9b3267be289e200ba085ad131efae9f9",
     "strategy_definition_sha256": "8cde83eb9fde24b569b61426feec7459a1b9bfcbc4a7985e6ac74c1b5a1929bd",
     "protocol": {
       "schema": "gross-swing-research-v2",
@@ -237,7 +237,7 @@
         },
         "calibrator": "IsotonicRegression_out_of_bounds_clip"
       },
-      "frozen_at": "2026-10-27T21:16:48.907531+08:00",
+      "frozen_at": "2026-10-27T23:07:49.258776+08:00",
       "historical_development_cutoff": "2026-10-27"
     },
     "policy": {
@@ -2457,22 +2457,22 @@
     "summary.json": {
       "name": "summary.json",
       "bytes": 68470,
-      "sha256": "a1f721bcc448718a42bc5c5364cb80be7c2adce87a3f9a9aafe4c916b52aa8f8"
+      "sha256": "5c5f131a2fa914c887a42173db99a35ec761ee93cb69a12447638d40caaca0c1"
     },
     "protocol.json": {
       "name": "protocol.json",
       "bytes": 5815,
-      "sha256": "8009543c18c175ca2cbea8f6f46dba0ee57d9067ff518b9be0df8bc4d2150233"
+      "sha256": "1e7879372a615c557124fff63f5bfb9d9b3267be289e200ba085ad131efae9f9"
     },
     "predictions.json": {
       "name": "predictions.json",
       "bytes": 510357,
-      "sha256": "c14952cf8aa6891cae8c8e8ad59537053f9820f975987eb3ffb8491ba3ae9e09"
+      "sha256": "6271153bca116da7cf80e85cdbebf520a8f904a8b26a7a7e47cf6b8813217cce"
     },
     "model.joblib": {
       "name": "model.joblib",
-      "bytes": 408999,
-      "sha256": "96e0a494292749b8a3d8d0d040b0cb79abc512967fe440e8601b8995f0a00d21"
+      "bytes": 409005,
+      "sha256": "1f5054ae6727c4f78958c354af89664bcbff5acb875af53fc77ad7680b81eeac"
     },
     "diagnostic_trades.csv.gz": {
       "name": "diagnostic_trades.csv.gz",
@@ -2487,19 +2487,19 @@
     "report.html": {
       "name": "report.html",
       "bytes": 50112,
-      "sha256": "d98986b4a81e74067c7f8f6ae24f9c4971f0e50b9825a8e2e41c8061854e3017"
+      "sha256": "55f6f631f3c4420ffed0178d4ef5ec4462a1bfa688a09b6e5062e0e391ea64fa"
     },
     "source_manifest.json": {
       "name": "source_manifest.json",
       "bytes": 1654,
-      "sha256": "ff3c7f9fec54e7032429781347e0210b57037b7563332878cf489a6013a78cc0"
+      "sha256": "f5b6e4b36d3c984305964d7cfe7ce55bc7e3c53f1d83a5e11449ce3755e222b8"
     }
   },
-  "parent_pointer_blob_sha": "3cb774e383901e3fe9fd23b6af74a2faf7f5c885",
-  "data_pointer_blob_sha": "d8de387a8847fab4a78972bd76ec737ef1c3d360",
+  "parent_pointer_blob_sha": "da44ba30e88bb5b3bbeb495ca1e5b51b2e6b311d",
+  "data_pointer_blob_sha": "1f4650c0d0d0ec7a7782d574fc0095680f9c0ff4",
   "strategy_definition_sha256": "8cde83eb9fde24b569b61426feec7459a1b9bfcbc4a7985e6ac74c1b5a1929bd",
   "forward_evidence_scope": "frozen_research_predictions_only_not_broker_execution",
-  "protocol_sha256": "8009543c18c175ca2cbea8f6f46dba0ee57d9067ff518b9be0df8bc4d2150233",
-  "assets_readback_verified_at": "2026-10-27T21:16:56.257196+08:00",
+  "protocol_sha256": "1e7879372a615c557124fff63f5bfb9d9b3267be289e200ba085ad131efae9f9",
+  "assets_readback_verified_at": "2026-10-27T23:07:57.847630+08:00",
   "forward_eligible": true
 }
