@@ -1,5 +1,7 @@
 """Report boundaries: future/stale evidence cannot become next-session advice."""
 import datetime as dt
+import copy
+import hashlib
 from contextlib import closing
 import json
 from pathlib import Path
@@ -44,6 +46,111 @@ def opening():
 
 
 class RenderingBoundaries(unittest.TestCase):
+    def test_v1_v2_mail_bytes_remain_unchanged_in_all_three_stages(self):
+        from test_active_trade_report import study
+        expected = {
+            'evening': ('dbe1a3895c534f4224dbdcdef6ff684205c162b83e64f210fbc6e509b9bd74f4',
+                        '451700be6906400d3d3b1a82bcdf16053779f2af872e46b183bb284cf93d8c5b'),
+            'morning': ('22d96b9f451d3fc37ab13c0fe364e0149f51160dba7a0a164f5601c026679fbe',
+                        'ac7f948c636a6ba7e6341b0989e63d81fb55ddd7b5b79053b4c3ed07c03d2fd8'),
+            'auction': ('9238d47b7191d2f2c9d952f0430df8138c94e0057895164ad7209aca903013eb',
+                        'e58814db326309090a7764b1e52c0565cb01d7098cad33963fef0f6a8cf49354'),
+        }
+        for version in (1, 2):
+            for stage, (text_hash, html_hash) in expected.items():
+                with self.subTest(version=version, stage=stage):
+                    payload = report_payload(stage)
+                    active = study()
+                    active['generated_at'] = '2026-10-18T17:59:59+08:00'
+                    if version == 2:
+                        active['selection_rule_version'] = 2
+                    payload['research']['active_trade_system'] = active
+                    self.assertEqual(hashlib.sha256(mail_layout.render_text(payload).encode()).hexdigest(), text_hash)
+                    self.assertEqual(hashlib.sha256(mail_layout.render_html(payload).encode()).hexdigest(), html_hash)
+
+    @staticmethod
+    def v3_payload(stage='evening', revision=2):
+        from test_active_trade_report import study
+        value = report_payload(stage)
+        active = study()
+        active.update(selection_rule_version=3, generated_at='2026-10-18T17:59:59+08:00',
+            information_cutoff='2026-10-18T17:50:00+08:00',
+            market_context={'route': 'trend_continuation', 'state': 'trend'})
+        if revision is not None:
+            active['presentation_revision'] = revision
+        trend = active['plans'][0]
+        trend.update(holding_policy_version=3, setup_route='trend_continuation',
+            target_trade_date='2026-10-19', D2_trade_date='2026-10-20',
+            planned_exit_trade_date='2026-10-21', max_hold_after_entry_sessions=2)
+        rebound = copy.deepcopy(trend)
+        rebound.update(active_plan_id='active-plan-002', symbol='600001.SH', name='修复样例',
+            holding_policy_version=3, setup_route='weak_to_strong_rebound',
+            planned_exit_trade_date='2026-10-20', max_hold_after_entry_sessions=1,
+            frozen_quantity_shares=100, frozen_reserved_cash_cny=1000,
+            frozen_reserved_risk_cny=40)
+        active['plans'] = [trend, rebound]
+        active['coverage']['decision_funnel'] = {
+            'regime_context_passed': 300, 'sector_and_leadership_passed': 200,
+            'price_action_structure_passed': 111, 'entry_envelope_passed': 10,
+            'all_selection_conditions_passed': 4, 'cash_and_lot_allocated': 2}
+        active['v3_validation_stats'] = {'routes': {route: {
+            'n_records': 0, 'n_closed': 0, 'n_unknown': 0, 'n_pending': 0,
+            'reference_gross_profit_rate': None} for route in
+            ('trend_continuation', 'weak_to_strong_rebound')}}
+        active['reference_account'].update(reference_closed=8, reference_profit_rate=.75)
+        value['research']['active_trade_system'] = active
+        return value
+
+    def test_v3_email_reuses_authority_and_shows_both_frozen_horizons_and_statistics(self):
+        from active_trade_report import render
+        for stage in ('evening', 'morning', 'auction'):
+            with self.subTest(stage=stage):
+                value = self.v3_payload(stage)
+                authority = render(value['research']['active_trade_system'])
+                rendered = mail_layout.render_html(value)
+                text = mail_layout.render_text(value)
+                self.assertIn(authority, rendered)
+                for output in (text, rendered):
+                    for required in ('顺势延续／弱转强·1—2日', '2026-10-20', '2026-10-21',
+                                     '最多买后第2交易日退出', '反弹：买后第1交易日退出',
+                                     '单票风险及现金上限减半', 'v3独立验证', '旧规则交易不混入',
+                                     '为何买或不买', '价格与风险区间通过',
+                                     '计划信息截止：2026-10-18T17:50:00+08:00',
+                                     '旧冻结计划和旧持仓退出期限保持原值', '真实成交胜率'):
+                        self.assertIn(required, output)
+                    self.assertNotIn('D2按结构止损／3%目标触发退出，最迟固定14:50', output)
+                    self.assertNotIn('开盘前30分钟高位', output)
+                self.assertNotIn('.active-trade{', text)
+                self.assertNotIn('<style>', text)
+
+    def test_unrevised_v3_mail_corrects_wording_without_changing_archived_html(self):
+        from active_trade_report import render
+        value = self.v3_payload(revision=None)
+        raw = value['research']['active_trade_system']
+        self.assertIn('开盘前30分钟高位', render(raw))
+        for output in (mail_layout.render_text(value), mail_layout.render_html(value)):
+            self.assertIn('开盘后首30根已完成分钟高位', output)
+            self.assertNotIn('开盘前30分钟高位', output)
+        self.assertIn('开盘前30分钟高位', render(raw))
+
+    def test_v3_mail_keeps_preview_and_unknown_boundaries_and_escapes_names(self):
+        value = self.v3_payload()
+        active = value['research']['active_trade_system']
+        active.update(selection_upgrade_pending_for_frozen_target=True,
+                      current_plan_preserved_from_first_publication=True)
+        active['plans'][0]['name'] = '<img src=x onerror=alert(1)>'
+        text, rendered = mail_layout.render_text(value), mail_layout.render_html(value)
+        self.assertIn('新规则只作不可执行预览', text)
+        self.assertIn('旧计划和旧退出日不改', rendered)
+        self.assertIn('&lt;img', rendered)
+        self.assertNotIn('<img src=x', rendered)
+        # Source no longer current: neither route nor its dated stock plan leaks.
+        active['generated_at'] = '2026-10-18T18:00:01+08:00'
+        stale = mail_layout.render_text(value)
+        self.assertIn('等待有效新数据', stale)
+        self.assertNotIn('修复样例', stale)
+        self.assertNotIn('2026-10-21', stale)
+
     def test_evening_reports_relative_sector_forecast_and_forward_limit(self):
         value=report_payload(); value['research']['sector_outlook']=sector()
         content=mail_layout.content(value)

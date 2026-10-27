@@ -265,7 +265,7 @@ def build(db, base, target, cutoff, sector_outlook, opening_plan, fund_flow=None
         'broker_connected': False, 'live_feed_connected': False, 'score_is_probability': False,
         'base_trade_date': base, 'target_trade_date': target, 'D2_trade_date': frozen['D2_trade_date'],
         'generated_at': frozen['generated_at'], 'information_cutoff': frozen['information_cutoff'],
-        'selection_rule_version': 3, 'maximum_selected_names': 2,
+        'selection_rule_version': 3, 'presentation_revision': 2, 'maximum_selected_names': 2,
         'plan_policy_id': PROTOCOL_SHA256, 'new_policy_applies_to_new_frozen_dates_only': True,
         'input_database_sha256': input_sha256, 'protocol': protocol,
         'policy_id': policy_id, 'protocol_sha256': policy_id,

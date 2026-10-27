@@ -2,9 +2,10 @@
 import html
 import math
 import datetime as dt
+from html.parser import HTMLParser
 from urllib.parse import quote
 
-VERSION = 'research-email-v7-active-manual-tplus1'
+VERSION = 'research-email-v8-versioned-active-holding'
 STAGES = {'evening':('晚报','18:00 盘后'), 'morning':('晨报','09:00 盘前'), 'auction':('09:25观察','竞价时段')}
 REPO_URL = 'https://github.com/cluuacc-gif/ashare-research'
 
@@ -154,6 +155,39 @@ def _confluence_section(selection):
         '资金板块中个股同日净额负值或未知仅作储备观察；无满足条件板块时保留空名单。'}
 
 
+class _ActivePlainText(HTMLParser):
+    """Text-only rendering of the authoritative active section, without CSS."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.parts, self.hidden = [], 0
+
+    def handle_starttag(self, tag, attrs):
+        if tag in ('style', 'script'):
+            self.hidden += 1
+        elif not self.hidden:
+            if tag == 'br':
+                self.parts.append('\n')
+            elif tag == 'small':
+                self.parts.append('；')
+
+    def handle_endtag(self, tag):
+        if tag in ('style', 'script'):
+            self.hidden = max(0, self.hidden - 1)
+        elif not self.hidden:
+            if tag in ('th', 'td'):
+                self.parts.append(' | ')
+            elif tag in ('p', 'div', 'h2', 'h3', 'tr', 'table', 'section', 'summary', 'details'):
+                self.parts.append('\n')
+
+    def handle_data(self, data):
+        if not self.hidden:
+            self.parts.append(data)
+
+    def text(self):
+        return '\n'.join(line for raw in ''.join(self.parts).splitlines()
+                         if (line := ' '.join(raw.split()).strip(' |；')))
+
+
 def _active_sections(payload, research, base, target):
     """Lead both email formats with the independent rule system and its book."""
     from active_trade_report import compact, POLICY_NAME, VERSION as ACTIVE_VERSION
@@ -169,6 +203,19 @@ def _active_sections(payload, research, base, target):
     if not current:
         active=compact({'schema':ACTIVE_VERSION,'status':'waiting_for_valid_source',
             'base_trade_date':base,'target_trade_date':target,'plans':[]})
+    if active.get('selection_rule_version') == 3:
+        from active_trade_report import render
+        # One authority for route, risk, dates, funnel and versioned statistics.
+        # Only the email corrects the old v3 wording: archived HTML is immutable.
+        authoritative = render(active).replace('开盘前30分钟高位', '开盘后首30根已完成分钟高位')
+        plain = _ActivePlainText()
+        plain.feed(authoritative)
+        plain.close()
+        return [{'title': '我的交易系统｜' + active['policy_name'],
+            'columns': [], 'rows': [],
+            'authoritative_html': authoritative, 'authoritative_text': plain.text(),
+            'note': '计划信息截止：' + str(active.get('information_cutoff') or '未知')
+                + '；旧冻结计划和旧持仓退出期限保持原值，不因本次升级延长。'}]
     state={'conditional_plans_ready':'条件计划已生成；D1 14:40盘中确认待人工核对',
            'cash_no_qualifying_setup':'当天空仓；没有满足全部条件的新计划',
            'waiting_for_valid_source':'等待有效新数据；系统持续运行'}[active['status']]
@@ -357,6 +404,9 @@ def render_text(payload):
     lines += [key+'：'+value for key,value in c['stats']]
     lines += ['']+[value for value in c['warnings']]+['']
     for section in c['sections']:
+        if 'authoritative_text' in section:
+            lines += [section['authoritative_text'], section['note'], '']
+            continue
         lines += [section['title'],'']
         if section['rows']:
             lines += [' | '.join(section['columns'])]+[' | '.join(row) for row in section['rows']]
@@ -394,6 +444,12 @@ def render_html(payload):
         chunks.append('</div>')
     chunks.append('</td></tr>')
     for section in c['sections']:
+        if 'authoritative_html' in section:
+            chunks += ['<tr><td class="pad" style="padding:0 16px">',
+                section['authoritative_html'],
+                f'<p style="margin:0 12px 16px;font-size:11px;color:#6c7c90;line-height:1.8">{esc(section["note"])}</p>',
+                '</td></tr>']
+            continue
         chunks += ['<tr><td class="pad" style="padding:16px 28px">',
             f'<h2 style="margin:0 0 12px;font-size:18px;color:#102b46">{esc(section["title"])}</h2>']
         if section['rows']:
