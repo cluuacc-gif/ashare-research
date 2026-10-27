@@ -34,7 +34,7 @@ def main():
             source = json.loads((directory / 'source_manifest.json').read_text(encoding='utf-8'))
             if value['active_trade_system']['protocol_sha256'] != case['protocol_sha256']:
                 raise ValueError('archived policy identity changed')
-            market_outlook.validate(value, source)
+            market_outlook.validate(value, source, allow_legacy_active=True)
             if render(value) != (directory / 'report.html').read_text(encoding='utf-8'):
                 raise ValueError('legacy HTML no longer reproduces exactly')
             verified.append({'release_tag': tag, 'policy': case['protocol_sha256'],
