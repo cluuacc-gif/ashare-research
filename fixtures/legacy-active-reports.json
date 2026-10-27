@@ -1,0 +1,47 @@
+{
+  "repository": "cluuacc-gif/ashare-research",
+  "cases": [
+    {
+      "release_tag": "market-outlook-2026-10-23-40089426284-1",
+      "protocol_sha256": "91133438c2ccfa0ac4e7d35cd71db2b3a44fc96bd7931ef5d0c2375cc1ea5f68",
+      "files": {
+        "outlook.json": {
+          "name": "outlook.json",
+          "bytes": 3316326,
+          "sha256": "9bf5dc0a52630e7f441f54fcf42b84a8c1375eece92e45c2219f70f45b0b0309"
+        },
+        "report.html": {
+          "name": "report.html",
+          "bytes": 53396,
+          "sha256": "ad05b9626769c441feeb28bffb7b701f56b2e57eb95eb2407a33c62f0a905f03"
+        },
+        "source_manifest.json": {
+          "name": "source_manifest.json",
+          "bytes": 1654,
+          "sha256": "339bf51ad02d06b8f62b6180393cbd2d130c04089a622dc4f121cb9554c54f50"
+        }
+      }
+    },
+    {
+      "release_tag": "market-outlook-2026-10-26-40351218604-1",
+      "protocol_sha256": "0193d67387c95cda520fe038811be682380dbfea960b89409149de0ceca62846",
+      "files": {
+        "outlook.json": {
+          "name": "outlook.json",
+          "bytes": 3464827,
+          "sha256": "a7a57e5674972f5435eba10d1d3f8ed5ea44c38c43079eda09c27f3f3f01b98a"
+        },
+        "report.html": {
+          "name": "report.html",
+          "bytes": 52904,
+          "sha256": "20e114888edc4751862b27fb5abd13784de429f5cc9d92f3fee4cf8449e57529"
+        },
+        "source_manifest.json": {
+          "name": "source_manifest.json",
+          "bytes": 1654,
+          "sha256": "764df6f6fe67d6f22c94a02df827e1e51025a683c683c4af34084ab315f36455"
+        }
+      }
+    }
+  ]
+}

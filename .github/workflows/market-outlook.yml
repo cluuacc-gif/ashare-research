@@ -65,6 +65,11 @@ on:
       - test_outlook_admission.py
       - active_trade_system.py
       - active_price_action.py
+      - active_regime.py
+      - active_holding.py
+      - test_regime_holding.py
+      - verify_published_compatibility.py
+      - fixtures/legacy-active-reports.json
       - security_selection.py
       - current_selection_scope.py
       - test_selection_upgrade.py
@@ -116,6 +121,12 @@ jobs:
           test_active_trade_system.py test_active_trade_book.py
           test_active_trade_report.py test_active_trade_integration.py test_selection_upgrade.py
           test_current_selection_scope.py
+          test_regime_holding.py
+      - name: Reproduce pinned v1 and v2 publications without changing historical records
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TZ: Asia/Shanghai
+        run: python verify_published_compatibility.py
   freeze:
     needs: verify
     if: >-

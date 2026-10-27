@@ -114,8 +114,8 @@ def validate(value, source, *, allow_legacy_active=False):
         raise ValueError('unvalidated execution win rate')
     if value.get('active_trade_system'):
         study=value['active_trade_system'];known=dt.datetime.fromisoformat(study['generated_at'])
-        from active_trade_system import SCHEMA, PROTOCOL_SHA256, LEGACY_PROTOCOL_SHA256
-        accepted = {PROTOCOL_SHA256, LEGACY_PROTOCOL_SHA256} if allow_legacy_active else {PROTOCOL_SHA256}
+        from active_trade_system import SCHEMA, PROTOCOL_SHA256, KNOWN_PROTOCOL_SHA256S
+        accepted = set(KNOWN_PROTOCOL_SHA256S) if allow_legacy_active else {PROTOCOL_SHA256}
         if (study.get('schema')!=SCHEMA or study.get('protocol_sha256') not in accepted
                 or study.get('base_trade_date')!=source['base_trade_date']
                 or study.get('target_trade_date')!=source['next_trade_date']
@@ -130,6 +130,17 @@ def validate(value, source, *, allow_legacy_active=False):
                 or study.get('execution_win_rate_80_validated') is not False
                 or known.tzinfo is None or known>cutoff):
             raise ValueError('active rule identity, cutoff or execution claims invalid')
+        from active_trade_system import compatible_policy_migration
+        plan_policy=study.get('plan_policy_id') or study['protocol_sha256']
+        if (plan_policy not in KNOWN_PROTOCOL_SHA256S or
+                plan_policy != study['protocol_sha256'] and not compatible_policy_migration(plan_policy,study['protocol_sha256'])):
+            raise ValueError('active frozen plan policy identity invalid')
+        if plan_policy == PROTOCOL_SHA256:
+            from active_regime import schedule
+            for plan in study.get('plans',[]):
+                schedule(plan)
+                if plan.get('base_trade_date')!=source['base_trade_date'] or plan.get('target_trade_date')!=source['next_trade_date']:
+                    raise ValueError('active holding plan belongs to a different snapshot session')
     if value.get('nextday_research'):
         study=value['nextday_research'];known=dt.datetime.fromisoformat(study['generated_at'])
         from nextday_forward import SCHEMA, PROTOCOL_SHA256
@@ -259,7 +270,8 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
     active=active_build(database,source['base_trade_date'],source['next_trade_date'],cutoff,
         outlook,plan,flow,input_sha256=source['database']['sha256'],
         available_cash=book['account']['available_cash_cny'],
-        occupied_symbols=book['occupied_symbols'],occupied_sectors=book['occupied_sectors'])
+        occupied_symbols=book['occupied_symbols'],occupied_sectors=book['occupied_sectors'],
+        occupied_routes=book.get('occupied_routes',()))
     # A verified first publication owns the day's allocation. A rerun cannot
     # replace its prices, quantities, or empty decision with a different list.
     frozen=_preserve_first_published_active_decision(active,book,source['next_trade_date'])
@@ -272,6 +284,8 @@ def generate(store, cutoff=None, fund_flow_dir=None, price_action_dir=None, prob
             provisional=[evaluate_active(item,{},db,cutoff) for item in active['plans']]
         active['reference_account']=active_account(book['records']+provisional)
         active['reference_account']['current_plan_reservation_is_conditional']=True
+    from active_trade_book import v3_validation_stats
+    active['v3_validation_stats']=v3_validation_stats(book['records']+([] if frozen is not None else provisional))
     plan.pop('candidate_pool',None)
     # The new primary list requires known sector membership and confluence.
     plan['independent_technical_watchlist']=plan['watchlist']
@@ -406,7 +420,7 @@ def prepare_nextday_minutes(repo, source, directory):
     if publication and active.get('system_enabled') is True:
         active_cohorts.append({'plans':active.get('plans',[])})
     active_symbols={plan['symbol'] for item in active_cohorts for plan in item.get('plans',[])
-        if source['base_trade_date'] in (plan.get('target_trade_date'),plan.get('D2_trade_date'))}
+        if source['base_trade_date'] in (plan.get('target_trade_date'),plan.get('D2_trade_date'),plan.get('planned_exit_trade_date'))}
     symbols=sorted(set(symbols)|active_symbols)
     from nextday_minutes import capture
     evidence=capture(symbols,directory)
