@@ -26,6 +26,43 @@ def fixture():
 
 
 class PublicationTests(unittest.TestCase):
+    def test_legacy_holding_wording_keeps_exact_rendered_bytes(self):
+        from test_active_trade_report import study
+        expected = {None: 'f898f92397bdb210571f8a4d1ccf0275f20ba9c2f89f095d5c320513bc2e3dc7',
+                    1: 'c7a629947febb2ae5181d1b52be5567650db28dbb0389b87ba4395e2fdfa7ba6',
+                    2: 'c01b4144cd8c60fbec2973edfdfb7876842a74045a1c55f2e1f3a9db1760ac5d'}
+        for version, digest in expected.items():
+            with self.subTest(version=version):
+                value, _ = fixture()
+                if version is not None:
+                    value['active_trade_system'] = study()
+                    value['active_trade_system']['selection_rule_version'] = version
+                self.assertEqual(hashlib.sha256(render(value).encode()).hexdigest(), digest)
+
+    def test_v3_overview_keeps_route_deadlines_and_labels_old_research(self):
+        from test_active_trade_report import study
+        for route, sessions, deadline in (('trend_continuation', 2, '2026-10-21'),
+                                         ('weak_to_strong_rebound', 1, '2026-10-20')):
+            with self.subTest(route=route):
+                value, _ = fixture()
+                active = value['active_trade_system'] = study()
+                active.update(selection_rule_version=3, presentation_revision=2,
+                    market_context={'route': route})
+                active['plans'][0].update(holding_policy_version=3, setup_route=route,
+                    max_hold_after_entry_sessions=sessions, D2_trade_date='2026-10-20',
+                    planned_exit_trade_date=deadline)
+                body = render(value)
+                self.assertIn('���1��2�������հ�����·���˳�', body)
+                self.assertIn('���������ȷ����������1�������˳�', body)
+                self.assertIn('���������������2�������˳�', body)
+                self.assertIn('��T+1�о��ھ���ֻ������ʷ����', body)
+                self.assertIn('��T+1�о�Ŀ�꣺', body)
+                self.assertIn(deadline, body)
+                self.assertNotIn('T+1��Ŀ�꣺', body)
+                self.assertNotIn('Ŀ��������ߵ�1�����롢��2������', body)
+                self.assertNotIn('����������˳����о�˳��', body)
+                self.assertEqual(render(m.compact_pointer({'outlook': value})['outlook']), body)
+
     def test_weekend_prediction_targets_next_verified_session(self):
         value,source=fixture()
         self.assertIs(m.validate(value,source),value)
@@ -128,8 +165,8 @@ class PublicationTests(unittest.TestCase):
         body=render(value)
         self.assertNotIn('<script>',body)
         self.assertIn('&lt;script&gt;sector',body)
-        self.assertIn('不是上涨概率',body)
-        self.assertIn('独立云主机尚未部署',body)
+        self.assertIn('�������Ǹ���',body)
+        self.assertIn('������������δ����',body)
 
     def tracking_case(self,status='resolved', previous=None):
         value,source=fixture()
@@ -183,7 +220,7 @@ def large_flow():
     value['sectors'] = []
     for board_index in range(128):
         board = copy.deepcopy(template)
-        board.update(code=f'BK{board_index:04d}', name=f'行业{board_index}',
+        board.update(code=f'BK{board_index:04d}', name=f'��ҵ{board_index}',
                      main_net_inflow_yuan=128_000_000-board_index*1_000_000,
                      main_net_ratio_pct=1, main_net_3d_yuan=200_000_000,
                      main_net_5d_yuan=300_000_000, membership_status='complete')
@@ -191,7 +228,7 @@ def large_flow():
         if board_index < 12:
             for index in range(250):
                 board['members'].append({
-                    'symbol': f'{board_index*250+index:06d}.SZ', 'name': f'股票{index}',
+                    'symbol': f'{board_index*250+index:06d}.SZ', 'name': f'��Ʊ{index}',
                     'effective_date': '2026-10-18',
                     'observed_at': '2026-10-18T15:59:00+08:00',
                     'flow_status': 'verified_current_date', 'flow_trade_date': '2026-10-16',
