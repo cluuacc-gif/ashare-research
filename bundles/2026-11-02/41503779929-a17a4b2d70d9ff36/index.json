@@ -1,0 +1,60 @@
+{
+  "schema_version": "1.0",
+  "kind": "verified_public_quote_transport",
+  "base_trade_date": "2026-11-02",
+  "github_run_id": "41503779929",
+  "github_commit": "dfdbb9736bc53c33d8c9a906059f5e1d831a0f6c",
+  "archive_sha256": "a17a4b2d70d9ff36943c84205d2e135c2826a57aaaa7554ed4a968ec04922302",
+  "archive_bytes": 3445448,
+  "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
+  "original_finished_at": "2026-11-03T02:49:50.182200+08:00",
+  "published_at": "2026-11-02T18:50:08.216373+00:00",
+  "raw_replay_verified": true,
+  "securities": 5577,
+  "quotes": 5571,
+  "quote_exchange_counts": {
+    "SH": 2315,
+    "SZ": 2902,
+    "BJ": 354
+  },
+  "data_status": "DATA NOT READY",
+  "model_ready": false,
+  "canonical_database_imported": false,
+  "files": [
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0000.b64",
+      "bytes": 524288,
+      "sha256": "36b2d6ac7bcb04d62a21cee590350e55af2f4fba2ef8c4886b599ab799c4827f"
+    },
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0001.b64",
+      "bytes": 524288,
+      "sha256": "8121cddf2448835932df07ca123681026fd39bb283443369f589a2f6babbbd01"
+    },
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0002.b64",
+      "bytes": 524288,
+      "sha256": "223be551891220bfd1e25fb3d1582989d1726be04a3a6fb57a86207a306aede3"
+    },
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0003.b64",
+      "bytes": 524288,
+      "sha256": "0f961ad9b43e3d2db3561405920886a8d157cb58aa004519ee618a3e0cd57e82"
+    },
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0004.b64",
+      "bytes": 524288,
+      "sha256": "6585c5d38b6d1b3be2a131567fcc3dbddf9cfd690bf4936834072d21573476a8"
+    },
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0005.b64",
+      "bytes": 524288,
+      "sha256": "1f90c70dd5b707aa213ceff2ae351a931437b0178e50f2b0341f1298855062fb"
+    },
+    {
+      "path": "bundles/2026-11-02/41503779929-a17a4b2d70d9ff36/0006.b64",
+      "bytes": 299720,
+      "sha256": "d7f533f47ac158706684827cca773beaa016fd4f25e24ea201e1fbba5afe4c59"
+    }
+  ]
+}
