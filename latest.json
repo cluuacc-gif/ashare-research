@@ -1,14 +1,14 @@
 {
   "schema_version": "1.0",
   "kind": "verified_public_quote_transport",
-  "base_trade_date": "2026-11-17",
-  "github_run_id": "44141128504",
+  "base_trade_date": "2026-11-18",
+  "github_run_id": "44359207096",
   "github_commit": "dfdbb9736bc53c33d8c9a906059f5e1d831a0f6c",
-  "archive_sha256": "2dd170ca9657089486233c48bd28ba18c4ccc6a3143fd74a466f5cad7c58b04d",
-  "archive_bytes": 3432991,
+  "archive_sha256": "50208bf7546efbc2b11162de4ae1cbd0a1a155a9519bd89ab86cd53121848815",
+  "archive_bytes": 3432974,
   "collector_sha256": "afc2d1cac512031fc3a2e5ba5739848b9da612e717d92b6d2cc8c67d8bc3d85f",
-  "original_finished_at": "2026-11-18T01:52:28.653876+08:00",
-  "published_at": "2026-11-17T17:53:18.214368+00:00",
+  "original_finished_at": "2026-11-19T01:32:34.483680+08:00",
+  "published_at": "2026-11-18T17:33:24.563168+00:00",
   "raw_replay_verified": true,
   "securities": 5580,
   "quotes": 5573,
@@ -20,5 +20,5 @@
   "data_status": "DATA NOT READY",
   "model_ready": false,
   "canonical_database_imported": false,
-  "index_path": "bundles/2026-11-17/44141128504-2dd170ca96570894/index.json"
+  "index_path": "bundles/2026-11-18/44359207096-50208bf7546efbc2/index.json"
 }
