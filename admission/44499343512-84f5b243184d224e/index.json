@@ -1,0 +1,72 @@
+{
+  "base_trade_date": "2026-10-28",
+  "generated_at": "2026-11-19T17:58:24.755481+08:00",
+  "github_run_id": "44499343512",
+  "archive_sha256": "84f5b243184d224eb0801fc217350ab3b7b68e4613fe09a545888a309beb9743",
+  "archive_bytes": 5851311,
+  "index_path": "admission/44499343512-84f5b243184d224e/index.json",
+  "raw_replay_verified": false,
+  "formal_data_ready": false,
+  "files": [
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0000.b64",
+      "bytes": 524288,
+      "sha256": "954bb1be1a9d29cddf0683f5741e49eb04e86ffa6475298ed1e2e61f5329dba0"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0001.b64",
+      "bytes": 524288,
+      "sha256": "d725783b49ef8471c20b2bdcd8b64733927d3bfecf466738064ec2cc5ed9f43a"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0002.b64",
+      "bytes": 524288,
+      "sha256": "4fd31ec2b8f4db5eebdceb16c925579b64ef44b074d4ec0755238edbc5f9b6ea"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0003.b64",
+      "bytes": 524288,
+      "sha256": "c65854a6f69930fcfce059cbc8f121f7e6f5bdfbffd1258cb02d03fee01e318c"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0004.b64",
+      "bytes": 524288,
+      "sha256": "f2c2787e0745969641abf2924bd9459339130b341131c43672b52e393e41428b"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0005.b64",
+      "bytes": 524288,
+      "sha256": "e4a60559cab7b2b160f07d4cf70b68d82404368f05ac11e03b44ea2c0fb74413"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0006.b64",
+      "bytes": 524288,
+      "sha256": "41e4e133657c7345e797a3784cefe1b19d93885f19046301f11dfab578535956"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0007.b64",
+      "bytes": 524288,
+      "sha256": "af8974d8f32b23cbd1f94a79f775a7406c77f8c5458297276720b9f45479d405"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0008.b64",
+      "bytes": 524288,
+      "sha256": "3c07b0b2ddbcb9a7285d3a2dc8ed7d84f474ea017d675ddd1a4f67e5b24f50ae"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0009.b64",
+      "bytes": 524288,
+      "sha256": "a49e664a3ae434cbddc6eb07c34522584e692c5f843c767f93852c0fa1a07d8f"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0010.b64",
+      "bytes": 524288,
+      "sha256": "98a9b5223897bff17b0a9fc7a70d55e74d7aca79330241fe63810a76dfd47b08"
+    },
+    {
+      "path": "admission/44499343512-84f5b243184d224e/0011.b64",
+      "bytes": 84143,
+      "sha256": "963bf77f871e9edac895f082eca13a4142f39b2c7a3a31672171cbf04d7af5a1"
+    }
+  ]
+}
