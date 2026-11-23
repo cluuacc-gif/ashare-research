@@ -1,6 +1,6 @@
 {
   "kind": "auto_market_intel_collect",
-  "generated_at": "2026-11-23T18:20:17.016442+08:00",
+  "generated_at": "2026-11-24T06:14:57.802644+08:00",
   "symbols": 5580,
   "quotes_captured": 5580,
   "industries": 49,
@@ -15,11 +15,11 @@
   },
   "counts_after": {
     "status_rows": 105974,
-    "status_today": 5580,
+    "status_today": 0,
     "limit_rows": 483279,
-    "limit_today": 5575,
+    "limit_today": 0,
     "industry_members": 55328,
-    "news_events": 17496,
+    "news_events": 17536,
     "official_status_verified": 0,
     "official_limit_verified": 0
   },
@@ -29,8 +29,8 @@
   "working_database": {
     "application_id": 1095977041,
     "integrity_check": "ok",
-    "bytes": 2114396160,
-    "sha256": "213e57c06a0e3f8a4b99d12a7a8d5e43811c76cce5872b8be8e0496df1f73791"
+    "bytes": 2114433024,
+    "sha256": "16934efa6abd96fc777281ff66b3b260548a74cfc89336f1ff5918252ac7981c"
   },
   "source_database": {
     "application_id": 1095977041,
